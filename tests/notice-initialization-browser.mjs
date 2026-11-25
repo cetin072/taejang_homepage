@@ -35,7 +35,7 @@ const server = http.createServer(async (req, res) => {
         'assets/staff-information-ui.js', 'assets/app-workspace-surface.js', 'assets/app.js'
       ].map(src => `<script src="${src}"></script>`).join('') + '</body>');
     }
-    res.setHeader('Content-Type', file.endsWith('.css') ? 'text/css' : file.endsWith('.js') ? 'application/javascript' : 'text/html; charset=utf-8');
+    res.setHeader('Content-Type', file.endsWith('.css') ? 'text/css' : (/\.m?js$/).test(file) ? 'application/javascript' : 'text/html; charset=utf-8');
     res.end(body);
   } catch (error) { res.statusCode = 500; res.end(error.message); }
 });
@@ -87,7 +87,7 @@ async function boot(width, role, task, simulation = false) {
     }
     errors.push('Unexpected RPC ' + name); return send({ message: 'Unexpected RPC ' + name }, 500);
   });
-  await page.goto(origin + '/app/index.html');
+  await page.goto(origin + '/app/index.html', { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => window.TaejangNoticeAdmin && window.TaejangApp?.hasCapabilityContract?.());
   await page.evaluate(() => document.dispatchEvent(new CustomEvent('taejang-open-app-panel', { detail: { id: 'notice-admin-panel' } })));
   return { context, page, calls, errors, control };

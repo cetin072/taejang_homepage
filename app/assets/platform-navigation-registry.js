@@ -6,6 +6,9 @@
     { key:'promotion', label:'홍보' },
     { key:'homepage', label:'홈페이지' },
     { key:'operations', label:'업무 운영' },
+    { key:'sales', label:'영업·매출' },
+    { key:'services', label:'용역 관리' },
+    { key:'logistics', label:'물류' },
     { key:'payroll', label:'근태·급여' },
     { key:'support', label:'지원사업' },
     { key:'official_channels', label:'공식 채널' }
@@ -27,12 +30,14 @@
     { key:'homepage.direct', label:'홈페이지 직접 수정', section:'홈페이지', capabilities:['homepage.direct_edit'] },
 
     { key:'notice.manage', label:'공지 관리', section:'업무 운영', capabilities:['notice.manage'] },
-    { key:'monthly_client_documents.manage', label:'거래처 문서 관리', section:'업무 운영', capabilities:['monthly_client_documents.manage'], visibleRoles:['operations_manager'] },
+    { key:'logistics.manage', label:'물류 관리', section:'물류', capabilities:[], visibleRoles:['department_lead','promotion_lead','operations_manager','ceo'] },
+    { key:'erp_sales.manage', label:'기준정보·매출 관리', section:'영업·매출', capabilities:['erp_sales.read'], visibleRoles:['operations_manager'] },
+    { key:'erp_sales.contracts', label:'계약·월 매출', section:'용역 관리', capabilities:['erp_sales.read'], visibleRoles:['operations_manager'] },
+    { key:'monthly_client_documents.manage', label:'용역 서류', section:'용역 관리', capabilities:['monthly_client_documents.manage'], visibleRoles:['operations_manager'] },
+    { key:'leave.manage', label:'연차 관리', section:'근태·급여', capabilities:['leave.manage'], visibleRoles:['operations_manager','promotion_lead'] },
     { key:'attendance.view', label:'출근부', section:'근태·급여', capabilities:['attendance.admin_view'] },
     { key:'attendance.correct', label:'근태 보정', section:'근태·급여', capabilities:['attendance.correct'] },
     { key:'payroll.manage', label:'근태·급여관리', section:'근태·급여', capabilities:['payroll.manage'], visibleRoles:['operations_manager'] },
-    { key:'payroll.handoff.review', label:'외부 급여초안 상신', section:'근태·급여', capabilities:['payroll.handoff.review'], visibleRoles:[] },
-    { key:'payroll.handoff.approve', label:'외부 급여초안 검토', section:'근태·급여', capabilities:['payroll.handoff.approve'], visibleRoles:['operations_manager'] },
 
     { key:'support.profile', label:'기업 프로필', section:'지원사업', capabilities:['support_radar.management_view','support_radar.management_edit'] },
     { key:'support.radar', label:'지원사업 레이더', section:'지원사업', capabilities:['support_radar.management_view'] },

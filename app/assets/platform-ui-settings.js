@@ -695,6 +695,9 @@
       const header=document.createElement('header'); header.className='dashboard-intro';
       header.append(text('p','운영총괄 설정','eyebrow'),text('h2','플랫폼 설정'),text('p','직책별로 보일 메뉴를 정하고 내 화면 배치를 조정합니다. 메뉴 표시 설정은 기능 권한을 추가하지 않습니다.'));
       shell.append(header);
+      if (window.TaejangMenuAuthority?.isManager()) {
+        shell.append(await window.TaejangMenuAuthority.administrationPanel());
+      }
 
       const personal=document.createElement('section'); personal.className='platform-settings-card app-authoring';
       personal.append(
@@ -739,6 +742,17 @@
       }
 
       shell.append(personal);
+
+      if(app()?.getConfig?.()?.googleIdentityEnabled) {
+        const account=document.createElement('section');
+        account.className='platform-settings-card app-authoring';
+        const google=text('a','Google 계정 연결','button button-quiet');
+        google.href='../staff/google-link.html';
+        google.dataset.googleIdentity='1';
+        account.append(text('h3','내 로그인 계정'),google);
+        shell.append(account);
+      }
+
 
       const roleCard=document.createElement('section'); roleCard.className='platform-settings-card app-authoring';
       roleCard.append(text('h3','직책·역할별 사이드바 메뉴'));
@@ -808,6 +822,10 @@
     try {
       const result=await app().rpc('get_my_navigation_visibility',{p_role_code:role});
       state.hiddenMenuKeys=new Set(cleanArray(result?.hidden_menu_keys));
+      for (const row of window.TaejangMenuAuthority?.getSnapshot()?.decisions || []) {
+        if (row.allowed) state.hiddenMenuKeys.delete(row.menu_key);
+        else state.hiddenMenuKeys.add(row.menu_key);
+      }
     } catch {
       state.hiddenMenuKeys=new Set();
     }
@@ -871,8 +889,9 @@
   }
 
   document.addEventListener('taejang-open-platform-settings',renderSettings);
-  document.addEventListener('taejang-app-ready',()=>queueMicrotask(refresh));
-  document.addEventListener('taejang-capabilities-ready',()=>queueMicrotask(refresh));
+  let shellReady = false;
+  document.addEventListener('taejang-app-ready', () => { shellReady = true; queueMicrotask(refresh); });
+  document.addEventListener('taejang-capabilities-ready', () => { if (shellReady) queueMicrotask(refresh); });
   document.addEventListener('taejang-dashboard-refresh',()=>setTimeout(()=>{applyDashboardOrder();injectDashboardEditor();},80));
 
   window.TaejangPlatformUiSettings={

@@ -393,3 +393,8 @@
     transition: none !important;
   }
 }
+
+/* Stable space for feed progress/error/update without moving the record list. */
+.archive-feed-notice { min-height: 56px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; margin-bottom: 16px; font-size: 13px; }
+.archive-feed-notice .btn { justify-self: start; }
+@media (max-width: 620px) { .archive-feed-notice { grid-template-columns: 1fr; grid-template-rows: 44px 48px; gap: 8px; } }

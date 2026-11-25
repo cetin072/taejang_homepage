@@ -1,4 +1,5 @@
 # tests/operations-public-text-edit-auth.mjs runs through phase1a-auth-integration.mjs.
+# tests/promotion-editorial-auth.mjs runs through phase1a-auth-integration.mjs.
 name: Phase 1A Supabase Integration
 
 on:
@@ -29,67 +30,123 @@ jobs:
 
       - name: Decide whether full platform integration is relevant
         id: scope
-        shell: bash
-        run: |
-          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
-            echo "run_full=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}")"
-          printf '%s\n' "$changed_files"
-
-          # Fail safe: run the full integration suite for every change except
-          # documentation-only pull requests. New code/config paths therefore
-          # cannot silently fall outside a hand-maintained allow-list.
-          non_docs="$(printf '%s\n' "$changed_files" | grep -Ev '^(docs/|[^/]+\.md$)' || true)"
-          if [[ -n "$changed_files" && -z "$non_docs" ]]; then
-            echo "run_full=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "run_full=true" >> "$GITHUB_OUTPUT"
-          fi
+        run: node scripts/ci-change-scope.mjs
 
       - name: Report lightweight pass for unrelated changes
-        if: steps.scope.outputs.run_full != 'true'
-        run: echo "Documentation-only change; required check is satisfied without starting Supabase."
-
-      - name: Set up Supabase CLI
-        if: steps.scope.outputs.run_full == 'true'
-        uses: supabase/setup-cli@v1
-        with:
-          version: 2.109.1
+        if: steps.scope.outputs.platform != 'true'
+        run: echo "No platform changes; isolated platform integration is not applicable."
 
       - name: Run active static platform checks
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.platform == 'true'
         run: node scripts/run-test-group.mjs platformStatic
 
+      - name: Check native notice reader against the changed notice contract
+        if: steps.scope.outputs.reader_contract == 'true'
+        run: |
+          npm ci --prefix mobile --no-audit --no-fund
+          node --test tests/mobile-notice*.test.mjs
+
       - name: Run active staging safety checks
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.db == 'true'
         run: node scripts/run-test-group.mjs stagingSafety
 
       - name: Install existing browser dependency for real isolated workflow QA
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.db == 'true'
         run: npm ci
 
+      - name: Install Korean font for staff form QA
+        if: steps.scope.outputs.db == 'true'
+        timeout-minutes: 5
+        run: |
+          if [ -z "$(fc-list :lang=ko family)" ]; then
+            # Official Google Fonts source, SIL OFL 1.1. Avoid unrelated APT index downloads.
+            mkdir -p "$HOME/.local/share/fonts"
+            curl --fail --location --retry 2 --max-time 90 'https://raw.githubusercontent.com/google/fonts/main/ofl/notosanskr/NotoSansKR%5Bwght%5D.ttf' -o "$HOME/.local/share/fonts/NotoSansKR.ttf"
+            fc-cache -f
+          fi
+          test -n "$(fc-list :lang=ko family)"
+
+      - name: Test ERP persisted workflows and PC mobile UI in isolated PostgreSQL
+        if: steps.scope.outputs.sales == 'true'
+        run: |
+          ERP_TEST_PRODUCT_AUTOMATION=1 node tests/erp-sales-isolated.mjs
+          ERP_TEST_PRODUCT_AUTOMATION=1 node tests/erp-sales-amount-adjustments.mjs
+          node tests/erp-product-automation-isolated.mjs
+          CHROME_PATH=$(command -v google-chrome) node tests/erp-product-automation-browser.mjs
+          CHROME_PATH=$(command -v google-chrome) node tests/erp-sales-browser.mjs
+          CHROME_PATH=$(command -v google-chrome) node tests/erp-sales-usability.mjs
+          CHROME_PATH=$(command -v google-chrome) node tests/erp-sales-workflow-browser.mjs
+
+      - name: Keep synthetic ERP browser screenshots
+        if: always() && steps.scope.outputs.sales == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: erp-sales-1440-390
+          path: |
+            admin-ui-qa-artifacts/erp-sales/
+            admin-ui-qa-artifacts/erp-workflow/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      # Reuse npm ci's locked CLI instead of downloading a second version.
+      - name: Use repository-locked Supabase CLI
+        if: steps.scope.outputs.db == 'true'
+        run: |
+          cli_expected=$(node -p "require('./package-lock.json').packages['node_modules/supabase'].version")
+          cli_actual=$(./node_modules/.bin/supabase --version)
+          test "$cli_actual" = "$cli_expected"
+          printf '%s\n' "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
+          echo "Supabase CLI $cli_actual (repository lockfile)"
+
       - name: Start isolated local Supabase
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.db == 'true'
         run: supabase start
 
-      - name: Reapply migrations from a clean database
+      - name: Test candidate personal menu authority in isolated PostgreSQL
         if: steps.scope.outputs.run_full == 'true'
+        run: node tests/menu-authority-isolated.mjs
+
+      - name: Test personal menu authority administration with synthetic browser data
+        if: steps.scope.outputs.run_full == 'true'
+        run: CHROME_PATH=$(command -v google-chrome) node tests/menu-authority-browser.mjs
+
+      - name: Reapply migrations from a clean database
+        if: steps.scope.outputs.db == 'true'
         run: supabase db reset
 
       - name: Lint database schema
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.db == 'true'
         run: supabase db lint --level error --fail-on error
 
       - name: Inspect isolated security advisors
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.db == 'true'
         run: supabase db advisors --local --type security --level warn --fail-on error
 
       - name: Run pgTAP security tests
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.db == 'true'
         run: supabase test db supabase/tests/database/*.test.sql
+
+      - name: Verify affected workflows against isolated Auth and PostgREST
+        if: steps.scope.outputs.scope == 'targeted' && steps.scope.outputs.db == 'true'
+        env:
+          CHECK_NOTICE: ${{ steps.scope.outputs.notice }}
+          CHECK_MONTHLY: ${{ steps.scope.outputs.monthly }}
+          CHECK_SALES: ${{ steps.scope.outputs.sales }}
+          CHECK_CALENDAR: ${{ steps.scope.outputs.calendar }}
+          SUPABASE_PROJECT_ID: taejang-homepage-phase1a
+        run: |
+          supabase status -o env > "$RUNNER_TEMP/taejang-supabase.env"
+          set -a
+          source "$RUNNER_TEMP/taejang-supabase.env"
+          set +a
+          if [[ "$CHECK_NOTICE" == true ]]; then
+            node tests/phase1a-auth-integration.mjs
+            node tests/staff-schedules-notices-auth-integration.mjs
+            node tests/notice-review-media-auth-integration.mjs
+          fi
+          if [[ "$CHECK_MONTHLY" == true ]]; then node tests/monthly-client-documents-auth-integration.mjs; fi
+          if [[ "$CHECK_SALES" == true ]]; then node tests/erp-sales-auth-integration.mjs; fi
+          if [[ "$CHECK_CALENDAR" == true ]]; then CHROME_PATH=$(command -v google-chrome) node tests/employee-calendar-auth-integration.mjs; fi
 
       - name: Run real Auth and Data API integration
         if: steps.scope.outputs.run_full == 'true'
@@ -106,6 +163,7 @@ jobs:
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/phase1a-auth-integration.mjs
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/capability-auth-integration.mjs
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/monthly-client-documents-auth-integration.mjs
+          SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/erp-sales-auth-integration.mjs
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/attendance-capability-auth-integration.mjs
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/employee-capability-auth-integration.mjs
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/issue-309-sensitive-identity-auth-integration.mjs
@@ -131,7 +189,34 @@ jobs:
           # Run after first-super-admin bootstrap and all historical ledgers exist.
           git fetch origin 90cf9d6af8490b005d1a8ae0865cdd85c133460c
           node tests/employee-password-reset-auth-integration.mjs
+          SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/employee-leave-auth-integration.mjs
+          SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/google-email-release-auth-integration.mjs
+          SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/worklog-readonly-auth-integration.mjs
+          CHROME_PATH=$(command -v google-chrome) SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/employee-calendar-auth-integration.mjs
+
+      - name: Keep synthetic employee calendar screenshots
+        if: always() && steps.scope.outputs.run_full == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: employee-calendar-320-390-1440
+          path: employee-calendar-qa-artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Test leave administration browser flow
+        if: steps.scope.outputs.run_full == 'true'
+        run: CHROME_PATH=$(command -v google-chrome) node tests/employee-leave-browser.mjs
+
+      - name: Keep synthetic work time PC and mobile screenshots
+        if: always() && steps.scope.outputs.run_full == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: leave-admin-390-1440
+          path: leave-admin-qa-artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Stop local Supabase
-        if: always() && steps.scope.outputs.run_full == 'true'
-        run: supabase stop --no-backup
+        if: always() && steps.scope.outputs.db == 'true'
+        run: |
+          if command -v supabase >/dev/null; then supabase stop --no-backup; fi

@@ -21,7 +21,7 @@ test('Goal 331 keeps one canonical notice-management menu with an in-panel creat
   assert.doesNotMatch(registry, /key:'notice\.create'/);
   assert.match(registry, /key:'notice\.manage', label:'공지 관리', section:'업무 운영', capabilities:\['notice\.manage'\]/);
   assert.match(shell, /label: '공지 관리'[\s\S]*openPanel\('notice-admin-panel', 'manage'\)[\s\S]*notice\.manage/);
-  assert.match(nav, /items: \['공지 관리', '거래처 문서 관리'\]/);
+  assert.match(nav, /label: '업무 운영', items: \['공지 관리'\]/);
   assert.match(shell, /'공지 등록':'notice\.manage'/);
   assert.match(priority, /'공지 등록':'notice\.manage'/);
   assert.match(read('app/index.html'), /id="new-notice-admin"[^>]*>\+ 공지 등록/);
@@ -76,7 +76,8 @@ test('Goal 331 notice preview preserves formatting and uploaded photos flow to t
   assert.match(index, /직원앱 미리보기/);
   assert.doesNotMatch(index, /<option value="notice">중요공지<\/option>/);
   assert.match(mobileApi, /storage\.from\('notice-media'\)\.createSignedUrl/);
-  assert.match(mobileDetail, /notice\.media\.map/);
+  assert.match(mobileDetail, /<NoticeBody notice=/);
+  assert.match(read('mobile/src/features/notices/notice-body.tsx'), /notice\.media\.filter/);
 });
 
 test('Goal 331 dashboard cards open the same authorized navigation targets instead of bypassing server auth', () => {
@@ -85,4 +86,29 @@ test('Goal 331 dashboard cards open the same authorized navigation targets inste
   assert.match(priority, /node\.dataset\?\.roleHidden !== '1'/);
   assert.match(priority, /node\.click\(\)/);
   assert.doesNotMatch(priority, /service_role|SUPABASE_SERVICE/);
+});
+
+// Exercise the actual synchronizer: a DOM mutation after removing a card must
+// not trigger summary RPCs or recreate defaults while the user is editing.
+for (const editing of [true, false]) test(editing
+  ? 'dashboard refresh leaves the in-progress card selection untouched'
+  : 'saved empty dashboard does not recreate hidden defaults or refetch summaries', async () => {
+  const vm = require('node:vm');
+  let calls = 0;
+  const grid = { dataset: { layoutEditing: editing ? '1' : '0' }, isConnected: true, children: [], querySelector: () => null };
+  const target = { dataset: {}, querySelector: selector => selector === '.dashboard-grid' ? grid : { textContent: '대시보드' } };
+  const window = {
+    TaejangApp: { getRoute: () => 'operations_manager', rpc: async () => { calls++; return []; } },
+    TaejangPlatformUiSettings: { isDashboardEditing: () => editing, isDashboardCustomized: () => true, getDashboardOrder: () => [] },
+    TaejangPlatformNavigationRegistry: { items: () => [] }
+  };
+  vm.runInNewContext(priority, {
+    window,
+    document: { readyState: 'loading', getElementById: () => target, addEventListener() {},
+      createElement: () => { throw new Error('automatic card recreated during editing'); } },
+    setTimeout() {}, MutationObserver: class { observe() {} }
+  });
+  await window.TaejangDashboardPriorityCards.sync();
+  assert.equal(calls, 0, 'editing does not start summary fetches');
+  assert.equal(grid.children.length, 0, 'removed cards remain removed');
 });

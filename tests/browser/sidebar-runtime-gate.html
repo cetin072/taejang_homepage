@@ -48,7 +48,7 @@
         'promotion.request_public_change', 'information.review',
         'attendance.admin_view', 'attendance.exception_review', 'attendance.correct', 'audit.target_history.read',
         'homepage.draft', 'homepage.review', 'homepage.approve_apply', 'homepage.direct_edit',
-        'notice.manage', 'monthly_client_documents.manage', 'payroll.manage', 'payroll.handoff.approve',
+        'notice.manage', 'monthly_client_documents.manage', 'erp_sales.read', 'payroll.manage', 'payroll.handoff.approve',
         'support_radar.management_view', 'support_radar.management_edit', 'support_radar.assigned_work',
         'platform.navigation.manage'
       ])
@@ -364,11 +364,11 @@
         '홍보 글 작성', '보낸 글', '홍보 승인 검토', '발행 현황', '공개 홍보글 관리',
         '홈페이지 내용 관리', '홈페이지 직접 수정',
         '공지 관리', '근태·급여관리', '출근부', '근태 보정',
-        '기업 프로필', '지원사업 레이더', '내 지원사업', '외부 급여초안 검토'
+        '기업 프로필', '지원사업 레이더', '내 지원사업'
       ]) {
         assert(current.includes(required), `운영총괄 필수 메뉴 누락: ${required}`);
       }
-      for (const hidden of ['보완 요청받은 글', '홍보 검토', '발행 관리', '외부 급여초안 상신']) {
+      for (const hidden of ['보완 요청받은 글', '홍보 검토', '발행 관리', '외부 급여초안 상신', '외부 급여초안 검토']) {
         assert(!current.includes(hidden), `운영총괄 1차 메뉴에서 숨겨야 할 업무가 노출됨: ${hidden}`);
       }
       assert(current.filter(label => label.startsWith('공지')).join('|') === '공지 관리', '공지 등록/관리가 sidebar에 중복 노출됨');
@@ -376,7 +376,10 @@
       assertNoDuplicateLeafLabels('operations_manager');
       assertOrdered(current, ['직원 관리', '신규 직원 등록', '가입 승인'], '운영총괄 직원·계정');
       assertOrdered(current, ['홍보 승인 검토', '발행 현황', '공개 홍보글 관리'], '운영총괄 홍보');
-      assertOrdered(current, ['공지 관리', '거래처 문서 관리'], '운영총괄 업무 운영');
+      assert(find('공지 관리')?.dataset.navSection === 'operations', '공지 관리가 업무 운영에 속해야 함');
+      assert(find('기준정보·매출 관리')?.dataset.navSection === 'sales', '기준정보·매출 관리가 영업·매출에 속해야 함');
+      assert(find('용역 서류')?.dataset.navSection === 'services', '용역 서류가 용역 관리에 속해야 함');
+      assertOrdered(current, ['공지 관리', '기준정보·매출 관리', '계약·월 매출', '용역 서류'], '운영총괄 업무 운영과 영업·매출');
       assertOrdered(current, ['출근부', '근태 보정', '근태·급여관리'], '운영총괄 근태·급여');
       assert(!document.getElementById('desktop-user-label').textContent.includes('undefined'), '운영총괄 상단 사용자 역할명이 undefined로 표시됨');
     }
@@ -474,11 +477,11 @@
       savedSidebarOrder = { sections: [], menus: ['task.manage','notice.create','notice.manage','monthly_client_documents.manage'] };
       await window.TaejangPlatformUiSettings.refresh();
       await wait(40);
-      assertOrdered(labels(),['공지 관리','거래처 문서 관리'],'legacy task-first preference must not override notice priority');
-      savedSidebarOrder = { sections: [], menus: ['monthly_client_documents.manage','notice.manage'] };
+      assertOrdered(labels(),['공지 관리','용역 서류'],'legacy task-first preference must not override notice priority');
+      savedSidebarOrder = { sections: [], menus: ['monthly_client_documents.manage','erp_sales.contracts','erp_sales.manage','notice.manage'] };
       await window.TaejangPlatformUiSettings.refresh();
       await wait(40);
-      assertOrdered(labels(),['거래처 문서 관리','공지 관리'],'explicit modern custom order remains respected');
+      assertOrdered(labels(),['공지 관리','기준정보·매출 관리','용역 서류','계약·월 매출'],'explicit custom order is respected within the service section');
       savedSidebarOrder = null;
       await window.TaejangPlatformUiSettings.refresh();
       await wait(40);

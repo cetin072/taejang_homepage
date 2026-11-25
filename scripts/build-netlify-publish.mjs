@@ -1,7 +1,9 @@
+import './build-promotion-editor.mjs';
 import { cp, mkdir, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { generatePublicArticles } from './generate-public-articles.mjs';
+import { generatePublicArticles, buildPublicSitemap } from './generate-public-articles.mjs';
 import { localizeOfficialThumbnails } from './localize-official-thumbnails.mjs';
+import { generateArchiveSnapshot } from './generate-archive-snapshot.mjs';
 import { inlinePublicNavigation } from './inline-public-navigation.mjs';
 
 const repoRoot = process.cwd();
@@ -17,17 +19,25 @@ const PUBLIC_ROOT_FILES = Object.freeze([
   'activities.html',
   'archive.html',
   'business.html',
+  'terrarium.html',
+  'minhwa-gallery.html',
   'community-esg.html',
+  'community-esg-records.html',
   'greeting.html',
+  'farm.html',
+  'certifications.html',
+  'history.html',
   'index.html',
   'location.html',
   'partnership.html',
   'privacy.html',
   'employee-app-privacy.html',
   'employee-app.html',
+  'worklog.html',
   'account-deletion.html',
   'promotion.html',
   'resources.html',
+  'new-zealand-salt.html',
   'robots.txt',
   'sitemap.xml',
   'sw.js',
@@ -93,9 +103,12 @@ for (const file of PUBLIC_ROOT_FILES) await copyRequiredFile(file);
 for (const directory of PUBLIC_DIRECTORIES) await copyRequiredDirectory(directory);
 for (const file of REQUIRED_BINARY_FILES) await copyRequiredFile(file);
 
+await buildPublicSitemap({ repoRoot, outputRoot, publicFiles: PUBLIC_ROOT_FILES });
 const generated = await generatePublicArticles({ repoRoot, outputRoot });
 const navigationPages = await inlinePublicNavigation(outputRoot);
 await localizeOfficialThumbnails({ outputRoot });
+const archive = await generateArchiveSnapshot({ outputRoot });
+console.log(`Generated archive snapshot with ${archive.length} approved records`);
 console.log(`Inlined public navigation in ${navigationPages} public pages`);
 console.log(`Generated ${generated.pages} search-ready public article pages`);
 console.log(`Netlify publish bundle created at ${outputRoot}`);

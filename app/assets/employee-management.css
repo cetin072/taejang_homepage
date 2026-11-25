@@ -20,7 +20,7 @@
 .employee-badge { display:inline-block; padding:3px 7px; border-radius:5px; background:#eef3ef; color:#315443; font-size:.8rem; line-height:1.5; }
 .employee-badge-warning { background:#fff4df; color:#6a4d13; }
 .employee-badges { display:flex; flex-wrap:wrap; gap:6px; }
-.employee-profile { display:grid; gap:16px; }
+.employee-profile { display:grid; gap:12px; }
 .employee-profile > .button { justify-self:start; width:auto; }
 .employee-basic-title { display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:16px; }
 .employee-basic-title h3 { margin:0; }
@@ -45,6 +45,8 @@
 .employee-section-photos { --employee-section-accent:var(--authoring-media-accent); --employee-section-stroke:var(--authoring-media-stroke); --employee-section-bg:var(--authoring-media-surface); }
 .employee-section-audit { --employee-section-accent:#624a97; --employee-section-stroke:#d8ccef; --employee-section-bg:#f7f3ff; }
 .employee-section-record { --employee-section-accent:#4e6372; --employee-section-stroke:#d5e0e6; --employee-section-bg:#f5f8fa; }
+.employee-disability-section, .employee-welfare-section { --employee-section-accent:#455a71; --employee-section-stroke:#d7e0e9; --employee-section-bg:#f5f8fb; }
+.employee-section-work { --employee-section-accent:#557049; --employee-section-stroke:#d7e2d2; --employee-section-bg:#f6faf4; }
 .employee-profile-section.employee-sensitive-section { --employee-section-accent:#88512a; --employee-section-stroke:#e9d2b7; --employee-section-bg:#fcf6ed; }
 .employee-profile-section > h3, .employee-basic-title {
   padding-bottom:11px;
@@ -63,6 +65,35 @@
 .employee-profile-section details[open] > summary::before { content:"−"; }
 .employee-profile-section details + details { border-top:1px solid var(--app-border); }
 .employee-profile-section .employee-form { margin-top:16px; }
+.employee-profile details.employee-profile-fold { padding:0; }
+.employee-profile-fold > summary {
+  gap:10px;
+  padding:12px 16px;
+  font-weight:700;
+  color:var(--employee-section-accent);
+}
+.employee-profile-fold > summary::before { content:none; }
+.employee-profile-fold > summary::after {
+  content:"";
+  margin-inline-start:auto;
+  width:8px;
+  height:8px;
+  flex:none;
+  border:solid currentColor;
+  border-width:0 2px 2px 0;
+  transform:rotate(45deg);
+}
+.employee-profile-fold[open] > summary::after { transform:rotate(225deg); }
+.employee-profile-fold > summary small { color:var(--app-muted); font-size:.82rem; font-weight:500; }
+.employee-profile-fold-body { padding:0 16px 16px; }
+.employee-profile-fold-body > .employee-disability-form {
+  margin-top:0;
+  padding:12px;
+  border:1px solid var(--employee-section-stroke);
+  border-radius:var(--app-radius);
+}
+.employee-disability-form .quick-links { justify-content:space-between; align-items:center; }
+.employee-disability-form .quick-links .help { margin:0; }
 .employee-photo-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
 .employee-photo-grid > div { display:grid; grid-template-columns:80px minmax(0,1fr); gap:8px 16px; align-content:start; }
 .employee-photo-grid h4 { grid-column:2; margin:0; }
@@ -78,6 +109,11 @@
 .employee-avatar-placeholder { display:grid; place-items:center; font-weight:900; color:var(--app-muted); }
 .employee-profile-head .employee-avatar { width:120px; height:120px; object-position:center 30%; }
 @media(max-width:760px){.employee-profile-head .employee-avatar{width:100px;height:100px}.employee-profile-head{gap:12px}}
+@media(max-width:560px){
+  .employee-profile-head { display:grid; grid-template-columns:auto minmax(0,1fr); }
+  .employee-profile-photo-actions { grid-column:1/-1; }
+  .employee-disability-form .quick-links > .button { width:100%; }
+}
 .employee-form { display:grid; gap:12px; max-width:900px; padding:18px; border:1px solid var(--app-border); border-radius:14px; background:#fff; }
 .employee-sensitive-bulk { display:grid; gap:12px; padding:16px; border:1px solid var(--app-border); border-radius:14px; background:#fbfcfb; }
 .employee-sensitive-bulk textarea { width:100%; min-height:150px; resize:vertical; padding:11px 12px; border:1px solid var(--app-border); border-radius:9px; font:inherit; line-height:1.5; }
@@ -112,3 +148,96 @@
 .employee-reset-confirm p { margin:16px 0; line-height:1.5; }
 .employee-reset-confirm .quick-links { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:10px; }
 .employee-reset-panel output { display:block; margin:12px 0; font-size:1.4rem; letter-spacing:.06em; overflow-wrap:anywhere; }
+
+/* Leave management follows the application/review flow; rare days off stay secondary. */
+.leave-view-nav { display:flex; flex-wrap:wrap; gap:8px; margin:20px 0; }
+.leave-view-nav [aria-pressed="true"] { background:var(--app-brand,#20513e); color:#fff; }
+.leave-main-content { display:grid; gap:16px; }
+.leave-exceptions { margin-top:32px; }
+.leave-exceptions > summary { cursor:pointer; font-weight:700; padding:10px 0; }
+.leave-requests > div { display:grid; gap:12px; margin-top:16px; }
+.leave-management select { max-width:100%; }
+
+.leave-date-field{display:grid;gap:8px;font-weight:700;position:relative}.leave-date-button{width:100%;text-align:left;min-height:48px}.leave-calendar{border:1px solid var(--app-border);border-radius:12px;padding:12px;background:white}.leave-calendar-head{display:flex;justify-content:space-between;align-items:center;gap:6px}.leave-calendar-head button{font-size:13px;padding:8px}.leave-calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;margin:10px 0;text-align:center}.leave-calendar-grid button{padding:8px 0;min-height:40px;border-radius:8px}.leave-calendar-grid [aria-pressed="true"]{background:var(--app-brand);color:white}.leave-calendar-grid button:disabled{opacity:.35}.leave-time-field{border:0;margin:0;padding:0;min-width:0}.leave-time-field legend{font-weight:700;margin-bottom:8px}.leave-time-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.leave-work-form>fieldset,.leave-work-form .leave-break-fields{min-width:0}.leave-work-form [hidden]{display:none}.leave-work-form{border:0!important;padding:0!important}.leave-break-fields{display:grid;gap:12px}
+
+.leave-weekdays{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:12px;min-width:0;margin:0;border:1px solid var(--app-border);border-radius:12px}
+/* Match the real shell's authoring specificity: each day owns its full hit area. */
+#desktop-app-shell .leave-work-form .leave-weekdays label{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px;min-width:0;min-height:64px;margin:0;padding:8px 2px;border:1px solid var(--app-border);border-radius:8px;white-space:nowrap;background:#fff}
+#desktop-app-shell .leave-work-form .leave-weekdays label:has(:checked){border-color:var(--app-brand);background:#e9f2ec}
+#desktop-app-shell .leave-work-form .leave-weekdays input{flex:0 0 22px;width:22px;height:22px;min-height:22px;margin:0;padding:0}
+@media(min-width:600px){.leave-weekdays{grid-template-columns:repeat(7,minmax(0,1fr));max-width:560px}}@media(min-width:700px){.leave-work-form{grid-template-columns:repeat(2,minmax(0,1fr))}.leave-work-form>.leave-weekdays,.leave-work-form>p,.leave-work-form>button,.leave-work-form>.leave-break-fields{grid-column:1/-1}.leave-break-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.employee-profile-head > div:nth-child(2) { flex:1; }
+.employee-profile-photo-actions { margin-left:auto; }
+@media(max-width:760px){.employee-profile-head{flex-wrap:wrap}.employee-profile-photo-actions{flex-basis:100%;margin-left:0}}
+
+/* Compact administrative edits; keep other employee forms and data contracts intact. */
+.leave-adjustment, .leave-exceptions {
+  --app-radius:0px;
+  --authoring-radius:0px;
+  border-radius:0;
+}
+#desktop-app-shell .leave-compact-form {
+  display:flex;
+  flex-wrap:wrap;
+  align-items:flex-end;
+  gap:14px;
+  max-width:1040px;
+  border-radius:0;
+}
+#desktop-app-shell .leave-compact-form > :is(h3,.message) {
+  flex:0 0 100%;
+  margin:0;
+}
+#desktop-app-shell .leave-compact-form > label {
+  flex:1 1 180px;
+}
+#desktop-app-shell .leave-compact-form > label:last-of-type {
+  flex:2 1 240px;
+}
+#desktop-app-shell .leave-adjustment-form > label:first-child {
+  flex:0 1 180px;
+}
+#desktop-app-shell .leave-compact-form > .leave-date-field {
+  flex:0 1 170px;
+}
+#desktop-app-shell .leave-compact-form > .button {
+  flex:0 0 auto;
+  width:auto;
+}
+#desktop-app-shell .leave-compact-form .leave-date-button {
+  min-height:46px;
+  border-radius:0;
+}
+#desktop-app-shell .leave-compact-form .leave-calendar {
+  position:absolute;
+  top:100%;
+  left:0;
+  z-index:2;
+  width:300px;
+  border-radius:0;
+  box-shadow:0 6px 18px rgb(0 0 0 / 12%);
+}
+@media(max-width:760px) {
+  #desktop-app-shell .leave-compact-form > :is(label,.leave-date-field) {
+    flex:1 1 100%;
+  }
+  #desktop-app-shell .leave-compact-form .leave-calendar {
+    position:static;
+    width:100%;
+    box-shadow:none;
+  }
+}
+
+.employee-basic-remote-work { margin-top:16px; padding-top:12px; border-top:1px solid var(--app-border); }
+.employee-basic-remote-work .employee-profile-fold-body { padding:0; }
+.employee-basic-remote-work [hidden] { display:none; }
+.employee-basic-remote-work .employee-form-grid > .help { grid-column:1/-1; }
+
+/* Keep role review within the existing compact basic-information section. */
+.employee-role-summary { margin-block:12px; padding-block:12px; border-block:1px solid var(--app-border); }
+.employee-role-summary p { margin:0 0 8px; overflow-wrap:anywhere; }
+.employee-role-summary p:last-child { margin-bottom:0; }
+.employee-role-summary [hidden] { display:none; }
+.employee-role-warning { color:var(--app-text); font-weight:600; }
+.employee-role-summary .app-check-field { margin-block:8px; }

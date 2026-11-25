@@ -1,6 +1,9 @@
 (() => {
   'use strict';
 
+  // Retry the same selected file at the same non-upsert key, including lost responses.
+  const uploadPaths = new WeakMap();
+
   const SESSION_KEY = 'taejang-staff-session-v1';
   const app = () => window.TaejangApp;
   const route = () => app()?.getRoute?.();
@@ -253,9 +256,17 @@
   // -------------------------------------------------------------------------
   // Operations-manager recoveries and account <-> Employee administration.
   // -------------------------------------------------------------------------
+  let safetySequence = 0;
+  const employeeSafetyAllowed = () => window.TaejangMenuAuthority?.allowed('employee.manage', route() === 'operations_manager') ?? (route() === 'operations_manager');
+  document.addEventListener('taejang-menu-authority-changed', () => {
+    if (employeeSafetyAllowed()) return;
+    ++safetySequence;
+    document.querySelector('[data-employee-safety]')?.replaceChildren(el('p', '직원 관리 권한이 회수되었거나 확인되지 않습니다.', 'message'));
+  });
   async function openOperationsSafety() {
     closeSidebar();
-    if (route() !== 'operations_manager') return;
+    if (!employeeSafetyAllowed()) return;
+    const sequence = ++safetySequence;
     setPageTitle('직원 휴지통·계정 연결');
     const target = showLoading('복원 및 계정 정보를 불러오고 있습니다.');
     if (!target) return;
@@ -265,12 +276,15 @@
         app().rpc('get_archived_employee_management'),
         app().rpc('get_operations_account_management')
       ]);
+      if (sequence !== safetySequence || !employeeSafetyAllowed()) return;
       const shell = el('section', null, 'issue146-shell');
+      shell.dataset.employeeSafety = '1';
+      const canManageRoles = accountData?.can_manage_roles ?? (route() === 'operations_manager');
       const intro = el('header', null, 'dashboard-intro');
       intro.append(
         el('p', '운영총괄', 'eyebrow'),
         el('h2', '직원 휴지통·계정 연결'),
-        el('p', '직원 삭제 복원, 계정 연결·해제, 상태·소속·직책·일반 운영 역할을 관리합니다. 기술 최고관리자 역할은 별도 안전영역으로 유지합니다.')
+        el('p', '직원 삭제 복원, 계정 연결·해제, 상태·소속·직책을 관리합니다. 운영 역할 변경과 메뉴 권한 재위임은 운영총괄의 별도 권한입니다.')
       );
       shell.append(intro);
 
@@ -369,7 +383,7 @@
         positions.forEach(item => { const option = document.createElement('option'); option.value = item.id; option.textContent = item.name; option.selected = item.id === profile.position_id; position.append(option); });
 
         const roles = el('div', null, 'issue146-checkboxes');
-        roleOptions.forEach(roleItem => {
+        (canManageRoles ? roleOptions : []).forEach(roleItem => {
           const label = document.createElement('label');
           const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.value = roleItem.code; checkbox.checked = arr(profile.roles).includes(roleItem.code);
           label.append(checkbox, document.createTextNode(roleItem.name || roleItem.code)); roles.append(label);
@@ -388,19 +402,22 @@
           try { await app().rpc('assign_profile_organization', { p_target_profile_id: profile.id, p_department_id: department.value || null, p_position_id: position.value || null, p_reason_summary: reason }); await openOperationsSafety(); }
           catch (error) { window.alert(friendly(error, '소속·직책을 변경하지 못했습니다.')); }
         }, true));
-        actions.append(button('운영 역할 저장', async () => {
+        if (canManageRoles) actions.append(button('운영 역할 저장', async () => {
           const reason = promptReason('역할 변경 사유를 입력해 주세요.'); if (!reason) return;
           const selected = [...roles.querySelectorAll('input:checked')].map(node => node.value);
           try { await app().rpc('set_profile_roles', { p_target_profile_id: profile.id, p_role_codes: selected, p_reason_summary: reason }); await openOperationsSafety(); }
           catch (error) { window.alert(friendly(error, '역할을 변경하지 못했습니다.')); }
         }));
-        card.append(el('p', '계정 상태', 'issue146-muted'), status, el('p', '부서 · 직책', 'issue146-muted'), department, position, el('p', '일반 운영 역할', 'issue146-muted'), roles, actions);
+        card.append(el('p', '계정 상태', 'issue146-muted'), status, el('p', '부서 · 직책', 'issue146-muted'), department, position);
+        if (canManageRoles) card.append(el('p', '일반 운영 역할', 'issue146-muted'), roles);
+        card.append(actions);
         accountGrid.append(card);
       });
       accounts.append(accountGrid);
       shell.append(accounts);
       target.replaceChildren(shell);
     } catch (error) {
+      if (sequence !== safetySequence) return;
       target.replaceChildren(el('p', friendly(error, '복원·계정 정보를 불러오지 못했습니다.'), 'message error'));
     }
   }
@@ -409,8 +426,15 @@
   // Canonical safe homepage slot workflow.
   // -------------------------------------------------------------------------
   function session() {
-    try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || '{}'); }
-    catch { return {}; }
+    const live = app()?.getSession?.();
+    if (live?.access_token) return live;
+    for (const storage of [localStorage, sessionStorage]) {
+      try {
+        const stored = JSON.parse(storage.getItem(SESSION_KEY) || '{}');
+        if (stored.access_token) return stored;
+      } catch {}
+    }
+    return {};
   }
 
   async function config() {
@@ -463,21 +487,24 @@
   }
 
   async function uploadHomepageImage(file) {
-    if (!file) throw new Error('사진을 선택해 주세요.');
-    const allowed = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
-    if (!allowed.has(file.type)) throw new Error('JPG, PNG, WEBP, GIF 사진만 올릴 수 있습니다.');
-    if (file.size > 8 * 1024 * 1024) throw new Error('사진은 8MB 이하로 올려주세요.');
+    const optimizer = await import('./photo-optimizer.mjs');
+    const optimized = await optimizer.optimizeForUpload(file);
     const auth = session();
     const userId = jwtSubject(auth.access_token || '');
     if (!auth.access_token || !userId) throw new Error('로그인 정보를 다시 확인해 주세요.');
-    const extension = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' })[file.type];
-    const path = `${userId}/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.${extension}`;
+    const extension = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' })[optimized.type];
+    let savedPath = uploadPaths.get(file);
+    if (savedPath?.owner !== userId) {
+      savedPath = { owner: userId, path: `${userId}/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.${extension}` };
+      uploadPaths.set(file, savedPath);
+    }
+    const path = savedPath.path;
     const encodedPath = path.split('/').map(encodeURIComponent).join('/');
     const cfg = await config();
     const response = await fetch(`${cfg.url}/storage/v1/object/promotion-media/${encodedPath}`, {
       method: 'POST',
-      headers: { apikey: cfg.publishableKey, Authorization: `Bearer ${auth.access_token}`, 'Content-Type': file.type, 'x-upsert': 'false' },
-      body: file
+      headers: { apikey: cfg.publishableKey, Authorization: `Bearer ${auth.access_token}`, 'Content-Type': optimized.type, 'x-upsert': 'false' },
+      body: optimized
     });
     if (!response.ok) {
       const payload = await response.json().catch(() => null);
@@ -609,18 +636,22 @@
       slotSelect.addEventListener('change', refreshActiveSlot);
       textArea.addEventListener('input', () => { proposedBox.textContent = textArea.value || '(빈 문구)'; draftMode = true; applyDraftToFrame(); });
       imageAlt.addEventListener('input', () => { if (uploadedImageUrl) { proposedBox.textContent = `${uploadedImageUrl}\n대체텍스트: ${imageAlt.value}`; draftMode = true; applyDraftToFrame(); } });
-      file.addEventListener('change', async () => {
+      const retryUpload = button('사진 다시 시도', () => uploadSelected());
+      retryUpload.hidden = true;
+      async function uploadSelected() {
+        retryUpload.hidden = true;
         const selected = file.files?.[0]; if (!selected) return;
         imageStatus.textContent = '사진 업로드 중'; file.disabled = true;
         try {
           uploadedImageUrl = await uploadHomepageImage(selected);
           imageAlt.value = selected.name.replace(/\.[^.]+$/, '');
-          imageStatus.textContent = '사진 업로드 완료';
+          imageStatus.textContent = '사진 업로드 완료'; file.value = '';
           proposedBox.textContent = `${uploadedImageUrl}\n대체텍스트: ${imageAlt.value}`;
           draftMode = true; applyDraftToFrame();
-        } catch (error) { uploadedImageUrl = null; imageStatus.textContent = friendly(error, '사진 업로드 실패'); }
+        } catch (error) { uploadedImageUrl = null; imageStatus.textContent = friendly(error, '사진 업로드 실패'); retryUpload.hidden = false; }
         finally { file.disabled = false; }
-      });
+      }
+      file.addEventListener('change', uploadSelected);
       preview.addEventListener('load', () => setTimeout(() => { readCurrentFromFrame(); applyDraftToFrame(); }, 350));
       previewActions.append(
         button('PC Preview', () => preview.classList.remove('mobile'), true),
@@ -633,7 +664,7 @@
       const pageLabel = document.createElement('label'); pageLabel.append(el('span', '페이지'), pageSelect);
       const slotLabel = document.createElement('label'); slotLabel.append(el('span', '수정 항목'), slotSelect);
       row.append(pageLabel, slotLabel);
-      form.append(row, previewActions, preview, compare, textArea, file, imageAlt, imageStatus, reason);
+      form.append(row, previewActions, preview, compare, textArea, file, imageAlt, imageStatus, retryUpload, reason);
       const formActions = el('div', null, 'quick-links');
       formActions.append(button(currentRoute === 'operations_manager' ? '승인 요청으로 저장' : '운영총괄에게 상신', async () => {
         if (!activeSlot) return;

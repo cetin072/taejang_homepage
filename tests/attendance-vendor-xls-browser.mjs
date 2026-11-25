@@ -1,3 +1,4 @@
+import { newPhotoSafeContext, newPhotoSafePage } from './helpers/photo-safe-browser.mjs';
 // Browser-level, read-only verification of the deployed legacy vendor XLS path.
 // Anonymous synthetic BIFF8/CFB bytes only. Never upload real staff files or invoke DB mutations.
 import assert from 'node:assert/strict';
@@ -16,7 +17,7 @@ assert.ok(sample.length >= 4096 && sample.length <= 32768);
 const browser = await chromium.launch({channel:'chrome',headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
 try {
   for(const viewport of [{width:1440,height:900},{width:390,height:844}]) {
-    const page = await browser.newPage({viewport});
+    const page = await newPhotoSafePage(browser, {viewport});
     try{
       const doc = await page.goto(preview + '/about', {waitUntil:'domcontentloaded',timeout:35000});
       assert.equal(doc?.status(),200);
@@ -66,10 +67,10 @@ try {
       await page.close();
     }
   }
-  const context=await browser.newContext();
+  const context=await newPhotoSafeContext(browser, );
   const res=await context.request.get(preview+'/app/assets/attendance-admin.js');
   assert.equal(res.status(),200,'Deployed attendance UI bundle exists');
-  assert.match(await res.text(),/fileInput\.accept = '\.xls,\.xlsx'/);
+  assert.doesNotMatch(await res.text(),/importFingerprintFile|지문 Excel 가져오기|fileInput\.accept/);
   await context.close();
 } finally {
   await browser.close();

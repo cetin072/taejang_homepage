@@ -8,6 +8,7 @@ on:
 permissions:
   contents: read
   statuses: read
+  checks: read
 
 concurrency:
   group: user-acceptance-ready-${{ github.event.pull_request.number || github.ref }}
@@ -17,7 +18,7 @@ jobs:
   user-acceptance-ready:
     name: User Acceptance Ready
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     env:
       UAR_CONTRACT_PATH: .github/user-acceptance-ready.json
       UAR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -27,6 +28,12 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Select relevant validation
+        id: scope
+        run: node scripts/ci-change-scope.mjs
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -38,9 +45,14 @@ jobs:
         run: |
           command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser
 
+      - name: Verify command reuse and validation scope
+        run: |
+          node --test tests/ci-change-scope.test.mjs
+          python3 tests/uar-command-reuse-test.py
+
       - name: Run enforced UAR gate
         run: python3 .github/scripts/user_acceptance_ready.py
 
       - name: Verify optional-release Preview function response
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.scope.outputs.run_full == 'true'
         run: node tests/mobile-optional-release-preview.mjs

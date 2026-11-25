@@ -20,7 +20,9 @@ const load=async file=>{
       try{
         const response=await fetch(preview+'/'+file,{signal:AbortSignal.timeout(20000)});
         assert.ok(response.ok,'deployed asset: '+file+' HTTP '+response.status);
-        return await response.text();
+        const body = await response.text();
+        if (file.endsWith('.mjs')) assert.equal(body, await fs.readFile(path.join(root, file), 'utf8'), 'exact-head module bytes');
+        return body;
       }catch(error){
         if(attempt===3)throw error;
         await new Promise(resolve=>setTimeout(resolve,1000));
@@ -49,11 +51,9 @@ const server=http.createServer(async(req,res)=>{
       if(file==='tests/browser/promotion-authoring-upload-gate.html')body=body.replace('<head>','<head>'+styles);
     }
     const html=!/\.(css|js|mjs)$/.test(name);
-    if(preview&&html)for(const directory of ['app/assets','staff/assets']){
-      body=body.replaceAll('../../'+directory+'/',preview+'/'+directory+'/')
-        .replaceAll('href="/'+directory+'/', 'href="'+preview+'/'+directory+'/')
-        .replaceAll('src="/'+directory+'/', 'src="'+preview+'/'+directory+'/');
-    }
+    // load() fetches every app/staff asset from the exact-head Preview.
+    // Serve those bytes under the fixture origin so ES modules have the same
+    // origin relationship as the deployed app, without requiring new CORS rules.
     res.setHeader('Content-Type',name.endsWith('.css')?'text/css':/\.(js|mjs)$/.test(name)?'application/javascript':'text/html; charset=utf-8');res.end(body);
   }catch(e){res.statusCode=404;res.end(e.message);}
 });

@@ -43,16 +43,19 @@ assert.match(liveHtml, /payroll-operator-live\.js/, 'Deploy Preview must load pa
 const handoffResponse = await fetchReady('/app/payroll/handoff.html');
 assertStayedOnPreview(handoffResponse, 'payroll handoff page');
 const handoffHtml = await handoffResponse.text();
-assert.match(handoffHtml, /id="payroll-handoff-list"/, 'Deploy Preview must contain the payroll handoff workspace');
-assert.match(handoffHtml, /payroll-draft-handoff\.js/, 'Deploy Preview must load the payroll handoff JS');
+assert.match(handoffHtml, /외부 급여 초안 기능이 종료되었습니다/);
+// Netlify injects its review toolbar into Deploy Previews after publication.
+// Permit only that exact platform script; application scripts remain forbidden.
+const retiredApplicationHtml = handoffHtml.replace(
+  /<script async src="\/\.netlify\/scripts\/cdp"><\/script>/g, ''
+);
+assert.doesNotMatch(retiredApplicationHtml, /<script|<form|<button|payroll-draft-handoff/);
 
 for (const path of [
   '/app/assets/payroll-attendance-editor.js',
   '/app/assets/payroll-operator-live.js',
   '/app/assets/payroll-ledger-xlsx.js',
   '/app/assets/payroll-attendance-editor.css',
-  '/app/assets/payroll-draft-handoff.js',
-  '/app/assets/payroll-draft-handoff.css',
 ]) {
   const response = await fetchReady(path, { attempts: 3, delayMs: 1000 });
   assertStayedOnPreview(response, path);

@@ -76,7 +76,8 @@
       .attendance-summary strong { display:block; margin-top:6px; font-size:28px; }
       .attendance-toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:end; margin:16px 0; padding:14px; border:1px solid var(--app-border); border-radius:14px; background:#fff; }
       .attendance-toolbar label { display:grid; gap:6px; font-weight:800; }
-      .attendance-toolbar input[type="date"] { min-height:42px; padding:7px 10px; border:1px solid #ccc; border-radius:10px; font:inherit; }
+      .attendance-toolbar > label:has(> input[type="date"]) { margin:0; }
+      .attendance-toolbar input[type="date"] { min-height:48px; padding:7px 10px; border:1px solid #ccc; border-radius:10px; font:inherit; }
       .attendance-evidence-help { flex:1 1 260px; margin:0; color:#60746a; font-size:13px; line-height:1.5; }
       .attendance-list { display:grid; gap:10px; }
       .attendance-row { display:grid; grid-template-columns:minmax(120px,1.15fr) 1fr 1fr minmax(150px,.9fr); gap:12px; align-items:center; padding:14px; border:1px solid var(--app-border); border-radius:14px; background:#fff; }
@@ -119,6 +120,14 @@
       .attendance-holiday-work h3 { margin:0; }
       .attendance-holiday-work p { margin:8px 0 12px; line-height:1.5; }
       .attendance-holiday-work-list { display:grid; gap:8px; }
+      .attendance-field-dialog { box-sizing:border-box; width:min(580px,calc(100vw - 28px)); max-height:90dvh; padding:20px; border:0; border-radius:16px; }
+      .attendance-field-dialog::backdrop { background:rgba(15,23,42,.48); }
+      .attendance-field-dialog h2 { margin:0 0 12px; }
+      .attendance-field-dialog label { display:flex; flex-direction:column; gap:5px; }
+      .attendance-field-dialog label:has(input[type="checkbox"]) { flex-direction:row; align-items:center; gap:8px; }
+      .attendance-field-dialog .attendance-ledger-controls :is(input,select) { width:100%; min-width:0; }
+      .attendance-field-dialog .attendance-ledger-controls { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .attendance-field-dialog .attendance-ledger-controls label:last-of-type { grid-column:1/-1; align-items:stretch; }
       .attendance-holiday-work-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 12px; border-radius:10px; background:#fff; }
       .attendance-holiday-work-row strong { display:block; }
       .attendance-holiday-work-row span { color:#60746a; font-size:13px; }
@@ -166,7 +175,7 @@
       el('span', label, 'eyebrow'),
       el('strong', `${time(record?.event_at || record?.requested_at)} · ${statusText(record)}`)
     );
-    box.append(el('span', `지문 ${time(fingerprintValue)}`, 'attendance-evidence-line'));
+    if (fingerprintValue) box.append(el('span', `과거 외부 기록 ${time(fingerprintValue)}`, 'attendance-evidence-line'));
     const actions = reviewButtons(record);
     if (actions) box.append(actions);
     return box;
@@ -203,7 +212,9 @@
         p_note: null,
       });
       if (!result?.ok) {
-        if (result?.code === 'DAY_CONFIRMED_REOPEN_REQUIRED') {
+        if (result?.code === 'LEAVE_SOURCE_MANAGED') {
+          window.alert('승인된 연차에 연결된 근태입니다. 연차 관리에서 확인해주세요.');
+        } else if (result?.code === 'DAY_CONFIRMED_REOPEN_REQUIRED') {
           window.alert('확정된 날짜입니다. 먼저 “확정 재개방”을 한 뒤 다시 변경하세요.');
         } else {
           window.alert(`근태 상태를 저장하지 못했습니다. ${result?.code || ''}`);
@@ -239,7 +250,8 @@
 
     const button = el('button', '상태 저장', 'button button-quiet');
     button.type = 'button';
-    const editable = can('attendance.correct') && !confirmed;
+    const leaveManaged = Boolean(row?.attendance_status?.leave_request_id);
+    const editable = can('attendance.correct') && !confirmed && !leaveManaged;
     select.disabled = !editable;
     button.disabled = !editable;
     button.addEventListener('click', () => {
@@ -248,7 +260,10 @@
     wrap.append(select);
     if (can('attendance.correct')) wrap.append(button);
 
-    const sourceNote = row?.attendance_status?.note;
+    const portion=row?.attendance_status?.leave_portion;
+    const leaveLabel=({full:'연차(승인)',first_half:'앞 반차(승인)',second_half:'뒤 반차(승인)'})[portion];
+    if(leaveLabel&&select.selectedOptions[0])select.selectedOptions[0].textContent=leaveLabel;
+    const sourceNote = leaveLabel ? `${leaveLabel} · 취소·수정은 연차 관리에서 처리` : row?.attendance_status?.note;
     wrap.append(el(
       'span',
       confirmed
@@ -279,8 +294,8 @@
     const status = dayStatusCode(row);
     if (status !== 'work') return { label: dayStatusLabel(status), needsReview: status === 'review_required' };
     const evidence = Array.isArray(evidenceRows) ? evidenceRows : [];
-    if (!fingerprintImported) return { label: '지문자료 미가져옴', needsReview: false };
-    if (evidence.length > 1) return { label: `지문 중복 ${evidence.length}건 · 확인`, needsReview: true };
+    if (!fingerprintImported) return { label: '앱 근태 기준', needsReview: false };
+    if (evidence.length > 1) return { label: `과거 외부 기록 중복 ${evidence.length}건 · 확인`, needsReview: true };
     const fingerprint = evidence[0] || null;
     const appIn = row.clock_in?.event_at || null;
     const appOut = row.clock_out?.event_at || null;
@@ -290,7 +305,7 @@
     const fpAny = Boolean(fpIn || fpOut);
 
     if (!appAny && !fpAny) return { label: '양쪽 기록 없음 · 확인', needsReview: true };
-    if (!appAny && fpAny) return { label: '지문만 있음 · 확인', needsReview: true };
+    if (!appAny && fpAny) return { label: '과거 외부 기록만 있음 · 확인', needsReview: true };
     if (appAny && !fpAny) return { label: '앱만 있음 · 확인', needsReview: true };
 
     const deltas = [minuteDelta(appIn, fpIn), minuteDelta(appOut, fpOut)]
@@ -300,108 +315,12 @@
 
     const maxDelta = Math.max(...deltas);
     if (maxDelta <= ALIGNMENT_TOLERANCE_MINUTES) {
-      return { label: `GPS·지문 대체로 일치 (최대 ${maxDelta}분)`, needsReview: false };
+      return { label: `앱·과거 외부 기록 대체로 일치 (최대 ${maxDelta}분)`, needsReview: false };
     }
-    return { label: `GPS·지문 시간차 ${maxDelta}분 · 확인`, needsReview: true };
+    return { label: `앱·과거 외부 기록 시간차 ${maxDelta}분 · 확인`, needsReview: true };
   }
 
-  function allExcelRows(best) {
-    const helper = window.TaejangPayrollAttendanceXlsx;
-    const matrix = best?.matrix;
-    const analysis = best?.analysis;
-    if (!helper || !Array.isArray(matrix) || !analysis?.ok) return [];
-    const mapping = analysis.mapping || {};
-    const rows = [];
-    for (let index = Number(analysis.headerRow || 1); index < matrix.length; index += 1) {
-      const source = Array.isArray(matrix[index]) ? matrix[index] : [];
-      if (source.every(value => value == null || String(value).trim() === '')) continue;
-      rows.push({
-        sourceRow: index + 1,
-        employeeId: mapping.employeeId == null ? '' : String(source[mapping.employeeId] ?? '').trim(),
-        name: mapping.name == null ? '' : String(source[mapping.name] ?? '').trim(),
-        date: helper.normalizeDateCell(source[mapping.date]),
-        clockIn: mapping.clockIn == null ? null : helper.normalizeTimeCell(source[mapping.clockIn]),
-        clockOut: mapping.clockOut == null ? null : helper.normalizeTimeCell(source[mapping.clockOut]),
-      });
-    }
-    return rows;
-  }
-
-  async function sha256File(file) {
-    if (!window.crypto?.subtle) throw new Error('FILE_HASH_UNAVAILABLE');
-    const digest = await window.crypto.subtle.digest('SHA-256', await file.arrayBuffer());
-    return [...new Uint8Array(digest)].map(value => value.toString(16).padStart(2, '0')).join('');
-  }
-
-  function fingerprintExcelError(error) {
-    const code = String(error?.message || '');
-    if (code === 'attendance_excel_format_required') return '엑셀 파일(.xls 또는 .xlsx)을 선택해 주세요.';
-    if (code === 'attendance_xls_parser_unavailable') return '구형 Excel 읽기 도구를 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.';
-    if (code === 'attendance_xls_size_unsupported') return '8MB 이하 지문인식기 Excel 파일을 선택해 주세요.';
-    if (/^(attendance_xls_|xlsx_zip_|xlsx_entry_|xlsx_xml_)/.test(code)) {
-      return 'Excel 파일이 손상되었거나 지원하지 않는 형식입니다. 지문인식기에서 원본을 다시 내려받아 주세요.';
-    }
-    return code || '파일을 확인해 주세요.';
-  }
-
-  async function importFingerprintFile(file, workDate) {
-    if (!can('attendance.evidence_import')) return;
-    const helper = window.TaejangPayrollAttendanceXlsx;
-    if (!helper?.parseXlsxFile) {
-      window.alert('Excel 가져오기 도구를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.');
-      return;
-    }
-    try {
-      const workbook = await helper.parseXlsxFile(file);
-      const best = workbook.best;
-      if (!best?.analysis?.ok) throw new Error('지문 출근부의 헤더를 찾지 못했습니다.');
-      const parsed = allExcelRows(best);
-      const invalid = parsed.filter(row => (
-        (!row.employeeId && !row.name)
-        || !row.date
-        || (!row.clockIn && !row.clockOut)
-      ));
-      const dayKeys = new Set();
-      let duplicateDay = false;
-      for (const row of parsed) {
-        if (!row.date || (!row.employeeId && !row.name)) continue;
-        const key = `${row.employeeId || row.name}|${row.date}`;
-        if (dayKeys.has(key)) duplicateDay = true;
-        dayKeys.add(key);
-      }
-      if (invalid.length) throw new Error(`확인이 필요한 Excel 행이 ${invalid.length}건 있습니다. 원본 파일을 확인해주세요.`);
-      if (duplicateDay) throw new Error('같은 직원·날짜가 두 줄 이상 있습니다. 원본 파일을 확인해주세요.');
-      if (!parsed.length) throw new Error('가져올 지문 출퇴근 기록이 없습니다.');
-
-      const fingerprint = await sha256File(file);
-      const result = await app().rpc('import_attendance_external_evidence', {
-        p_source_system: EVIDENCE_SOURCE,
-        p_source_file_name: file.name,
-        p_source_fingerprint: fingerprint,
-        p_source_sheet: best.sheetName || null,
-        p_rows: parsed.map(row => ({
-          source_employee_key: row.employeeId || null,
-          source_display_name: row.name || null,
-          work_date: row.date,
-          clock_in: row.clockIn || null,
-          clock_out: row.clockOut || null,
-          source_row_number: row.sourceRow,
-        })),
-      });
-      if (!result?.ok) throw new Error(result?.code || 'IMPORT_FAILED');
-
-      const duplicate = result.code === 'DUPLICATE_IMPORT';
-      const message = duplicate
-        ? '이미 가져온 동일한 지문 출근부입니다. 중복 저장하지 않았습니다.'
-        : `지문 출근부 ${result.row_count}건을 저장했습니다. 직원 미매칭 ${result.unmatched_count || 0}건입니다.`;
-      window.alert(message);
-      await openAttendance(workDate);
-    } catch (error) {
-      window.alert(`지문 출근부를 가져오지 못했습니다. ${fingerprintExcelError(error)}`);
-    }
-  }
-
-  function makeToolbar(workDate) {
+  function makeToolbar(workDate, fieldPanel) {
     const toolbar = el('section', null, 'attendance-toolbar');
     const dateLabel = el('label', '확인 날짜');
     const dateInput = document.createElement('input');
@@ -412,28 +331,13 @@
     });
     dateLabel.append(dateInput);
     toolbar.append(dateLabel);
-
-    if (can('attendance.evidence_import')) {
-      const fileInput = document.createElement('input');
-      fileInput.type = 'file';
-      fileInput.accept = '.xls,.xlsx';
-      fileInput.hidden = true;
-      const importButton = el('button', '지문 Excel 가져오기', 'button button-quiet');
-      importButton.type = 'button';
-      importButton.addEventListener('click', () => fileInput.click());
-      fileInput.addEventListener('change', () => {
-        const file = fileInput.files?.[0];
-        if (file) void importFingerprintFile(file, workDate);
-        fileInput.value = '';
-      });
-      toolbar.append(importButton, fileInput);
+    if (fieldPanel) {
+      const shortcut = el('button', '현장근무 지정·확인', 'button button-quiet');
+      shortcut.type = 'button';
+      shortcut.addEventListener('click', () => revealFieldWork(fieldPanel));
+      toolbar.append(shortcut);
     }
 
-    toolbar.append(folded('GPS·지문 비교 안내', el(
-      'p',
-      'GPS와 지문 Excel은 원본 근거로 따로 보존합니다. 5분 이내 차이는 정상 후보로 표시하고, 누락·큰 차이·미매칭만 우선 확인합니다.',
-      'attendance-evidence-help'
-    )));
     return toolbar;
   }
 
@@ -454,7 +358,7 @@
       p_source_system: item.source_system || EVIDENCE_SOURCE,
       p_source_employee_key: item.source_employee_key,
       p_employee_uuid: employeeUuid,
-      p_reason: automatic ? '운영팀장 이름 정확 일치 후보 확인 후 일괄 연결' : '운영팀장 지문 출근부 직원 연결 확인',
+      p_reason: automatic ? '운영팀장 이름 정확 일치 후보 확인 후 일괄 연결' : '운영팀장 과거 외부 근태 직원 연결 확인',
       p_work_date: workDate,
       p_expected_employee_uuid: item.identity?.mapping_employee_uuid || null,
       p_confirm_replace: replace,
@@ -485,8 +389,8 @@
     const evidenceRows = evidenceData.rows || unmatched;
     if (!evidenceRows.length) return null;
     const panel = el('section', null, 'attendance-unmatched');
-    panel.append(el('strong', '직원 미매칭 지문자료 ' + unmatched.length + '건 (현재 상태)'),
-      el('p', '사번/사용자번호를 태장 직원과 한 번 연결하면 다음 파일부터 같은 직원으로 인식합니다. 조회만으로 연결을 저장하지 않습니다.'));
+    panel.append(el('strong', '미연결 과거 외부 기록 ' + unmatched.length + '건 (현재 상태)'),
+      el('p', '저장된 과거 기록의 사번이나 사용자번호를 태장 직원과 연결할 수 있습니다.'));
     const batches = evidenceData.batches || [];
     panel.append(el('p', '원본 ' + (evidenceData.raw_row_count ?? evidenceRows.length) + '행 · 비교 근거 ' + evidenceRows.length + '건 · 원본 배치 ' + batches.length + '개. 동일 직원·날짜·시각의 원본은 함께 보존합니다.'));
     const provenance = el('details'); provenance.append(el('summary', '원본 배치와 수집 당시 수치'));
@@ -519,7 +423,7 @@
       line.append(el('span', (item.source_display_name || '이름 없음') + ' · ' + (item.source_employee_key || '외부번호 없음') + ' · 출근 ' + time(item.clock_in_at) + ' / 퇴근 ' + time(item.clock_out_at)));
       if (!context) { line.append(el('span', '안전한 직원 연결 서버 동기화 필요')); list.append(line); return; }
       if (context.name_reused || context.time_conflict) {
-        line.append(el('strong', context.name_reused ? '연결 중지: 같은 지문기 번호의 과거 이름이 다릅니다.' : '연결 중지: 같은 날짜의 출퇴근 시각이 충돌합니다. 자동 확정 불가.'));
+        line.append(el('strong', context.name_reused ? '연결 중지: 같은 외부 사용자번호의 과거 이름이 다릅니다.' : '연결 중지: 같은 날짜의 출퇴근 시각이 충돌합니다. 자동 확정 불가.'));
         list.append(line); return;
       }
       const currentEmployee = context.employees.find(employee => employee.employee_uuid === item.employee_uuid);
@@ -551,14 +455,14 @@
       missing_clock_in: '출근 시간이 없습니다',
       missing_clock_out: '퇴근 시간이 없습니다',
       pending_gps_exception: 'GPS 예외가 아직 처리되지 않았습니다',
-      fingerprint_import_missing: '이 날짜의 지문 Excel 자료를 아직 가져오지 않았습니다',
-      fingerprint_missing: '지문 근거가 없습니다',
-      fingerprint_ambiguous: '같은 직원의 지문 근거가 여러 건입니다',
-      fingerprint_clock_in_missing: '지문 출근 시간이 없습니다',
-      fingerprint_clock_out_missing: '지문 퇴근 시간이 없습니다',
-      clock_in_mismatch: 'GPS와 지문 출근 시간 차이가 5분을 넘습니다',
-      clock_out_mismatch: 'GPS와 지문 퇴근 시간 차이가 5분을 넘습니다',
-      external_identity_unmatched: '직원 미매칭 지문자료가 있습니다',
+      fingerprint_import_missing: '이 날짜의 과거 외부 기록을 확인해주세요',
+      fingerprint_missing: '과거 외부 기록이 없습니다',
+      fingerprint_ambiguous: '같은 직원의 과거 외부 기록이 여러 건입니다',
+      fingerprint_clock_in_missing: '과거 외부 기록의 출근 시간이 없습니다',
+      fingerprint_clock_out_missing: '과거 외부 기록의 퇴근 시간이 없습니다',
+      clock_in_mismatch: '앱 기록과 과거 외부 기록의 출근 시간 차이가 5분을 넘습니다',
+      clock_out_mismatch: '앱 기록과 과거 외부 기록의 퇴근 시간 차이가 5분을 넘습니다',
+      external_identity_unmatched: '직원과 연결되지 않은 과거 외부 기록이 있습니다',
       attendance_status_review_required: '근태 상태를 확인해야 합니다',
     };
     const owner = blocker?.display_name ? `${blocker.display_name} · ` : '';
@@ -755,7 +659,7 @@
     controls.append(startLabel, endLabel, historyLabel, query);
     panel.append(
       el('h3', '확정 근태 대장'),
-      el('p', '주·월·연 데이터를 별도로 복제하지 않습니다. 일일 확정 revision과 GPS·지문·수기 보정 provenance를 기간별로 다시 읽습니다.'),
+      el('p', '선택한 기간의 일일 확정본과 출퇴근 기록, 수기 보정 근거를 조회합니다.'),
       controls,
       results
     );
@@ -820,6 +724,159 @@
 
     if (!rows.length) list.append(el('p', '휴일근무를 지정할 근태 대상 직원이 없습니다.', 'empty'));
     panel.append(list);
+    return panel;
+  }
+
+  function fieldWorkPanel(assignments, rows, workDate, confirmed) {
+    const panel = el('section', null, 'attendance-holiday-work');
+    const form = el('form', null, 'attendance-holiday-work-list app-authoring');
+    const dialog = el('dialog', null, 'attendance-field-dialog app-authoring-dialog');
+    const title = el('h2', '현장근무 지정');
+    title.id = 'attendance-field-dialog-title';
+    dialog.setAttribute('aria-labelledby', title.id);
+    const formMessage = el('p', '', 'error');
+    formMessage.setAttribute('role', 'status');
+    const message = el('p', '', 'attendance-evidence-help');
+    message.setAttribute('role', 'status');
+    const names = new Map(rows.map(row => [String(row.employee_uuid), row.display_name]));
+    const settings = el('div', null, 'attendance-ledger-controls');
+    const field = (label, control) => {
+      const wrapper = el('label', label);
+      wrapper.append(control);
+      return wrapper;
+    };
+    const site = document.createElement('input'); site.required = true; site.maxLength = 100;
+    const start = document.createElement('input'); start.type = 'time'; start.required = true; start.defaultValue = '09:00';
+    const end = document.createElement('input'); end.type = 'time'; end.required = true; end.defaultValue = '12:00';
+    const mode = document.createElement('select');
+    mode.append(new Option('현장 출근 → 현장 퇴근', 'both'), new Option('평소 근무지에서 출근 → 현장 퇴근', 'out'));
+    settings.append(field('현장명', site), field('시작 시각', start), field('종료 시각', end), field('기록 방식', mode));
+    const selection = el('details', null, 'attendance-detail-tools');
+    const participants = el('div', null, 'attendance-holiday-work-list');
+    selection.append(el('summary', '참여 직원 선택'),
+      el('p', '재택근무자도 참여 직원으로 지정할 수 있습니다.'), participants);
+    const options = rows.filter(row => row.employee_uuid).map(row => {
+      const control = document.createElement('input'); control.type = 'checkbox'; control.value = row.employee_uuid;
+      participants.append(field(row.display_name || '직원', control));
+      return control;
+    });
+    const save = el('button', '현장근무 저장', 'button'); save.type = 'submit';
+    const writable = !confirmed && workDate >= new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit'
+    }).format(new Date());
+    const cancel = el('button', '취소', 'button button-quiet'); cancel.type = 'button';
+    const controls = [];
+    let busy = false;
+    async function change(action, employeeIds, extra = {}) {
+      if (busy) return;
+      const feedback = action === 'save' ? formMessage : message;
+      if (!employeeIds.length) { feedback.textContent = '직원을 한 명 이상 선택해주세요.'; return; }
+      busy = true;
+      controls.forEach(button => { button.disabled = true; });
+      feedback.textContent = '처리 중입니다.';
+      try {
+        await app().rpc('manage_attendance_field_work', {
+          p_work_date: workDate, p_employee_uuids: employeeIds, p_action: action, ...extra
+        });
+      } catch (error) {
+        const errors = {
+          FIELD_WORK_ALREADY_RECORDED: '이미 현장 기록이 있습니다. 근태 보정에서 확인해주세요.',
+          FIELD_WORK_INELIGIBLE: '휴가·휴무 또는 근태 제외 직원이 포함돼 있습니다.',
+          FIELD_WORK_INVALID: '날짜와 시작·종료 시간을 확인해주세요.',
+          FIELD_WORK_INCOMPLETE: '현장 퇴근 기록 또는 보정 여부를 확인해주세요.',
+          DAY_ALREADY_CONFIRMED: '이미 확정된 출근부입니다.',
+          SELF_APPROVAL_FORBIDDEN: '본인 기록은 다른 관리자가 확인해야 합니다.'
+        };
+        feedback.textContent = errors[error?.message] || '처리하지 못했습니다. 입력과 권한을 확인해주세요.';
+        busy = false;
+        controls.forEach(button => { button.disabled = false; });
+        return;
+      }
+      feedback.textContent = '처리했습니다.';
+      if (dialog.open) dialog.close();
+      await openAttendance(workDate);
+      main()?.querySelector('[data-field-work-panel]')?.setAttribute('open', '');
+    }
+    if (writable) {
+      const open = el('button', '현장근무 지정', 'button'); open.type = 'button';
+      const actions = el('div', null, 'form-actions');
+      actions.append(cancel, save);
+      controls.push(save, cancel);
+      form.append(settings, selection, formMessage, actions);
+      dialog.append(title, form);
+      cancel.addEventListener('click', () => dialog.close());
+      dialog.addEventListener('cancel', event => { if (busy) event.preventDefault(); });
+      open.addEventListener('click', () => dialog.showModal());
+      form.addEventListener('submit', event => {
+        event.preventDefault();
+        if (start.value >= end.value) { formMessage.textContent = '종료 시각은 시작 시각보다 늦어야 합니다.'; return; }
+        void change('save', options.filter(control => control.checked).map(control => control.value), {
+          p_site: site.value.trim(), p_starts_at: start.value, p_ends_at: end.value,
+          p_field_clock_in: mode.value === 'both'
+        });
+      });
+      panel.append(open, dialog);
+    }
+    panel.append(message);
+    const list = el('div', null, 'attendance-holiday-work-list');
+    const reviewSelection = [];
+    for (const assignment of assignments) {
+      const line = el('div', null, 'attendance-holiday-work-row');
+      const copy = el('div');
+      const recorded = assignment.clock_in || assignment.clock_out;
+      const state = assignment.reviewed_at ? '확인 완료' : recorded ? '확인 필요' : '기록 대기';
+      copy.append(el('strong', names.get(String(assignment.employee_uuid)) || '직원'),
+        el('span', assignment.site + ' · ' + assignment.starts_at.slice(0,5) + '–' + assignment.ends_at.slice(0,5)
+          + ' · ' + (assignment.field_clock_in ? '현장 출퇴근' : '현장 퇴근') + ' · ' + state),
+        el('span', '현장 출근 ' + time(assignment.clock_in) + (assignment.late ? ' (지각)' : '')
+          + ' · 현장 퇴근 ' + time(assignment.clock_out) + (assignment.early_leave ? ' (조퇴 확인)' : '')));
+      line.append(copy);
+      if (!confirmed && recorded && !assignment.reviewed_at) {
+        const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.value = assignment.employee_uuid;
+        reviewSelection.push(checkbox); line.append(field('대조 확인 대상', checkbox));
+      } else if (!confirmed && !recorded) {
+        const remove = el('button', '지정 해제', 'button button-quiet'); remove.type = 'button';
+        controls.push(remove);
+        remove.addEventListener('click', () => void change('remove', [assignment.employee_uuid]));
+        line.append(remove);
+      }
+      list.append(line);
+    }
+    if (!assignments.length) list.append(el('p', '지정된 현장근무가 없습니다.', 'empty'));
+    if (reviewSelection.length) {
+      const review = el('button', '선택한 기록 대조 확인', 'button button-quiet'); review.type = 'button';
+      controls.push(review);
+      review.addEventListener('click', () => void change('review', reviewSelection.filter(item => item.checked).map(item => item.value)));
+      list.append(review);
+    }
+    panel.append(list);
+    const wrapper = folded('현장근무 지정·확인', panel);
+    wrapper.dataset.fieldWorkPanel = '1';
+    return wrapper;
+  }
+
+  function revealFieldWork(panel) {
+    panel.open = true;
+    panel.querySelector('summary')?.focus({preventScroll:true});
+    panel.scrollIntoView({block:'nearest'});
+  }
+
+  function fieldWorkUnavailable(workDate) {
+    const notice = el('div', null, 'message error');
+    const retry = el('button', '현장근무 다시 조회', 'button button-quiet');
+    retry.type = 'button';
+    retry.addEventListener('click', async () => {
+      retry.disabled = true;
+      await openAttendance(workDate);
+      if (retry.isConnected) retry.disabled = false;
+      else if (currentWorkDate === workDate) {
+        const panel = main()?.querySelector('[data-field-work-panel]');
+        if (panel) revealFieldWork(panel);
+      }
+    });
+    notice.append(el('p', '현장근무를 불러오지 못했습니다. 직원 출근부는 계속 볼 수 있습니다.'), retry);
+    const panel = folded('현장근무 지정·확인', notice, true);
+    panel.dataset.fieldWorkPanel = '1';
     return panel;
   }
 
@@ -895,10 +952,11 @@
     if (can('employee.view_all') || can('employee.view_scoped')) {
       try {
         const context=await app().rpc('get_employee_management_context');
+        const positionOrders=window.TaejangAttendanceRosterSort.positionOrders(context);
         for(const employee of context?.employees || []) {
           // Select ordinary organization fields; never retain protected HR values.
           const {id,department_name,position_name,employment_status,attendance_required,hired_on,departed_on}=employee;
-          metadata.set(String(id),{id,department_name,position_name,employment_status,attendance_required,hired_on,departed_on,linked_profile:employee.linked_profile?{account_status:employee.linked_profile.account_status}:null});
+          metadata.set(String(id),{id,department_name,position_name,position_order:positionOrders.get(String(id)) ?? null,employment_status,attendance_required,hired_on,departed_on,linked_profile:employee.linked_profile?{account_status:employee.linked_profile.account_status}:null});
         }
       } catch { /* Unavailable scoped metadata stays explicitly unconfirmed. */ }
     }
@@ -1021,7 +1079,7 @@
         if (!panel.isConnected) return;
         detail.replaceChildren();
         model = helper.buildMonth({month:selectedMonth,ledger,daily,employees:[...metadata.values()]});
-        model.rows=model.rows.map(row=>helper.classify(row,metadata.get(String(row.employee_uuid))));loaded = true;
+        model.rows=window.TaejangAttendanceRosterSort.sortRows(model.rows.map(row=>helper.classify(row,metadata.get(String(row.employee_uuid)))));loaded = true;
         render(); excel.disabled = model.failedDays.length > 0;
       } catch {
         results.prepend(el('p', '월간 출근부를 불러오지 못했습니다. 선택 월과 이전 조회 내용은 유지됩니다.', 'message error'));
@@ -1048,12 +1106,13 @@
       const requestedWorkDate = workDate || new Intl.DateTimeFormat('en-CA', {
         timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit'
       }).format(new Date());
-      const [rosterResult, evidenceResult, confirmationResult, dayStatusResult, holidayAssignmentsResult] = await Promise.allSettled([
+      const [rosterResult, evidenceResult, confirmationResult, dayStatusResult, holidayAssignmentsResult, fieldWorkResult] = await Promise.allSettled([
         app().rpc('get_attendance_admin_today', { p_work_date: requestedWorkDate }),
         app().rpc('get_attendance_external_evidence', { p_work_date: requestedWorkDate }),
         app().rpc('get_attendance_confirmation_status', { p_work_date: requestedWorkDate }),
         app().rpc('get_attendance_workday_status', { p_work_date: requestedWorkDate }),
         app().rpc('get_attendance_holiday_work_assignments', { p_work_date: requestedWorkDate }),
+        can('attendance.correct') ? app().rpc('get_attendance_field_work', { p_work_date: requestedWorkDate }) : Promise.resolve(null),
       ]);
       if (rosterResult.status !== 'fulfilled') throw rosterResult.reason || new Error('ATTENDANCE_ROSTER_UNAVAILABLE');
       if (version !== requestVersion) return;
@@ -1070,7 +1129,9 @@
       currentWorkDate = data?.work_date || requestedWorkDate;
       const metadata=await classificationMetadata(currentWorkDate);
       if(version!==requestVersion)return;
-      const rows=data.rows.map(row=>window.TaejangAttendanceMonthly.classify(row,metadata.get(String(row.employee_uuid))));
+      const rows=window.TaejangAttendanceRosterSort.sortRows(data.rows.map(row=>window.TaejangAttendanceMonthly.classify(row,metadata.get(String(row.employee_uuid)))));
+      const fieldWork = Array.isArray(fieldWorkResult.value) ? fieldWorkResult.value : [];
+      const fieldByEmployee = new Map(fieldWork.map(item => [String(item.employee_uuid), item]));
       const evidenceRows = Array.isArray(evidenceData?.rows) ? evidenceData.rows : [];
       const fingerprintImported = evidenceRows.some(item => item.source_system === EVIDENCE_SOURCE);
       const byEmployee = new Map();
@@ -1084,13 +1145,17 @@
 
       const comparisons = evidenceAvailable
         ? rows.map(row => {
+          const fieldWork = fieldByEmployee.get(String(row.employee_uuid));
+          if (fieldWork && !fieldWork.reviewed_at && (fieldWork.clock_in || fieldWork.clock_out)) {
+            return {label:'현장근무 · 확인 필요',needsReview:true};
+          }
           const comparison = compareEvidence(row, byEmployee.get(String(row.employee_uuid)) || [], fingerprintImported);
           const assigned=(holidayAssignments?.rows || []).some(r=>String(r.employee_uuid)===String(row.employee_uuid));
           if(dayStatus?.is_workday===false && !assigned && !row.clock_in?.event_at && !row.clock_out?.event_at && dayStatusCode(row)==='work')return {label:'휴일',needsReview:false};
           const missing = dayStatusCode(row) === 'work' && (!good(row.clock_in) || !good(row.clock_out));
           return missing ? { label: '출퇴근 누락 · 확인', needsReview: true } : comparison;
         })
-        : rows.map(() => ({ label: '지문 근거자료 서버 동기화 필요', needsReview: true }));
+        : rows.map(() => ({ label: '과거 외부 기록 서버 동기화 필요', needsReview: true }));
       const reviewCount = rows.filter((row,index)=>comparisons[index].needsReview || row.clock_in?.status==='exception_pending' || row.clock_out?.status==='exception_pending').length;
 
       const intro = el('header', null, 'dashboard-intro');
@@ -1099,7 +1164,7 @@
       intro.append(
         el('p', '근태 관리', 'eyebrow'),
         el('h2', `${currentWorkDate || '오늘'} 출근부`),
-        el('p', '앱 GPS와 보안업체 지문 Excel을 근거자료로 비교하고, 차이·누락만 우선 확인합니다. 원본 근거는 서로 덮어쓰지 않습니다.'),
+        el('p', '앱 출퇴근 기록과 현장근무를 조회하고 누락이나 확인이 필요한 기록을 처리합니다.'),
         back
       );
 
@@ -1131,7 +1196,6 @@
       });
       function renderDaily(){
         const entries=dailyEntries.filter(({row,comparison})=>matchesSearch(row)&&(!filters.reviewOnly||comparison.needsReview));
-        entries.sort((a,b)=>Number(b.comparison.needsReview)-Number(a.comparison.needsReview));
         list.replaceChildren(...entries.map(item=>item.compact));
         if(!entries.length)list.append(el('p','조건에 맞는 직원이 없습니다.','empty'));
       }
@@ -1139,17 +1203,23 @@
       const dailyPanel=el('section'),detailPanel=el('section'),monthly=monthlyPanel(currentWorkDate);
       const tabs=tabBar({daily:dailyPanel,monthly,detail:detailPanel});
       const pieces=[intro,tabs];
-      dailyPanel.append(makeToolbar(currentWorkDate),summary,searchToolbar(renderDaily,()=>rows));
-      if(!evidenceAvailable)dailyPanel.append(syncRequiredPanel('지문 근거자료'));
+      const fieldPanel = can('attendance.correct')
+        ? (Array.isArray(fieldWorkResult.value)
+          ? fieldWorkPanel(fieldWork, rows, currentWorkDate, dayConfirmed)
+          : fieldWorkUnavailable(currentWorkDate))
+        : null;
+      dailyPanel.append(makeToolbar(currentWorkDate, fieldPanel),summary,searchToolbar(renderDaily,()=>rows));
+      if(!evidenceAvailable)dailyPanel.append(syncRequiredPanel('과거 외부 기록'));
       if(!workdayAvailable||!holidayAssignmentsAvailable)detailPanel.append(syncRequiredPanel('휴일근무 지정'));
       else { const holidayPanel=holidayWorkPanel(dayStatus,holidayAssignments,rows,currentWorkDate);if(holidayPanel)detailPanel.append(folded('휴일근무 지정',holidayPanel)); }
+      if (fieldPanel) dailyPanel.append(fieldPanel);
       dailyPanel.append(confirmationAvailable?confirmationPanel(confirmation,currentWorkDate):syncRequiredPanel('일일 근태 확정'));
       detailPanel.append(folded('확정 원장·이전 revision 조회',confirmedLedgerPanel(currentWorkDate)));
       const correction=el('button','근태 시간 보정·보정 이력','button');correction.type='button';
       correction.addEventListener('click',()=>window.TaejangAttendanceIntegrity?.openCorrectionScreen());
       if(can('attendance.correct'))detailPanel.append(correction);
       const unmatchedNode=unmatchedPanel(unmatched,rows,currentWorkDate,evidenceData);
-      if(unmatchedNode)dailyPanel.append(folded('미매칭 지문자료 '+unmatched.length+'건',unmatchedNode,true));
+      if(unmatchedNode)dailyPanel.append(folded('과거 외부 기록 · 미연결 '+unmatched.length+'건',unmatchedNode,true));
       dailyPanel.append(list);pieces.push(dailyPanel,monthly,detailPanel);
       target.replaceChildren(...pieces);
     } catch {
@@ -1170,7 +1240,7 @@
     card.append(
       el('span', '현재 담당 업무', 'status-label'),
       el('h3', '오늘 출근부'),
-      el('p', '앱 GPS와 지문 출근부의 차이·누락을 우선 확인합니다.')
+      el('p', '오늘 출퇴근과 현장근무 기록을 확인합니다.')
     );
     const button = el('button', '출근부 열기', 'button button-quiet');
     button.type = 'button';
@@ -1184,5 +1254,5 @@
   document.addEventListener('taejang-app-ready', () => setTimeout(sync, 100));
   document.addEventListener('taejang-dashboard-refresh', () => setTimeout(sync, 120));
   document.addEventListener('taejang-capabilities-ready', () => setTimeout(sync, 0));
-  window.TaejangAttendanceAdmin = { openAttendance, compareEvidence, allExcelRows, addNavigation };
+  window.TaejangAttendanceAdmin = { openAttendance, compareEvidence, addNavigation };
 })();

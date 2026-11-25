@@ -17,9 +17,9 @@ test('landing is static, reachable, and retains shared public navigation', () =>
   const build = read('scripts/build-netlify-publish.mjs');
   const sitemap = read('sitemap.xml');
   const testManifest = read('scripts/test-manifest.mjs');
-  assert.match(home, /<footer class="footer">[\s\S]*?<a href="employee-app\.html">직원앱 소개<\/a>/);
-  assert.equal((home.match(/href="employee-app\.html"/g) || []).length, 3, "home header desktop/mobile and footer should link the app");
-  assert.equal((home.match(/class="employee-app-nav"/g) || []).length, 2);
+  assert.match(home, /<footer class="footer">[\s\S]*?<a href="resources\.html">서비스·상품<\/a>/);
+  assert.match(read('resources.html'), /href="employee-app\.html"/, "resource hub retains the app entry");
+  assert.equal((home.match(/class="resources-nav"/g) || []).length, 2);
   assert.match(build, /'employee-app\.html'/);
   assert.match(sitemap, /<loc>https:\/\/taejang\.co\.kr\/employee-app\.html<\/loc>/);
   assert.match(testManifest, /'tests\/employee-app-landing\.test\.js'/);
@@ -30,7 +30,7 @@ test('landing is static, reachable, and retains shared public navigation', () =>
   assert.match(page, /href="assets\/css\/employee-app\.css"/);
   assert.match(page, /src="assets\/js\/site\.js"/);
   const mobile = page.match(/<nav class="mobile-nav"[^>]*>[\s\S]*?<\/nav>/)?.[0] || '';
-  assert.ok(mobile.indexOf('href="staff/"') < mobile.indexOf('href="employee-app.html"'), 'employee app guide follows sign-in in mobile menu');
+  assert.ok(mobile.indexOf('href="resources.html"') < mobile.indexOf('href="staff/"'), 'resource library precedes sign-in in mobile menu');
   const login = read('staff/index.html');
   const loginPanel = login.match(/<section id="login-panel"[^>]*>[\s\S]*?<\/section>/)?.[0] || '';
   assert.match(loginPanel, /href="\.\.\/employee-app\.html">직원앱 소개·이용 안내 보기/);
@@ -55,7 +55,11 @@ test('content shows working features and feedback records without unreleased cla
   assert.match(page, /datetime="2026-09-22"[\s\S]*?공지사항을 더 단순하게/);
   assert.doesNotMatch(main, /업무 플랫폼|개선 검토 중|개발·검수 중|계속 개선할 방향|정식 공개 다운로드|준비 중/, 'app content stays distinct from the shared platform login navigation');
   assert.doesNotMatch(page, /중증장애인우선기업|WCAG (?:AA|AAA) 인증/);
-  assert.doesNotMatch(page, /href="[^"]*\.apk"|href="https:\/\/play\.google\.com/);
+  assert.doesNotMatch(page, /href="[^"]*\.apk"|https:\/\/play\.google\.com\/apps\/(?:internaltest|testing)/);
+  assert.match(page, /class="employee-app-store-badge" href="https:\/\/play\.google\.com\/store\/apps\/details\?id=com\.cetin072\.taejang\.staff&amp;hl=ko&amp;gl=KR"/);
+  assert.equal((page.match(/class="employee-app-store-badge"/g) || []).length, 1);
+  assert.match(page, /<img src="assets\/images\/google-play-badge-ko\.png" alt="Google Play에서 태장 앱 다운로드" width="646" height="250"/);
+  assert.ok(fs.statSync(path.join(root, 'assets/images/google-play-badge-ko.png')).size > 0);
   assert.doesNotMatch(page, /(?:주민등록번호|장애 유형|실명 공개):/);
 });
 

@@ -78,12 +78,16 @@ select ok(
 
 select ok(
   pg_get_functiondef('public.private_actor_capabilities()'::regprocedure)
+    ilike '%private_actor_capabilities_before_menu_authority()%'
+  and pg_get_functiondef('public.private_actor_capabilities()'::regprocedure)
+    ilike '%private_menu_denied%'
+  and pg_get_functiondef('public.private_actor_capabilities_before_menu_authority()'::regprocedure)
     ilike '%operations_manager_auto_grant%'
-  and pg_get_functiondef('public.private_actor_capabilities()'::regprocedure)
+  and pg_get_functiondef('public.private_actor_capabilities_before_menu_authority()'::regprocedure)
     ilike '%technical%'
-  and pg_get_functiondef('public.private_actor_capabilities()'::regprocedure)
+  and pg_get_functiondef('public.private_actor_capabilities_before_menu_authority()'::regprocedure)
     ilike '%actual_roles%'
-  and pg_get_functiondef('public.private_actor_capabilities()'::regprocedure)
+  and pg_get_functiondef('public.private_actor_capabilities_before_menu_authority()'::regprocedure)
     not ilike '%attendance.self_record%',
   'capability resolver gives operations the operational superset while technical grants remain actual-role based'
 );

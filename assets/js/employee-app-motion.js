@@ -2,6 +2,7 @@
 (() => {
   'use strict';
   const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+  let reducedMotion = reduce.matches;
   const cleanups = [];
   const hero = document.querySelector('[data-hero-motion]');
   if (!hero) return;
@@ -48,7 +49,7 @@
     function finish() {
       stop(); render(duration); root.dataset.state = 'ended';
       pauseButton.disabled = true; pauseButton.textContent = '일시정지';
-      controls.hidden = reduce.matches;
+      controls.hidden = reducedMotion;
     }
     function tick(now) {
       render(now - start);
@@ -56,7 +57,7 @@
       raf = requestAnimationFrame(tick);
     }
     function play(reset) {
-      if (reduce.matches) return finish();
+      if (reducedMotion) return finish();
       stop(); if (reset) render(0);
       played = true; start = performance.now() - time;
       root.dataset.state = 'playing'; pauseButton.disabled = false;
@@ -69,7 +70,7 @@
     pauseButton.addEventListener('click', () => root.dataset.state === 'playing' ? pause() : play(false));
     controls.querySelector('[data-hero-replay]').addEventListener('click', () => play(true));
     const observer = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && !played && !reduce.matches) play(true);
+      if (entries[0].isIntersecting && !played && !reducedMotion) play(true);
       else if (!entries[0].isIntersecting) pause();
     }, { threshold: .25 });
     render(duration); finish(); observer.observe(root);
@@ -86,14 +87,14 @@
       animation?.cancel(); animation = null;
       root.classList.remove('is-flipping', 'is-after');
       root.dataset.state = 'comparison'; compare.textContent = '두 내용 함께 보기';
-      controls.hidden = reduce.matches;
+      controls.hidden = reducedMotion;
     }
     function finish() {
       root.classList.add('is-after'); animation?.cancel(); animation = null;
       root.dataset.state = 'ended';
     }
     function play() {
-      if (reduce.matches) return staticView();
+      if (reducedMotion) return staticView();
       staticView(); played = true; root.classList.add('is-flipping');
       root.dataset.state = 'playing';
       animation = inner.animate([
@@ -112,7 +113,7 @@
       const visibleHeight = entry.intersectionRect.height;
       const requiredHeight = Math.min(entry.boundingClientRect.height * .6, innerHeight * .38);
       cardVisible = entry.isIntersecting && visibleHeight >= requiredHeight;
-      if (!cardVisible || document.hidden || reduce.matches) {
+      if (!cardVisible || document.hidden || reducedMotion) {
         if (animation?.playState === 'running') {
           animation.pause();
           root.dataset.state = 'paused';
@@ -126,14 +127,14 @@
     }, { threshold: [0, .15, .3, .45, .6, .75, 1], rootMargin: '0px 0px -12% 0px' });
     staticView();
     // Reserve both faces' maximum height before they enter the viewport.
-    if (!reduce.matches) root.classList.add('is-flipping');
+    if (!reducedMotion) root.classList.add('is-flipping');
     observer.observe(face);
     cleanups.push(() => { played = true; staticView(); });
     document.addEventListener('visibilitychange', () => {
       if (document.hidden && animation?.playState === 'running') {
         animation.pause();
         root.dataset.state = 'paused';
-      } else if (!document.hidden && cardVisible && animation?.playState === 'paused' && !reduce.matches) {
+      } else if (!document.hidden && cardVisible && animation?.playState === 'paused' && !reducedMotion) {
         animation.play();
         root.dataset.state = 'playing';
       }
@@ -142,7 +143,10 @@
   try {
     setupHero();
     document.querySelectorAll('[data-comparison]').forEach(setupCard);
-    reduce.addEventListener('change', () => cleanups.forEach(reset => reset()));
+    reduce.addEventListener('change', event => {
+      reducedMotion = event.matches;
+      cleanups.forEach(reset => reset());
+    });
     window.addEventListener('beforeprint', () => cleanups.forEach(reset => reset()));
   } catch (error) {
     cleanups.forEach(reset => reset());

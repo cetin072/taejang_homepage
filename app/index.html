@@ -26,7 +26,7 @@
         <header class="app-topbar">
           <button id="sidebar-toggle" class="icon-button" type="button" aria-label="메뉴 열기" aria-controls="app-sidebar" aria-expanded="false">☰</button>
           <div><p id="desktop-role-label" class="eyebrow"></p><h1 id="desktop-page-title">업무 대시보드</h1></div>
-          <div class="app-user-actions"><span id="desktop-user-label" class="app-user-label"></span><button id="desktop-logout-button" class="button button-quiet" type="button">로그아웃</button></div>
+          <div class="app-user-actions"><span id="desktop-user-label" class="app-user-label"></span><span id="desktop-remote-work"></span><button id="desktop-logout-button" class="button button-quiet" type="button">로그아웃</button></div>
         </header>
         <p id="app-status-message" class="message" role="status" aria-live="polite" hidden></p>
         <main id="dashboard-main" class="dashboard-main" tabindex="-1" aria-live="polite"></main>
@@ -65,11 +65,14 @@
         <button id="refresh-board" class="button button-quiet" type="button">새로고침</button>
       </header>
 
+      <section id="worker-calendar" hidden aria-label="내 캘린더"></section>
+
       <p id="board-message" class="message" role="status" aria-live="polite" hidden></p>
 
       <section class="today-section" aria-labelledby="worker-name-title">
         <h2 id="worker-name-title">내 정보</h2>
         <p id="today-worker-name" class="worker-name"></p>
+        <div id="worker-remote-work"></div>
       </section>
 
       <section class="today-section" aria-labelledby="work-hours-title">
@@ -324,7 +327,7 @@
           <label>공지 내용<textarea id="notice-body" maxlength="3000" rows="6" required></textarea></label>
           <fieldset class="notice-photo-fieldset app-form-section app-form-section--media">
             <legend>사진 추가 (선택)</legend>
-            <p class="help">사진은 최대 10장까지 추가할 수 있습니다. 큰 사진은 업로드 전에 자동 축소됩니다.</p>
+            <p class="help">최대 10장 · 원본 장당 15MB 이하. 업로드 전에 자동 축소해 1MB 이하로 저장합니다. GIF는 1600px·1MB 이하만 원본 그대로 저장합니다.</p>
             <label>사진 선택<input id="notice-photo-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple></label>
             <div id="notice-media-editor" class="notice-media-editor" aria-live="polite"></div>
           </fieldset>
@@ -415,11 +418,15 @@
   <script src="assets/platform-navigation-registry.js"></script>
   <script src="assets/issue-223-promotion-meta-stale-guard.js"></script>
   <script src="assets/official-channel-config.js"></script>
+  <script src="assets/attendance-roster-sort.js"></script>
   <script src="assets/app-ui.js"></script>
   <script src="assets/staff-information-ui.js"></script>
   <script src="assets/staff-information-today.js"></script>
   <script src="assets/payroll-attendance-xlsx.js" defer></script>
+  <script src="assets/employee-remote-work.js" defer></script>
   <script src="assets/app.js" defer></script>
+  <script src="assets/personal-worklog.js" defer></script>
+  <script src="assets/employee-calendar.js" defer></script>
   <script src="assets/dashboard-shell.js" defer></script>
   <script src="assets/work-guide-worker.js" defer></script>
   <script src="assets/schedule-worker.js" defer></script>

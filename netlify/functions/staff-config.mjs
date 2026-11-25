@@ -101,6 +101,7 @@ export async function buildStaffConfig({ env = process.env, fetchImpl = fetch } 
     url,
     publishableKey,
     environmentLabel,
+    ...(truthy(env.GOOGLE_IDENTITY_ENABLED) ? {googleIdentityEnabled:true} : {}),
     mobileRelease: liveOptional ? { ...baseline, ...liveOptional } : baseline,
   }), { status: 200, headers: JSON_HEADERS });
 }

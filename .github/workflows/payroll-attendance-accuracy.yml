@@ -35,8 +35,11 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Run current platform, public and payroll regression
-        run: npm test
+      - name: Install existing browser test dependencies
+        run: npm ci
+
+      - name: Run payroll regression
+        run: npm run test:payroll
 
       - name: Build Netlify publish bundle with payroll operator page
         run: |
@@ -48,7 +51,7 @@ jobs:
       - name: Run operations manager PC platform entry smoke
         run: node tests/payroll-platform-entry-browser.mjs
 
-      - name: Run promotion lead payroll handoff browser smoke
+      - name: Verify retired payroll handoff URL is inert
         run: node tests/payroll-draft-handoff-browser.mjs
 
       - name: Run payroll PC operator happy-path smoke
@@ -63,6 +66,3 @@ jobs:
         env:
           PAYROLL_PREVIEW_URL: https://deploy-preview-${{ github.event.pull_request.number }}--taejang-homepage.netlify.app
         run: node tests/payroll-preview-runtime-smoke.mjs
-
-      - name: Run staging safety regression
-        run: npm run test:staging-safety

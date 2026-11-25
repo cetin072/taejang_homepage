@@ -14,6 +14,7 @@ function deepLinkPathFromResponse(response: Notifications.NotificationResponse |
     noticeId?: unknown;
     scheduleId?: unknown;
   } | undefined;
+  if (data?.target === 'attendance') return '/' as const;
   if (data?.target === 'notice' && typeof data.noticeId === 'string' && data.noticeId) return noticeDeepLinkPath(data.noticeId);
   if (data?.target === 'schedule' && typeof data.scheduleId === 'string' && data.scheduleId) return scheduleDeepLinkPath(data.scheduleId);
   return null;

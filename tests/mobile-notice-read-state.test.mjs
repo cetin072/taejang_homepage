@@ -167,7 +167,7 @@ test('home and full list reuse native cards: 0–5 notices, stable publication o
     assert.equal(selected.length, Math.min(count, 3));
     assert.deepEqual(selected.map(x => x.props.item.id), original.toReversed().slice(0, 3).map(x => x.id));
     assert.deepEqual(state.items, original, 'shared cache is not mutated');
-    assert.equal(ui.includes('현재 등록된 공지사항이 없습니다.'), count === 0);
+    assert.equal(ui.includes('새 공지가 없어요.'), count === 0);
     assert.equal(nodes(list.default()).filter(x => x.type === cards.NoticeListCard).length, count);
     assert.equal(ui.filter(x => x.props?.accessibilityLabel === '전체 공지 보기').length, 1);
     assert.equal(ui.some(x => typeof x === 'string' && /미확인.*건|내용 보기/.test(x)), false);
@@ -205,11 +205,11 @@ test('home and full list reuse native cards: 0–5 notices, stable publication o
   nodes(list.default()).find(x => x.type === 'Pressable').props.onPress();
   assert.equal(routes.at(-1), '/');
   state = { ...state, items: [], loading: true };
-  assert.ok(render().includes('공지를 확인하고 있습니다.'));
-  assert.ok(!render().includes('현재 등록된 공지사항이 없습니다.'));
+  assert.ok(render().includes('공지 확인 중…'));
+  assert.ok(!render().includes('새 공지가 없어요.'));
   state = { ...state, loading: false, error: '공지 정보를 불러오지 못했습니다. 다시 시도' };
   ui = render(); assert.ok(ui.includes(state.error));
-  assert.ok(!ui.includes('현재 등록된 공지사항이 없습니다.'));
+  assert.ok(!ui.includes('새 공지가 없어요.'));
   ui.find(x => x.type === 'Pressable').props.onPress(); assert.equal(retries, 1);
   state.items = [notice()];
   assert.equal(render().filter(x => x.type === cards.NoticeListCard).length, 1, 'cached cards remain usable on refresh failure');
@@ -268,7 +268,9 @@ test('invalid RPC payload is an error rather than no notices', async () => {
 async function detailHarness(required = false) {
   const h = hooks(), r = readModule(memory()), client = {};
   let actor = 'alice', current = notice('a', { requires_acknowledgement: required }), ackCalls = 0, fail = false;
+  const { NoticeBody } = load('mobile/src/features/notices/notice-body.tsx', {react: {Fragment:'Fragment'}, 'react-native': native});
   const component = load('mobile/app/notices/[id].tsx', {
+    '@/src/features/notices/notice-body': {NoticeBody},
     react: h.react, 'expo-router': { useFocusEffect: fn => h.useFocusEffect(fn), useRouter: () => ({ back() {}, replace() {} }), useLocalSearchParams: () => ({ id: 'a' }) },
     'expo-status-bar': { StatusBar: 'StatusBar' }, 'react-native': native,
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 0, bottom: 0 }) },
@@ -280,7 +282,7 @@ async function detailHarness(required = false) {
       acknowledgeMyNotice: async (_client, _id, version) => { assert.equal(version, 1); ackCalls++; current = { ...current, acknowledged: true }; },
     },
   });
-  return { h, r, render() { h.begin(); return nodes(component.default()); }, actor(v) { actor = v; }, fail(v) { fail = v; }, ackCalls: () => ackCalls };
+  return { h, r, render() { h.begin(); return nodes(component.default()).flatMap(node => node?.type === NoticeBody ? nodes(NoticeBody(node.props)) : [node]); }, actor(v) { actor = v; }, fail(v) { fail = v; }, ackCalls: () => ackCalls };
 }
 
 test('actual detail commits general read only after successful text render; failed detail stays unread', async () => {

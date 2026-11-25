@@ -4,14 +4,29 @@
   const ALLOWED_ROUTES = new Set(['operations_manager', 'promotion_lead', 'department_lead']);
   const app = () => window.TaejangApp;
   const route = () => app()?.getRoute?.();
+  const allowedRoute = (menu = activeEmployeeMenu) => window.TaejangMenuAuthority?.allowed(menu,
+    ALLOWED_ROUTES.has(route())) ?? ALLOWED_ROUTES.has(route());
   const main = () => document.getElementById('dashboard-main');
   const arr = value => Array.isArray(value) ? value : [];
   let cachedConfig = null;
   let currentContext = null;
   let activeEmployeeView = 'existing';
+  let activeEmployeeMenu = 'employee.manage';
   let selectedEmployeeId = null;
   const listState = { search: '', employment: 'active', account: '', photo: '', sort: 'position' };
   let loadSequence = 0;
+  const photoUrls = new Set();
+  const displayPhotoRequests = new Map();
+  let employeePhotoConversions = Promise.resolve();
+
+  function clearEmployeeContext() {
+    ++loadSequence;
+    currentContext = null;
+    selectedEmployeeId = null;
+    for (const url of photoUrls) URL.revokeObjectURL(url);
+    photoUrls.clear();
+    displayPhotoRequests.clear();
+  }
 
   const el = (tag, value, className) => {
     const node = document.createElement(tag);
@@ -89,66 +104,104 @@
     return response;
   }
 
-  async function config() {
-    if (cachedConfig) return cachedConfig;
-    const response = await fetch('/.netlify/functions/staff-config', { cache: 'no-store' });
-    if (!response.ok) throw new Error('사진 저장 설정을 불러오지 못했습니다.');
-    cachedConfig = await response.json();
+  function config() {
+    cachedConfig ??= fetch('/.netlify/functions/staff-config', { cache: 'no-store' })
+      .then(response => {
+        if (!response.ok) throw new Error('사진 저장 설정을 불러오지 못했습니다.');
+        return response.json();
+      })
+      .catch(error => { cachedConfig = null; throw error; });
     return cachedConfig;
+  }
+
+  const encodedPhotoPath = path => path.split('/').map(encodeURIComponent).join('/');
+  const displayPhotoPath = path => path + '.display-v1.jpg';
+  const optimizeEmployeePhoto = async file => (await import('./photo-optimizer.mjs')).optimizeEmployeeDisplay(file);
+
+  function storePhoto(cfg, path, file) {
+    return employeeStorageRequest(`${cfg.url}/storage/v1/object/employee-private-media/${encodedPhotoPath(path)}`, {
+      method: 'POST',
+      headers: { apikey: cfg.publishableKey, 'Content-Type': file.type, 'x-upsert': 'false' },
+      body: file
+    });
   }
 
   async function uploadEmployeePhoto(employee, photoType, file) {
     if (!file) return null;
-    const allowed = new Set(['image/jpeg', 'image/png', 'image/webp']);
-    if (!allowed.has(file.type)) throw new Error('JPG, PNG, WEBP 사진만 올릴 수 있습니다.');
-    if (file.size > 8 * 1024 * 1024) throw new Error('사진은 8MB 이하로 올려주세요.');
     const ext = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' })[file.type];
+    if (!ext) throw new Error('JPG, PNG, WEBP 사진만 올릴 수 있습니다.');
+    if (file.size > 8 * 1024 * 1024) throw new Error('사진은 8MB 이하로 올려주세요.');
     const path = `${employee.id}/${photoType}/${crypto.randomUUID()}.${ext}`;
-    const encoded = path.split('/').map(encodeURIComponent).join('/');
+    const display = photoType === 'profile' ? await optimizeEmployeePhoto(file) : null;
     const cfg = await config();
-    const response = await employeeStorageRequest(`${cfg.url}/storage/v1/object/employee-private-media/${encoded}`, {
-      method: 'POST',
-      headers: {
-        apikey: cfg.publishableKey,
-        'Content-Type': file.type,
-        'x-upsert': 'false'
-      },
-      body: file
-    });
-    if (!response.ok) {
-      if (response.status === 401) throw new Error('로그인이 만료됐습니다. 다시 로그인한 후 사진을 저장해 주세요.');
-      if (response.status === 403) throw new Error('이 사진을 저장할 권한이 없습니다.');
-      const payload = await response.json().catch(() => null);
-      if (/Invalid Compact JWS|JWT/i.test(payload?.message || '')) {
-        throw new Error('사진 인증을 확인하지 못했습니다. 다시 로그인한 후 시도해 주세요.');
-      }
-      throw new Error(payload?.message || '사진을 저장하지 못했습니다.');
-    }
+    if (display) await requirePhotoStored(await storePhoto(cfg, displayPhotoPath(path), display));
+    await requirePhotoStored(await storePhoto(cfg, path, file));
     return path;
   }
 
-  async function signedPhotoUrl(path) {
-    if (!path) return null;
-    const cfg = await config();
-    const encoded = path.split('/').map(encodeURIComponent).join('/');
-    const response = await employeeStorageRequest(`${cfg.url}/storage/v1/object/sign/employee-private-media/${encoded}`, {
-      method: 'POST',
-      headers: { apikey: cfg.publishableKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ expiresIn: 600 })
-    });
-    if (!response.ok) return null;
+  async function requirePhotoStored(response) {
+    if (response.ok) return;
+    if (response.status === 401) throw new Error('로그인이 만료됐습니다. 다시 로그인한 후 사진을 저장해 주세요.');
+    if (response.status === 403) throw new Error('이 사진을 저장할 권한이 없습니다.');
     const payload = await response.json().catch(() => null);
-    const raw = payload?.signedURL || payload?.signedUrl;
-    if (!raw) return null;
-    if (/^https?:\/\//.test(raw)) return raw;
-    const normalized = raw.startsWith('/') ? raw : `/${raw}`;
-    return normalized.startsWith('/storage/v1/') ? `${cfg.url}${normalized}` : `${cfg.url}/storage/v1${normalized}`;
+    if (/Invalid Compact JWS|JWT/i.test(payload?.message || '')) {
+      throw new Error('사진 인증을 확인하지 못했습니다. 다시 로그인한 후 시도해 주세요.');
+    }
+    throw new Error(payload?.message || '사진을 저장하지 못했습니다.');
+  }
+
+  function readPhoto(cfg, path) {
+    // Apply the same Storage access policy to originals and display copies.
+    return employeeStorageRequest(`${cfg.url}/storage/v1/object/authenticated/employee-private-media/${encodedPhotoPath(path)}`, {
+      method: 'GET', cache: 'no-store',
+      headers: { apikey: cfg.publishableKey }
+    });
+  }
+
+  async function loadDisplayPhoto(path, isCurrent) {
+    const cfg = await config();
+    if (!isCurrent()) return null;
+    const displayPath = displayPhotoPath(path);
+    const response = await readPhoto(cfg, displayPath);
+    if (response.ok) return response.blob();
+    const missing = response.status === 404 || response.status === 400 &&
+      await response.json().then(data => data.error === 'not_found' || /^object not found$/i.test(data.message)).catch(() => false);
+    if (!missing || !isCurrent()) return null;
+
+    // Convert pre-existing photos once, serially. Only the resulting JPEG is rendered.
+    const conversion = employeePhotoConversions.then(async () => {
+      if (!isCurrent()) return null;
+      const original = await readPhoto(cfg, path);
+      if (!original.ok || !isCurrent()) return null;
+      const display = await optimizeEmployeePhoto(await original.blob());
+      if (!isCurrent()) return null;
+      await storePhoto(cfg, displayPath, display).catch(() => null);
+      return display;
+    });
+    employeePhotoConversions = conversion.catch(() => {});
+    return conversion;
   }
 
   async function setAvatar(image, path, wrap) {
-    const url = await signedPhotoUrl(path).catch(() => null);
-    if (!url || !(wrap || image).isConnected) return;
-    if (wrap) wrap.replaceChildren(image);
+    const sequence = loadSequence;
+    const isCurrent = () => sequence === loadSequence && allowedRoute() && main()?.querySelector('.employee-management');
+    let request = displayPhotoRequests.get(path);
+    if (!request || request.sequence !== sequence) {
+      const task = loadDisplayPhoto(path, isCurrent).catch(() => null);
+      request = { sequence, task };
+      displayPhotoRequests.set(path, request);
+      void task.then(() => {
+        if (displayPhotoRequests.get(path)?.task === task) displayPhotoRequests.delete(path);
+      });
+    }
+    const file = await request.task;
+    if (!file || !isCurrent() || !wrap.isConnected) return;
+    const url = URL.createObjectURL(file);
+    photoUrls.add(url);
+    const release = () => { URL.revokeObjectURL(url); photoUrls.delete(url); };
+    image.addEventListener('load', release, { once: true });
+    image.addEventListener('error', release, { once: true });
+    wrap.replaceChildren(image);
     image.src = url;
   }
 
@@ -162,6 +215,64 @@
 
   function optionName(items, id) {
     return arr(items).find(item => item.id === id)?.name || '';
+  }
+
+  // Roles are read for this employee only, through the server's employee scope.
+  function roleSummaryPanel(context, employee) {
+    const panel = el('div', null, 'employee-role-summary');
+    panel.dataset.employeeRoleSummary = '1';
+    const status = el('p', '시스템 역할 확인 중…', 'help');
+    status.setAttribute('role', 'status'); panel.append(status);
+    app().rpc('get_employee_role_context', { p_employee_uuid: employee.id }).then(info => {
+      if (!panel.isConnected || !allowedRoute()) return;
+      if (!info?.ok) throw new Error('ROLE_CONTEXT_UNAVAILABLE');
+      const recommended = arr(info.recommendations).find(item => item.position_id === employee.position_id);
+      status.textContent = info.profile_id
+        ? `실제 시스템 역할: ${arr(info.role_names).join(' · ') || '없음'}`
+        : '연결된 로그인 계정이 없습니다. 직책을 바꿔도 ERP 권한은 생기지 않습니다.';
+      if (info.profile_id && recommended && !arr(info.active_role_codes).includes(recommended.role_code)) {
+        panel.append(el('p', `직책에 해당하는 ${recommended.role_name} 역할이 없습니다. 직책과 접속 권한을 함께 확인해 주세요.`, 'employee-role-warning'));
+      }
+      if (info.profile_id && (info.profile_position_id !== employee.position_id || info.profile_department_id !== employee.department_id)) {
+        panel.append(el('p', '직원정보와 로그인 계정의 소속·직책이 다릅니다.', 'employee-role-warning'));
+      }
+      panel.append(el('p', '직책은 인사정보이고, 실제 시스템 역할이 업무 접근 범위를 결정합니다. 겸직 역할은 자동 삭제하지 않습니다.', 'help'));
+    }).catch(() => { if (panel.isConnected) status.textContent = '시스템 역할을 확인하지 못했습니다. 기존 직책만으로 접속 권한을 판단하지 마세요.'; });
+    return panel;
+  }
+
+  function roleEditControls(employee, position, department) {
+    const panel = el('div', null, 'employee-role-summary');
+    const status = el('p', '실제 시스템 역할을 불러오는 중입니다.', 'help'); status.setAttribute('role', 'status');
+    const apply = input('checkbox'); apply.disabled = true;
+    const choice = field('추천 역할을 확인하고 소속·직책과 함께 적용', apply); choice.hidden = true;
+    const summary = el('p', '', 'help'); panel.append(status, choice, summary);
+    let info = null;
+    let loading = true;
+    let stale = false;
+    function update() {
+      apply.checked = false;
+      if (!info) return;
+      const recommended = arr(info.recommendations).find(item => item.position_id === position.value);
+      status.textContent = `현재 역할: ${arr(info.role_names).join(' · ') || '없음'}`;
+      const eligible = Boolean(info.profile_id && info.can_manage && recommended);
+      apply.disabled = !eligible; choice.hidden = !eligible;
+      summary.textContent = !info.profile_id ? '연결 계정이 없어 직원정보만 저장합니다.'
+        : !info.can_manage ? '직원정보만 저장합니다. 권한 변경은 운영총괄에게 확인을 요청해 주세요. 요청이 자동 전송되지는 않습니다.'
+        : !recommended ? '이 직책은 자동 역할 추천 대상이 아닙니다. 권한 재위임이 필요한 역할은 기존 운영 역할 관리에서 별도로 확인합니다.'
+        : `추천: ${recommended.role_name}. 선택하면 로그인 계정의 소속·직책도 함께 맞춥니다. 기존 겸직 역할은 모두 유지하며, 선택하지 않으면 직원정보만 저장합니다.`;
+    }
+    const ready = app().rpc('get_employee_role_context', { p_employee_uuid: employee.id }).then(result => {
+      if (!result?.ok) throw new Error('ROLE_CONTEXT_UNAVAILABLE');
+      info = result;
+      const keys = ['full_name', 'hired_on', 'department_id', 'position_id', 'employment_status', 'departed_on', 'attendance_required'];
+      stale = !info.employee_basic || keys.some(key => (employee[key] ?? null) !== (info.employee_basic[key] ?? null))
+        || Boolean(employee.updated_at && employee.updated_at !== info.employee_updated_at);
+      update();
+      if (stale) { apply.disabled = true; choice.hidden = true; summary.textContent = '직원정보가 변경되었습니다. 취소한 뒤 직원 목록을 다시 불러와 최신 정보로 수정해 주세요.'; }
+    }).catch(() => { status.textContent = '역할 조회 실패: 이번 저장은 직원정보만 변경합니다. 시스템 역할은 변경하지 않습니다.'; }).finally(() => { loading = false; });
+    position.addEventListener('change', update); department.addEventListener('change', update);
+    return { panel, ready, get loading() { return loading; }, get stale() { return stale; }, get info() { return info; }, get apply() { return apply.checked; } };
   }
 
   function makeEmployeeForm(context, employee = null, teamRequest = false) {
@@ -197,20 +308,78 @@
     const submit = button(employee ? (leadDirectEdit || !teamRequest ? '직원정보 저장' : '수정 요청 보내기') : (teamRequest ? '등록 요청 보내기' : '직원 등록'), () => {});
     submit.type = 'submit';
     if (!positionItems.length) submit.disabled = true;
-    actions.append(submit); form.append(grid, actions);
+    actions.append(submit);
+    const roleEdit = employee && !teamRequest ? roleEditControls(employee, position, department) : null;
+    form.append(grid); if (roleEdit) form.append(roleEdit.panel); form.append(actions);
     if (!employee && teamRequest && !positionItems.length) {
       form.prepend(el('p', '현재 권한으로 등록 요청할 수 있는 하위 직책이 없습니다.', 'message'));
     }
 
+    let remote = null;
+    let address, remoteEnabled;
+    let remoteLoading = false, remoteToggled = false;
+    const updateSubmitAvailability = () => {
+      submit.disabled = !positionItems.length || Boolean(roleEdit?.loading || roleEdit?.stale || remoteLoading);
+    };
+    if (employee && context.access_level === 'operations_manager') {
+      address = input('text'); address.maxLength = 200; address.autocomplete = 'street-address'; address.disabled = true;
+      remoteEnabled = input('checkbox'); remoteEnabled.disabled = true;
+      grid.append(field('주소', address, '비우고 저장하면 주소가 삭제됩니다.'),
+        field('재택근무자', remoteEnabled, '재택근무 설정을 변경해 저장하면 위치 확인 없이 출퇴근합니다.'));
+      const loading = el('p', '주소 정보를 불러오는 중입니다.', 'help'); form.append(loading);
+      remoteLoading = true;
+      window.TaejangEmployeeRemoteWork.load(employee).then(value => {
+        remote = value; address.value = value.address || ''; remoteEnabled.checked = !!value.approved;
+        address.disabled = remoteEnabled.disabled = false; loading.remove();
+      }).catch(() => { loading.textContent = '주소 정보를 불러오지 못했습니다. 주소를 수정하려면 다시 열어주세요.'; })
+        .finally(() => { remoteLoading = false; updateSubmitAvailability(); });
+      address.addEventListener('input', () => { if (!address.value.trim()) remoteEnabled.checked = false; });
+      remoteEnabled.addEventListener('change', () => { remoteToggled = true; });
+    }
+    if (roleEdit) roleEdit.ready.then(updateSubmitAvailability);
+    updateSubmitAvailability();
+
     let saved = false;
+    let submitting = false;
     form.addEventListener('submit', async event => {
       event.preventDefault();
+      if (submitting || remoteLoading || roleEdit?.loading || roleEdit?.stale) return;
+      submitting = true;
       const controls = [...form.querySelectorAll('input,select,button')];
       const disabled = controls.map(control => control.disabled);
       controls.forEach(control => { control.disabled = true; });
       try {
-        if (!saved && !employee && !teamRequest) {
-          await app().rpc('create_employee', {
+        if (roleEdit) await roleEdit.ready;
+        if (!form.isConnected || !allowedRoute()) return;
+        const core = {
+          full_name: name.value.trim(), hired_on: hired.value, department_id: department.value,
+          position_id: position.value, employment_status: status.value,
+          departed_on: status.value === 'departed' ? departed.value || null : null,
+          attendance_required: attendance.checked
+        };
+        const remoteChanged = remote && (address.value.trim() !== (remote.address || '')
+          || remoteEnabled.checked !== Boolean(remote.approved) || (remote.approved && !remote.remote_work && remoteToggled));
+        const remoteArgs = remote && {
+          p_employee_uuid: employee.id, p_values: core, p_revision: remote.revision || null,
+          p_address: address.value.trim(), p_enabled: remoteEnabled.checked, p_update_remote: Boolean(remoteChanged)
+        };
+        if (!saved && roleEdit?.apply) {
+          const recommended = arr(roleEdit.info.recommendations).find(item => item.position_id === position.value);
+          if (!window.confirm(`직책: ${optionName(context.positions, position.value)}\n부서: ${optionName(context.departments, department.value)}\n추천 역할: ${recommended.role_name}\n기존 겸직 역할은 모두 유지합니다. 함께 저장하시겠습니까?`)) return;
+          const roleContext = {
+            expected_updated_at: roleEdit.info.employee_updated_at, expected_profile_id: roleEdit.info.profile_id,
+            expected_profile_updated_at: roleEdit.info.profile_updated_at, expected_role_codes: roleEdit.info.role_codes
+          };
+          const result = remoteChanged
+            ? await app().rpc('update_employee_basic_with_remote', { ...remoteArgs, p_role_context: roleContext })
+            : await app().rpc('update_employee_core_with_role', {
+              p_employee_uuid: employee.id,
+              ...Object.fromEntries(Object.entries({ ...roleContext, ...core }).map(([key, value]) => ['p_' + key, value])),
+              p_reason: '직원 기본정보에서 직책·추천 역할 확인 후 저장', p_apply_recommended_role: true
+            });
+          if (!result?.ok) throw new Error(result?.code || '직책·역할을 저장하지 못했습니다.');
+        } else if (!saved && !employee && !teamRequest) {
+          await app().rpc(context.registration_only ? 'create_employee_from_registration' : 'create_employee', {
             p_full_name: name.value.trim(), p_hired_on: hired.value, p_department_id: department.value,
             p_position_id: position.value, p_attendance_required: attendance.checked
           });
@@ -230,12 +399,14 @@
             p_attendance_required: attendance.checked
           });
         } else if (!saved && employee && !teamRequest) {
-          await app().rpc('update_employee_core', {
-            p_employee_uuid: employee.id, p_full_name: name.value.trim(), p_hired_on: hired.value,
-            p_department_id: department.value, p_position_id: position.value, p_employment_status: status.value,
-            p_departed_on: status.value === 'departed' ? departed.value || null : null,
-            p_attendance_required: attendance.checked, p_reason: '직원 관리 화면에서 수정'
-          });
+          const result = remoteArgs
+            ? await app().rpc('update_employee_basic_with_remote', remoteArgs)
+            : await app().rpc('update_employee_core', {
+              p_employee_uuid: employee.id,
+              ...Object.fromEntries(Object.entries(core).map(([key, value]) => ['p_' + key, value])),
+              p_reason: '직원 기본 인사정보 수정'
+            });
+          if (!result?.ok) throw new Error(result?.code || '직원정보를 저장하지 못했습니다.');
         } else if (!saved) {
           await app().rpc('submit_employee_change_request', {
             p_request_type: 'employee_update', p_employee_uuid: employee.id,
@@ -248,13 +419,33 @@
           });
         }
         saved = true;
+        if (context.registration_only) {
+          if (await refreshEmployeeManagement()) {
+            main()?.querySelector('.employee-management')?.prepend(el('p', '직원을 등록했습니다. 다음 직원을 등록할 수 있습니다.', 'message'));
+          }
+          return;
+        }
         if (!employee) { activeEmployeeView = 'existing'; selectedEmployeeId = null; }
-        await refreshEmployeeManagement();
+        const refreshed = await refreshEmployeeManagement();
+        if (refreshed && employee && teamRequest && !leadDirectEdit && selectedEmployeeId === employee.id) {
+          const records = main()?.querySelector('[data-employee-section="records"]');
+          if (records) {
+            records.open = true;
+            records.querySelector('summary')?.focus();
+          }
+        }
       } catch (error) {
-        window.alert(saved ? '저장은 처리됐으나 최신 정보를 불러오지 못했습니다. 다시 불러오기를 눌러 확인해 주세요.' : app().friendlyError?.(error) || error.message || '직원정보를 저장하지 못했습니다.');
+        const roleError = /EMPLOYEE_(?:ROLE_CONTEXT|ACCOUNT_CONTEXT|ACCOUNT_LINK)_CHANGED/.test(error?.message || '')
+          ? '다른 곳에서 직원 또는 계정 정보가 바뀌었습니다. 입력은 유지했습니다. 변경 내용을 따로 보관한 뒤 취소하고 다시 열어 최신 정보를 확인해 주세요.'
+          : /EMPLOYEE_ROLE_UPDATE_FORBIDDEN|POSITION_ROLE_REQUIRES_SEPARATE_REVIEW/.test(error?.message || '')
+            ? '이 역할은 여기서 함께 저장할 수 없습니다. 권한 있는 운영총괄이 기존 운영 역할 관리에서 확인해야 합니다.' : null;
+        window.alert(saved ? '저장은 처리됐으나 최신 정보를 불러오지 못했습니다. 다시 불러오기를 눌러 확인해 주세요.' : roleError || app().friendlyError?.(error) || error.message || '직원정보를 저장하지 못했습니다.');
         controls.forEach((control, index) => { control.disabled = saved ? true : disabled[index]; });
         submit.disabled = false;
         if (saved) submit.textContent = '최신 정보 다시 불러오기';
+      } finally {
+        submitting = false;
+        if (!saved) controls.forEach((control, index) => { control.disabled = disabled[index]; });
       }
     });
     return form;
@@ -470,27 +661,39 @@
     const reveal = button('주민번호 조회', async () => {
       if (!window.confirm('업무상 필요한 직원 한 명의 주민번호만 일시적으로 표시합니다. 조회 이력이 기록됩니다. 계속하시겠습니까?')) return;
       reveal.disabled = true;
+      const fold = wrap.closest('.employee-profile-fold');
+      let cancelled = false, shown, hideButton, timer;
+      const hide = () => {
+        if (cancelled) return;
+        cancelled = true;
+        clearTimeout(timer);
+        fold?.removeEventListener('toggle', onFold);
+        if (shown) { shown.textContent = ''; shown.remove(); }
+        hideButton?.remove();
+        message.textContent = '';
+        reveal.disabled = false;
+      };
+      const onFold = () => { if (!fold.open) hide(); };
+      fold?.addEventListener('toggle', onFold);
       try {
         const result = await app().rpc('get_employee_resident_registration_number', {
           p_employee_uuid:employee.id, p_purpose:purpose.value
         });
+        if (cancelled || !wrap.isConnected || (fold && !fold.open)) { hide(); return; }
         if (!result?.ok) throw new Error(result?.code || '저장된 주민번호를 찾지 못했습니다.');
         const digits = String(result.resident_number || '');
         if (!/^[0-9]{13}$/.test(digits)) throw new Error('주민번호 형식이 올바르지 않습니다.');
-        const shown = el('output', digits.slice(0,6)+'-'+digits.slice(6), 'employee-resident-reveal');
+        shown = el('output', digits.slice(0,6)+'-'+digits.slice(6), 'employee-resident-reveal');
         shown.setAttribute('aria-label','열람한 직원 주민등록번호');
-        const hide = () => {shown.textContent = '';shown.remove();hideButton.remove();reveal.disabled=false;};
-        const hideButton = button('번호 숨기기',hide,true);
-        wrap.querySelector('.employee-resident-reveal')?.remove();
-        wrap.querySelector('[data-resident-hide]')?.remove();
-        hideButton.dataset.residentHide='1';
+        hideButton = button('번호 숨기기',hide,true);
         wrap.append(shown,hideButton);
-        window.setTimeout(hide,30000);
+        timer = window.setTimeout(hide,30000);
         message.textContent='30초 후 자동으로 숨겨집니다.';
       } catch(error) {
+        if (cancelled) return;
+        hide();
         message.textContent=app().friendlyError?.(error) || error.message || '주민번호를 확인하지 못했습니다.';
         message.classList.add('error');
-        reveal.disabled=false;
       }
     }, true);
     const row = el('div',null,'quick-links app-authoring-inline');
@@ -829,6 +1032,34 @@
         const opt=await app().rpc('employee_password_reset_option',{p_employee_uuid:employee.id});
         if(!wrap.isConnected)return;
         if(!opt?.ok){feedback.textContent='보호 계정 또는 연결 확인이 필요한 직원은 초기화할 수 없습니다.';return;}
+        let reauthForm=null;
+        const showReauthentication=()=>{
+          if(reauthForm || !wrap.isConnected)return;
+          const form=el('form',null,'app-authoring');reauthForm=form;
+          form.append(el('p','직원 화면을 나가지 않고 현재 로그인 계정을 확인합니다.'));
+          const label=el('label','내 로그인 비밀번호');
+          const password=document.createElement('input');password.type='password';
+          password.autocomplete='current-password';password.required=true;
+          label.append(password);form.append(label);
+          const verify=el('button','본인 확인 후 계속','button');verify.type='submit';
+          const cancel=button('취소',()=>{password.value='';form.remove();reauthForm=null;open.disabled=false;},true);
+          const status=el('p','','help');status.setAttribute('role','status');
+          form.append(verify,cancel,status);wrap.append(form);open.disabled=true;
+          form.addEventListener('submit',async event=>{
+            event.preventDefault();if(verify.disabled)return;
+            verify.disabled=true;cancel.disabled=true;
+            let value=password.value;password.value='';
+            try {
+              if(typeof app()?.reauthenticate!=='function')throw Error('본인 확인 기능을 불러오지 못했습니다. 화면을 새로고침해주세요.');
+              await app().reauthenticate(value);value='';
+              if(!form.isConnected || window.TaejangMenuAuthority?.allowed('employee.manage',true)===false)return;
+              form.remove();reauthForm=null;open.disabled=false;
+              feedback.textContent='본인 확인을 마쳤습니다. 대상 직원을 확인하고 초기화를 진행하세요.';
+              open.click();
+            }catch(error){status.textContent=error.message||'본인 확인을 완료하지 못했습니다.';}
+            finally{value='';verify.disabled=false;cancel.disabled=false;}
+          });password.focus();
+        };
         const open=button('비밀번호 초기화',()=>{
           if(open.disabled)return;
           const dialog=el('dialog',null,'employee-reset-confirm');
@@ -846,19 +1077,33 @@
               const local=/^(localhost|127\.0\.0\.1)$/.test(base.hostname);
               if(location.origin!=='https://taejang.co.kr'&&!local)throw Error('Preview에서는 운영 계정을 초기화할 수 없습니다.');
               if(!local&&(base.protocol!=='https:'||!base.hostname.endsWith('.supabase.co')))throw Error('서버 설정을 확인하세요.');
-              const token=app()?.getSession?.()?.access_token;
+              const client=app(),session=client?.getSession?.();
+              let token=session?.access_token;
               if(!token)throw Error('다시 로그인하세요.');
-              sent=true;
-              const response=await fetch(base.origin+'/functions/v1/employee-password-reset',{
+              const send=credential=>fetch(base.origin+'/functions/v1/employee-password-reset',{
                 method:'POST',cache:'no-store',credentials:'omit',redirect:'error',signal:AbortSignal.timeout(30000),
-                headers:{apikey:cfg.publishableKey,Authorization:'Bearer '+token,'Content-Type':'application/json'},
+                headers:{apikey:cfg.publishableKey,Authorization:'Bearer '+credential,'Content-Type':'application/json'},
                 body:JSON.stringify({employee_uuid:employee.id,request_confirmed:true})
               });
-              const result=await response.json();
+              sent=true;
+              let response=await send(token),result=await response.json();
+              // LOGIN_REQUIRED is returned before reservation or Admin mutation.
+              // Renew an expired session once; never replay an uncertain reset.
+              if(response.status===401&&result.code==='LOGIN_REQUIRED'
+                &&client.getSession?.()?.access_token===token&&typeof client.refreshSession==='function'){
+                sent=false;
+                if(await client.refreshSession()){
+                  const fresh=client.getSession?.();
+                  if(fresh?.access_token&&(!session.user?.id||fresh.user?.id===session.user.id)){
+                    token=fresh.access_token;sent=true;
+                    response=await send(token);result=await response.json();
+                  }
+                }
+              }
               if(!response.ok||!result.ok) {
                 const messages={RESET_NOT_READY:'운영 초기화 기능과 본인 변경 경로 준비 후 사용할 수 있습니다.',
                   SELF_CHANGE_NOT_READY:'직원 본인 비밀번호 변경 경로가 아직 준비되지 않았습니다.',
-                  REAUTH_REQUIRED:'안전한 초기화를 위해 다시 로그인한 뒤 진행하세요.',
+                  REAUTH_REQUIRED:'본인 확인 시간이 지났습니다. 이 화면에서 내 로그인 비밀번호를 확인하면 계속할 수 있습니다.',
                   LOGIN_REQUIRED:'다시 로그인한 뒤 진행하세요.',
                   RATE_LIMITED:'요청이 많습니다. 잠시 후 다시 시도하세요.',
                   POLICY_REJECTED:'서버 비밀번호 보안정책에서 거부했습니다. 운영총괄에게 문의하세요.',
@@ -868,7 +1113,8 @@
                 if(['RESET_NOT_READY','SELF_CHANGE_NOT_READY','REAUTH_REQUIRED','LOGIN_REQUIRED','RATE_LIMITED',
                   'POLICY_REJECTED','INVALID_INPUT','FORBIDDEN','PROTECTED_ACCOUNT','TARGET_CHANGED',
                   'AUTH_UNAVAILABLE','RESERVATION_FAILED','ORIGIN_FORBIDDEN'].includes(result.code))sent=false;
-                throw Error(messages[result.code]||'초기화가 차단되었습니다. 계정 연결·권한·상태를 다시 확인하세요.');
+                const failure=Error(messages[result.code]||'초기화가 차단되었습니다. 계정 연결·권한·상태를 다시 확인하세요.');
+                failure.code=result.code;throw failure;
               }
               if(!/^\d{16}$/.test(result.temporary_password))throw Error('처리 결과 확인이 필요합니다. 재실행하지 마세요.');
               feedback.textContent='초기화 완료';
@@ -896,6 +1142,7 @@
             } catch(error) {
               feedback.textContent=sent?'처리 결과를 확인하지 못했습니다. 다시 실행하지 말고 운영총괄에게 문의하세요.':error.message;
               open.disabled=sent;
+              if(!sent&&error.code==='REAUTH_REQUIRED')showReauthentication();
             }
           });
           const actions=el('div',null,'quick-links');actions.append(cancel,confirm);dialog.append(actions);
@@ -909,6 +1156,137 @@
     return wrap;
   }
 
+  function disabilityPanel(context, employee) {
+    const canView = () => (route() === 'operations_manager' && context.access_level === 'operations_manager')
+      || (route() === 'promotion_lead' && ['promotion_lead_global', 'operations_manager'].includes(context.access_level)
+        && context.can_manage_resident_number && employee.can_manage_resident_number_for_employee === true
+        && !employee.protected);
+    if (!canView()) return null;
+    const details = el('details', null, 'employee-profile-section employee-profile-fold employee-disability-section');
+    const body = el('div', null, 'employee-profile-fold-body');
+    details.append(el('summary', '장애정보 등록·수정'), body);
+    let generation = 0;
+    details.addEventListener('toggle', async () => {
+      const request = ++generation;
+      body.replaceChildren();
+      if (!details.open) return;
+      const visible = () => details.open && details.isConnected && request === generation
+        && canView() && allowedRoute('employee.manage');
+      const feedback = el('p', '장애정보를 불러오는 중입니다.', 'help');
+      feedback.setAttribute('role', 'status');
+      body.append(feedback);
+      let info;
+      try {
+        info = await app().rpc('get_employee_disability_info', {p_employee_uuid: employee.id});
+      } catch {
+        if (visible()) feedback.textContent = '장애정보를 조회할 수 없습니다. 권한을 확인하고 다시 열어 주세요.';
+        return;
+      }
+      if (!visible()) return;
+      feedback.textContent = info.revision ? '등록된 장애정보입니다.' : '등록된 장애정보가 없습니다.';
+      const form = el('form', null, 'employee-form employee-disability-form app-authoring');
+      const degree = select([{id:'',name:'장애 정도 선택'}, {id:'severe',name:'중증'}, {id:'mild',name:'경증'}], info.degree);
+      const type = select([{id:'',name:'장애 유형 선택'}, ...info.types.map(name => ({id:name,name}))], info.disability_type);
+      degree.required = type.required = true;
+      const save = button('장애정보 저장', () => {});
+      save.type = 'submit';
+      const fields = el('div', null, 'employee-form-grid');
+      fields.append(field('장애 정도', degree), field('장애 유형', type));
+      const actions = el('div', null, 'quick-links');
+      actions.append(feedback, save);
+      form.append(fields, actions);
+      body.append(form);
+      form.addEventListener('submit', async event => {
+        event.preventDefault();
+        if (save.disabled || !visible()) return;
+        save.disabled = degree.disabled = type.disabled = true;
+        feedback.textContent = '저장 중입니다.';
+        try {
+          const saved = await app().rpc('save_employee_disability_info', {
+            p_employee_uuid: employee.id, p_degree: degree.value,
+            p_disability_type: type.value, p_expected_revision: info.revision
+          });
+          if (!visible()) return;
+          info.revision = saved.revision;
+          feedback.textContent = '장애정보를 저장했습니다.';
+        } catch (error) {
+          if (visible()) feedback.textContent = error?.code === '40001'
+            ? '최신 정보가 바뀌었습니다. 이 항목을 닫았다 다시 열어 확인해 주세요.'
+            : '장애정보를 저장하지 못했습니다. 입력을 확인하고 다시 시도해 주세요.';
+        } finally {
+          save.disabled = degree.disabled = type.disabled = false;
+        }
+      });
+    });
+    return details;
+  }
+
+  function welfarePanel(context, employee) {
+    const canView = () => (route() === 'operations_manager' && context.access_level === 'operations_manager')
+      || (route() === 'promotion_lead' && ['promotion_lead_global', 'operations_manager'].includes(context.access_level)
+        && context.can_manage_resident_number && employee.can_manage_resident_number_for_employee === true
+        && !employee.protected);
+    if (!canView()) return null;
+    const details = el('details', null, 'employee-profile-section employee-profile-fold employee-welfare-section');
+    const body = el('div', null, 'employee-profile-fold-body');
+    details.append(el('summary', '복지 자격 보기'), body);
+    let generation = 0;
+    details.addEventListener('toggle', async () => {
+      const request = ++generation;
+      body.replaceChildren();
+      if (!details.open) return;
+      const visible = () => details.open && details.isConnected && request === generation
+        && canView() && allowedRoute('employee.manage');
+      const feedback = el('p', '복지 자격을 불러오는 중입니다.', 'help');
+      feedback.setAttribute('role', 'status');
+      body.append(feedback);
+      let info;
+      try {
+        info = await app().rpc('get_employee_welfare_info', {p_employee_uuid: employee.id});
+      } catch {
+        if (visible()) feedback.textContent = '복지 자격을 조회할 수 없습니다. 권한을 확인하고 다시 열어 주세요.';
+        return;
+      }
+      if (!visible()) return;
+      feedback.textContent = info.revision ? '등록된 복지 자격입니다.' : '등록된 복지 자격이 없습니다.';
+      const form = el('form', null, 'employee-form employee-disability-form app-authoring');
+      const options = [{id:'',name:'미확인'}, {id:'yes',name:'해당'}, {id:'no',name:'비해당'}];
+      const value = status => status === true ? 'yes' : status === false ? 'no' : '';
+      const basicRecipient = select(options, value(info.basic_recipient));
+      const nearPoverty = select(options, value(info.near_poverty));
+      const save = button('복지 자격 저장', () => {});
+      save.type = 'submit';
+      const fields = el('div', null, 'employee-form-grid');
+      fields.append(field('기초생활수급자', basicRecipient), field('차상위계층', nearPoverty));
+      const actions = el('div', null, 'quick-links');
+      actions.append(feedback, save);
+      form.append(fields, actions);
+      body.append(form);
+      form.addEventListener('submit', async event => {
+        event.preventDefault();
+        if (save.disabled || !visible()) return;
+        save.disabled = basicRecipient.disabled = nearPoverty.disabled = true;
+        feedback.textContent = '저장 중입니다.';
+        try {
+          const saved = await app().rpc('save_employee_welfare_info', {
+            p_employee_uuid: employee.id, p_basic_recipient: basicRecipient.value === '' ? null : basicRecipient.value === 'yes',
+            p_near_poverty: nearPoverty.value === '' ? null : nearPoverty.value === 'yes', p_expected_revision: info.revision
+          });
+          if (!visible()) return;
+          info.revision = saved.revision;
+          feedback.textContent = '복지 자격을 저장했습니다.';
+        } catch (error) {
+          if (visible()) feedback.textContent = error?.code === '40001'
+            ? '최신 정보가 바뀌었습니다. 이 항목을 닫았다 다시 열어 확인해 주세요.'
+            : '복지 자격을 저장하지 못했습니다. 입력을 확인하고 다시 시도해 주세요.';
+        } finally {
+          save.disabled = basicRecipient.disabled = nearPoverty.disabled = false;
+        }
+      });
+    });
+    return details;
+  }
+
   function getViews() {
     if (!window.TaejangEmployeeViews) throw new Error('직원관리 화면 파일을 불러오지 못했습니다. 새로고침해 주세요.');
     return window.TaejangEmployeeViews.create({
@@ -918,7 +1296,7 @@
         const previous = selectedEmployeeId; selectedEmployeeId = null; renderEmployeeManagement(currentContext);
         [...main().querySelectorAll('[data-employee-id]')].find(node => node.dataset.employeeId === previous)?.focus();
       },
-      makeEmployeeForm, photoPicker, sensitiveIdentityPanel, residentNumberPanel, insuranceDeductionPanel, passwordResetPanel,
+      makeEmployeeForm, roleSummaryPanel, photoPicker, disabilityPanel, welfarePanel, sensitiveIdentityPanel, residentNumberPanel, insuranceDeductionPanel, passwordResetPanel,
       nationalPensionAgeLabel, employmentInsuranceAgeLabel, requestLabel, requestSummary,
       saveEmployeeAppCheck: async (employee, values) => {
         const result = await app().rpc('update_employee_field_audit', {
@@ -932,7 +1310,7 @@
   }
 
   function renderEmployeeManagement(context) {
-    if (!ALLOWED_ROUTES.has(route())) return;
+    if (!allowedRoute()) return;
     const target = main(); if (!target) return;
     const views = getViews();
     const shell = el('section', null, 'employee-management');
@@ -941,14 +1319,18 @@
     if (selectedEmployeeId && activeEmployeeView === 'existing') {
       const employee = arr(context.employees).find(item => item.id === selectedEmployeeId);
       if (employee) {
-        shell.append(views.employeeProfile(context, employee)); target.replaceChildren(shell);
+        const previous = target.querySelector('[data-employee-profile]');
+        const expanded = previous?.dataset.employeeProfile === employee.id
+          ? [...previous.querySelectorAll('[data-employee-section][open]')].map(node => node.dataset.employeeSection)
+          : [];
+        shell.append(views.employeeProfile(context, employee, new Set(expanded))); target.replaceChildren(shell);
         shell.querySelector('[data-employee-heading]')?.focus(); return;
       }
       selectedEmployeeId = null;
     }
     const intro = el('header', null, 'employee-toolbar');
     intro.append(el('h2', activeEmployeeView === 'new' ? '신규 직원 등록' : '직원 관리'));
-    intro.append(button(activeEmployeeView === 'new' ? '← 직원 목록' : '+ 직원 등록', () => {
+    if (!context.registration_only) intro.append(button(activeEmployeeView === 'new' ? '← 직원 목록' : '+ 직원 등록', () => {
       activeEmployeeView = activeEmployeeView === 'new' ? 'existing' : 'new'; selectedEmployeeId = null;
       renderEmployeeManagement(currentContext);
     }, true));
@@ -994,23 +1376,27 @@
 
   async function refreshEmployeeManagement(verify) {
     const sequence = ++loadSequence;
-    const context = await app().rpc('get_employee_management_context');
-    if (sequence !== loadSequence || !ALLOWED_ROUTES.has(route()) || !main()?.querySelector('.employee-management')) return false;
+    const context = await loadEmployeeContext();
+    if (sequence !== loadSequence || !allowedRoute() || !main()?.querySelector('.employee-management')) return false;
     if (verify) verify(context);
     currentContext = context; renderEmployeeManagement(context); return true;
   }
 
   async function openEmployeeManagement(view = 'existing') {
     closeSidebar();
-    if (!ALLOWED_ROUTES.has(route())) return;
+    const menu = view === 'new' ? 'employee.new' : 'employee.manage';
+    if (!allowedRoute(menu)) return;
+    activeEmployeeMenu = menu;
+    clearEmployeeContext();
     activeEmployeeView = ['existing', 'new'].includes(view) ? view : 'existing'; selectedEmployeeId = null;
     const sequence = ++loadSequence;
     const target = main(); if (!target) return;
-    document.getElementById('desktop-page-title').textContent = route() === 'operations_manager' ? '직원 관리' : '팀 직원 관리';
+    document.getElementById('desktop-page-title').textContent = activeEmployeeView === 'new' ? '신규 직원 등록' : '직원 관리';
     const loading = el('p', '직원 정보를 불러오고 있습니다.', 'message'); target.replaceChildren(loading);
+    loading.dataset.employeeLoading = '1';
     try {
-      const context = await app().rpc('get_employee_management_context');
-      if (sequence !== loadSequence || !loading.isConnected || !ALLOWED_ROUTES.has(route())) return;
+      const context = await loadEmployeeContext();
+      if (sequence !== loadSequence || !loading.isConnected || !allowedRoute()) return;
       currentContext = context; renderEmployeeManagement(context);
     } catch (error) {
       if (sequence !== loadSequence || !loading.isConnected) return;
@@ -1022,6 +1408,19 @@
   function syncNavigation() {
     // Compatibility no-op. Sidebar ownership belongs to dashboard-shell.
   }
+  function loadEmployeeContext() {
+    const registrationOnly = activeEmployeeMenu === 'employee.new'
+      && window.TaejangMenuAuthority?.delegated?.('employee.new');
+    return app().rpc(registrationOnly ? 'get_employee_registration_context' : 'get_employee_management_context');
+  }
+  document.addEventListener('taejang-menu-authority-changed', () => {
+    if (window.TaejangMenuAuthority?.allowed(activeEmployeeMenu, true) !== false) return;
+    clearEmployeeContext();
+    const target = main();
+    if (target?.querySelector('.employee-management,[data-employee-loading]')) {
+      target.replaceChildren(el('p', '직원 관리 권한이 회수되었거나 확인되지 않습니다.', 'message'));
+    }
+  });
 
   document.addEventListener('taejang-open-employee-management', event => openEmployeeManagement(event.detail?.view || 'existing'));
 

@@ -21,10 +21,13 @@ export type AttendanceToday = {
   work_date: string;
   employee_uuid?: string;
   attendance_required?: boolean;
+  remote_work?: boolean;
+  field_work?: { site: string; clock_in: boolean; clock_out: boolean; clock_out_opens_at: string };
   is_workday?: boolean;
   holiday_work_assigned?: boolean;
   day_reason?: string | null;
   server_time?: string;
+  work_schedule?: { configured: boolean; is_workday?: boolean; starts_at?: string; ends_at?: string; leave_portion?: string | null; working_minutes?: number };
   clock_in_available?: boolean;
   clock_in_available_at?: string;
   clock_in: AttendanceEvent | null;
@@ -84,13 +87,13 @@ export async function loadAttendanceWorkdayStatus(
 export async function recordAttendanceEvent(
   client: PlatformSupabaseClient,
   eventType: AttendanceEventType,
-  position: AttendancePosition,
+  position: AttendancePosition | null,
 ): Promise<AttendanceResult> {
   const { data, error } = await client.rpc('record_attendance_event', {
     p_event_type: eventType,
-    p_latitude: position.latitude,
-    p_longitude: position.longitude,
-    p_accuracy_m: position.accuracy,
+    p_latitude: position?.latitude ?? null,
+    p_longitude: position?.longitude ?? null,
+    p_accuracy_m: position?.accuracy ?? null,
   });
   if (error) throw error;
   return (data || {}) as AttendanceResult;

@@ -30,8 +30,8 @@ test('production and QA variants share one source while keeping separate Android
   const qa = loadConfigFor('qa');
 
   assert.deepEqual(loadConfigFor('production'), production);
-  assert.equal(production.version, '0.1.6');
-  assert.equal(production.android.versionCode, 7);
+  assert.equal(production.version, '0.1.8');
+  assert.equal(production.android.versionCode, 9);
   assert.deepEqual(production.splash, baseExpoConfig().splash);
   assert.deepEqual(production.plugins, baseExpoConfig().plugins);
   assert.equal(production.icon, baseExpoConfig().icon);
@@ -71,7 +71,7 @@ test('QA runtime is visibly labeled and attendance fails closed to the no-write 
   assert.match(card, /validateAttendanceQa/);
   assert.match(card, /recordAttendanceEvent/);
   assert.match(settings, /태장 QA 검수용 앱/);
-  assert.match(settings, /Google Play의 태장 앱과 별도로 설치됩니다/);
+  assert.match(settings, /검수용 · 정식 앱과 별도 설치/);
   assert.match(support, /앱 종류/);
   assert.match(support, /appVariantLabel/);
 });

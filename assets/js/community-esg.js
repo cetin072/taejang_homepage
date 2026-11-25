@@ -19,6 +19,10 @@
     if (count) count.textContent = `현재 공개된 활동 ${staticFallbackCount}건`;
     return;
   }
+  const requestedLimit = Number(list.dataset.communityEsgLimit);
+  const visibleRecords = Number.isInteger(requestedLimit) && requestedLimit > 0
+    ? records.slice(0, requestedLimit)
+    : records;
 
   function createRecord(activity) {
     const article = document.createElement('article');
@@ -32,6 +36,10 @@
     const imageSource = activity.thumbnail || activity.hero || activity.thumb || '';
     if (imageSource) {
       const image = document.createElement('img');
+      if (activity.thumbnailSrcset) {
+        image.sizes = '(max-width: 760px) 94vw, (max-width: 1000px) 48vw, 400px';
+        image.srcset = activity.thumbnailSrcset;
+      }
       image.src = imageSource;
       image.alt = activity.thumbnailAlt || activity.alt?.hero || `${activity.title} 대표사진`;
       image.loading = 'lazy';
@@ -74,6 +82,8 @@
     return article;
   }
 
-  if (count) count.textContent = `현재 공개된 활동 ${records.length}건`;
-  list.replaceChildren(...records.map(({ activity }) => createRecord(activity)));
+  if (count) count.textContent = visibleRecords.length < records.length
+    ? `전체 ${records.length}건 중 최근 ${visibleRecords.length}건`
+    : `현재 공개된 활동 ${records.length}건`;
+  list.replaceChildren(...visibleRecords.map(({ activity }) => createRecord(activity)));
 }());

@@ -84,6 +84,10 @@ select ok(
 
 select ok(
   pg_get_functiondef('public.private_actor_capabilities()'::regprocedure)
+    ilike '%private_actor_capabilities_before_menu_authority()%'
+  and pg_get_functiondef('public.private_actor_capabilities()'::regprocedure)
+    ilike '%private_menu_denied%'
+  and pg_get_functiondef('public.private_actor_capabilities_before_menu_authority()'::regprocedure)
     ilike '%operations_manager_auto_grant%',
   'existing server capability resolver remains the authority for operations auto grants'
 );

@@ -1,0 +1,12 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+select plan(7);
+select is((select count(*)::int from cron.job where jobname='taejang-employee-leave-monthly-reconcile'),1,'one monthly reconciliation job');
+select is((select schedule from cron.job where jobname='taejang-employee-leave-monthly-reconcile'),'5 15 * * *','00:05 KST daily catch-up');
+select is((select command from cron.job where jobname='taejang-employee-leave-monthly-reconcile'),'select public.private_reconcile_leave_monthly();','job reuses existing monthly reconciliation, without Push');
+select ok((select active and username=current_user from cron.job where jobname='taejang-employee-leave-monthly-reconcile'),'active job runs under migration owner');
+select ok(not has_function_privilege('anon','public.private_reconcile_leave_monthly()','EXECUTE'),'anonymous cannot trigger batch');
+select ok(not has_function_privilege('authenticated','public.private_reconcile_leave_monthly()','EXECUTE'),'employees cannot trigger batch');
+select ok(has_function_privilege('service_role','public.private_reconcile_leave_monthly()','EXECUTE'),'existing service contract preserved');
+select * from finish();
+rollback;

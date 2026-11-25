@@ -23,8 +23,6 @@
     '홈페이지 내용 관리': ['homepage.draft', 'homepage.review', 'homepage.approve_apply'],
     '홈페이지 직접 수정': ['homepage.direct_edit'],
     '근태·급여관리': ['payroll.manage'],
-    '외부 급여초안 검토': ['payroll.handoff.approve'],
-    '외부 급여초안 상신': ['payroll.handoff.review'],
     '출근부': ['attendance.admin_view'],
     '근태 보정': ['attendance.correct'],
     '지원사업 레이더': ['support_radar.management_view', 'support_radar.assigned_work'],
@@ -83,6 +81,12 @@
     if (!nav) return;
 
     [...nav.querySelectorAll('button, a')].forEach(node => {
+      const menuKey = node.dataset?.menuKey;
+      const authority = window.TaejangMenuAuthority;
+      if (menuKey && authority?.decision(menuKey) !== undefined) {
+        applyNavigationState(node, authority.allowed(menuKey, false), menuKey);
+        return;
+      }
       const label = cleanLabel(node);
       const declaredAny = String(node.dataset?.capabilityAny || '')
         .split('|')

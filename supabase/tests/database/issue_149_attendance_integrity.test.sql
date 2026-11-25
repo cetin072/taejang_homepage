@@ -61,13 +61,13 @@ select ok(
 );
 
 select ok(
-  pg_get_functiondef('public.record_attendance_event(text,double precision,double precision,double precision)'::regprocedure)
+  pg_get_functiondef('public.private_record_attendance_event_pre572(text,double precision,double precision,double precision)'::regprocedure)
     ilike '%ATTENDANCE_NOT_REQUIRED%',
   'attendance recording rejects profiles without an eligible Employee'
 );
 
 select ok(
-  pg_get_functiondef('public.request_attendance_exception(text,text,double precision,double precision,double precision)'::regprocedure)
+  pg_get_functiondef('public.private_request_attendance_exception_pre572(text,text,double precision,double precision,double precision)'::regprocedure)
     ilike '%ATTENDANCE_NOT_REQUIRED%',
   'attendance exception requests reject profiles without an eligible Employee'
 );

@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { noticeDeepLinkPath, type NoticeSummary } from './notice-api';
 
-export function NoticeListCard({ item, unread = false }: { item: NoticeSummary; unread?: boolean }) {
+export function NoticeListCard({ item, unread = false, centered = false }: { item: NoticeSummary; unread?: boolean; centered?: boolean }) {
   const router = useRouter();
   return (
     <Pressable
@@ -12,7 +12,7 @@ export function NoticeListCard({ item, unread = false }: { item: NoticeSummary; 
       onPress={() => router.push(noticeDeepLinkPath(item.id))}
       style={({ pressed }) => [styles.card, pressed ? styles.pressed : null]}
     >
-      <Text numberOfLines={2} ellipsizeMode="tail" style={styles.title}>{item.title}</Text>
+      <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.title, centered ? styles.centeredTitle : null]}>{item.title}</Text>
       {unread ? <View accessible={false} style={styles.dot} /> : null}
     </Pressable>
   );
@@ -32,5 +32,6 @@ const styles = StyleSheet.create({
   },
   pressed: { opacity: 0.86 },
   title: { color: '#173f31', fontSize: 19, fontWeight: '800', lineHeight: 27, flex: 1, minWidth: 0 },
+  centeredTitle: { textAlign: 'center' },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#a13024', flexShrink: 0 },
 });

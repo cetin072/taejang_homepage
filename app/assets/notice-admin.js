@@ -13,6 +13,7 @@
   let removedMedia = [];
   let previewGeneration = 0;
   let activeView = 'manage';
+  let viewRequest = 0;
   let editorReturnView = 'manage';
   let editorBaseline = null;
   let savedNoticeId = null;
@@ -64,6 +65,10 @@
     const dedicated = isPromotionLead() && (payload.p_target_scope === 'company' || leadMode);
     if (dedicated && leadBackendUnavailable) throw new Error('LEAD_NOTICE_BACKEND_UNAVAILABLE');
     try {
+      if (payload.p_body_document) {
+        return await app.rpc('save_formatted_notice', {...payload, p_lead: Boolean(dedicated),
+          p_confirm_routine: ui.element('notice-routine-confirm').checked});
+      }
       return await app.rpc(dedicated ? 'save_lead_notice' : 'save_notice', dedicated
         ? { ...payload, p_confirm_routine: ui.element('notice-routine-confirm').checked } : payload);
     } catch (error) {
@@ -180,6 +185,11 @@
     if (editorReadonly || (isPromotionLead() && !leadEditable)) {
       [...ui.element('notice-form').elements].forEach(node => { if (node.id !== 'reset-notice-form') node.disabled = true; });
     }
+    const field = ui.element('notice-body');
+    if (field._articleEditor?.editor) {
+      field._articleEditor.editor.setEditable(!field.disabled && !saving, false);
+      field.parentNode.nextElementSibling.inert = field.disabled || saving;
+    }
     if (editorReadonly) {
       for (const id of ['notice-save-draft','notice-save-existing','notice-publish','notice-submit-review']) ui.element(id).hidden = true;
       ui.element('notice-edit-state').textContent = '조회 전용 공지입니다. 조회 권한은 수정·게시·승인 권한과 다릅니다. 삭제된 공지는 복원 전 수정할 수 없습니다.';
@@ -268,6 +278,7 @@
   }
 
   function clearMediaState() {
+    ui.element('notice-body')._articleEditor?.destroy?.();
     mediaItems.filter(item => item.kind === 'pending' && item.signed_url).forEach(item => URL.revokeObjectURL(item.signed_url));
     mediaItems = [];
     removedMedia = [];
@@ -304,11 +315,29 @@
     void renderPreview();
   }
 
+  function syncBodyEditor() {
+    const field = ui.element('notice-body');
+    if (!mediaApi() || !isEditorView()) return;
+    const current = window.TaejangArticleEditor?.mount(field, {
+      notice: true, preview: false,
+      getMedia: () => mediaItems.map(item => ({
+        url: mediaApi().photoKey(item), alt: item.alt_text, previewUrl: item.signed_url
+      }))
+    });
+    current?.refresh();
+    if (current?.editor) {
+      current.editor.setEditable(!field.disabled && !saving, false);
+      field.parentNode.nextElementSibling.inert = field.disabled || saving;
+    }
+  }
+
   async function renderMediaEditor() {
     const slot = ui.element('notice-media-editor');
     if (!slot) return;
-    slot.replaceChildren();
+    syncBodyEditor();
     await ensureMediaUrls();
+    syncBodyEditor();
+    slot.replaceChildren();
     if (!mediaItems.length) {
       slot.append(ui.text('p', '등록할 사진이 없습니다.', 'help'));
       return;
@@ -363,27 +392,13 @@
     preview.className = `guide-preview notice-preview importance-${importance}`;
     preview.append(
       ui.text('p', `${ui.IMPORTANCE[importance]} · ${ui.NOTICE_KINDS[ui.element('notice-kind').value] || '공지'}`, 'card-kicker'),
-      ui.text('h3', ui.element('notice-title-input').value.trim() || '공지 제목'),
-      ui.text('p', ui.element('notice-body').value || '공지 내용을 적어주세요.', 'notice-body')
+      ui.text('h3', ui.element('notice-title-input').value.trim() || '공지 제목')
     );
-
     await ensureMediaUrls();
     if (generation !== previewGeneration) return;
-    const gallery = document.createElement('div');
-    gallery.className = 'notice-photo-gallery';
-    mediaItems.filter(item => item.signed_url).forEach(item => {
-      const photo = document.createElement('button');
-      photo.type = 'button';
-      photo.className = 'notice-photo-thumb';
-      photo.setAttribute('aria-label', `${item.alt_text || '공지 사진'} 크게 보기`);
-      const image = document.createElement('img');
-      image.src = item.signed_url;
-      image.alt = item.alt_text || '공지 사진';
-      photo.append(image);
-      photo.addEventListener('click', () => mediaApi()?.openLightbox(item.signed_url, item.alt_text));
-      gallery.append(photo);
-    });
-    if (gallery.childElementCount) preview.append(gallery);
+    const value = ui.element('notice-body').value || '공지 내용을 적어주세요.';
+    if (mediaApi()) mediaApi().renderBody(preview, value, mediaItems);
+    else preview.append(ui.text('p', window.TAEJANG_ARTICLE_DOCUMENT?.plain(value) ?? value, 'notice-body'));
 
     if (ui.element('notice-requires-ack').checked) {
       preview.append(ui.text('p', '내용 확인이 필요한 공지입니다.', 'status-text'));
@@ -525,8 +540,8 @@
         || (editorBaseline !== null && editorBaseline !== editorSnapshot()));
   }
 
-  function returnToNoticeList() {
-    if (!isEditorView() || !setView(editorReturnView)) return;
+  async function returnToNoticeList() {
+    if (!isEditorView() || !await setView(editorReturnView)) return;
     const title = ui.element('notice-manage-title');
     title.tabIndex = -1;
     title.scrollIntoView({ behavior: 'instant', block: 'start' });
@@ -557,9 +572,14 @@
     resultMessage.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  function setView(view) {
+  async function setView(view) {
     if (!canManageNotices()) { clearAccessState(); return false; }
     if (saving || (hasUnsavedEditor() && !confirmLeaveEditor())) return false;
+    const request = ++viewRequest;
+    if (view === 'create' && window.TaejangLoadArticleEditor && !window.TaejangArticleEditor) {
+      if (!await window.TaejangLoadArticleEditor() || request !== viewRequest || !canManageNotices()
+        || ui.element('notice-admin-panel').hidden) return false;
+    }
     const previousView = activeView;
     const nextView = ['create','archive'].includes(view) ? view : 'manage';
     if (nextView === 'create' && !isEditorView()) editorReturnView = previousView === 'archive' ? 'archive' : 'manage';
@@ -604,9 +624,10 @@
   async function openItem(item, settings = {}) {
     if (saving) return;
     const actor = currentAccessKey();
+    const request = ++viewRequest;
     try {
-      const current = await readNotice(item.id);
-      if (actor !== currentAccessKey() || !canManageNotices()) return;
+      const [current, editorReady] = await Promise.all([readNotice(item.id), window.TaejangLoadArticleEditor?.()]);
+      if (editorReady === false || request !== viewRequest || actor !== currentAccessKey() || !canManageNotices()) return;
       fillForm(current, settings);
     } catch { showMessage('공지 최신 내용을 확인하지 못했습니다. 기존 입력을 보존합니다. 새로고침 후 다시 확인해주세요.', true); }
   }
@@ -751,7 +772,7 @@
     ui.element('notice-kind').value = item.notice_kind;
     ui.element('notice-importance').value = item.importance;
     ui.element('notice-title-input').value = item.title || '';
-    ui.element('notice-body').value = item.body_easy || '';
+    ui.element('notice-body').value = item.body_document || item.body_easy || '';
     setDateTime('notice-publish-start', item.publish_start_at);
     if (item.publish_end_at) setDateTime('notice-publish-end', item.publish_end_at);
     else {
@@ -918,7 +939,7 @@
         item.saved_display_order = index;
       } else {
         // Keep successful registrations as existing media before the next upload.
-        const uploaded = item.uploaded || await api.upload(noticeId, item.file);
+        const uploaded = item.uploaded || await api.upload(noticeId, item.file, item.key);
         if (item.uploaded) {
           const current = await readNotice(noticeId).catch(() => {
             throw new Error('NOTICE_MEDIA_REGISTRATION_UNKNOWN');
@@ -1036,6 +1057,17 @@
         const targetLabel = audienceLabel(target);
         if (!window.confirm(`${ui.element('notice-title-input').value}\n대상: ${targetLabel}\n분류: ${ui.NOTICE_KINDS[ui.element('notice-kind').value]} · ${ui.IMPORTANCE[importance]}\n게시 시작: ${ui.formatDateTime(publishStart)} (KST)\n게시 종료: ${publishEnd ? ui.formatDateTime(publishEnd) : '종료 없음'}\n${status === 'published' ? new Date(publishStart) > new Date() ? '이 시각에 게시를 예약할까요?' : '직원에게 지금 게시할까요?' : '공지 ' + ui.STATUS[status] + '를 적용할까요?'}`)) return;
       }
+      const body = ui.element('notice-body');
+      const plain = window.TAEJANG_ARTICLE_DOCUMENT?.plain(body.value) ?? body.value;
+      if (body._articleEditor && !body._articleEditor.validate()) return;
+      if (!plain.trim() || plain.length > 3000 || body.value.length > 30000) {
+        showMessage('공지 내용은 1~3,000자로 입력해 주세요. 서식이 너무 많으면 줄여 주세요.', true);
+        return;
+      }
+      if (body._articleEditor?.editor) {
+        body._articleEditor.editor.setEditable(false, false);
+        body.parentNode.nextElementSibling.inert = true;
+      }
       controls = [...ui.element('notice-form').elements].map(node => [node, node.disabled]);
       controls.forEach(([node]) => { node.disabled = true; });
       const payload = {
@@ -1043,7 +1075,9 @@
         p_notice_kind: ui.element('notice-kind').value,
         p_importance: importance,
         p_title: ui.element('notice-title-input').value,
-        p_body_easy: ui.element('notice-body').value,
+        p_body_easy: window.TAEJANG_ARTICLE_DOCUMENT?.plain(ui.element('notice-body').value) ?? ui.element('notice-body').value,
+        ...(window.TAEJANG_ARTICLE_DOCUMENT?.isRich(ui.element('notice-body').value)
+          ? {p_body_document: ui.element('notice-body').value} : {}),
         p_publish_start_at: publishStart,
         p_publish_end_at: publishEnd,
         p_effective_start_date: ui.element('notice-effective-start').value || null,
@@ -1156,7 +1190,7 @@
                     : error.message === 'NOTICE_MEDIA_TYPE_INVALID' ? '사진은 JPG·PNG·WEBP·GIF 파일만 사용할 수 있습니다.'
                           : error.message === 'NOTICE_MEDIA_TOO_LARGE' ? '원본 사진은 15MB 이하 파일을 사용해주세요.'
                             : error.message === 'OPERATIONS_REVIEW_REQUIRED' ? '운영팀장은 공지를 작성 중으로 저장한 뒤 운영총괄에게 상신할 수 있습니다.'
-                            : error.message === 'NOTICE_SAVED_MEDIA_FAILED' ? (savedStatus === 'published' ? '공개 공지 내용과 일부 사진은 이미 직원에게 반영됐을 수 있습니다. 사진 저장에 실패했습니다. 입력과 공지 ID는 유지됩니다. 다시 저장해주세요.' : `${savedStatus === 'draft' ? '초안' : ui.STATUS[savedStatus] + ' 공지'}은 저장됐지만 사진 저장에 실패했습니다. 직원에게 공개·상신하지 않았습니다. 입력과 공지 ID는 유지됩니다. 다시 저장해주세요.`)
+                            : error.message === 'NOTICE_SAVED_MEDIA_FAILED' ? (savedStatus === 'published' ? '공개 공지 내용과 일부 사진은 이미 직원에게 반영됐을 수 있습니다. 사진 저장에 실패했습니다. 입력과 공지 ID는 유지됩니다. 다시 저장해주세요.' : `${savedStatus === 'draft' ? '초안' : ui.STATUS[savedStatus] + ' 공지'}은 저장됐지만 사진 저장에 실패했습니다. 직원에게 공개·상신하지 않았습니다. 입력과 공지 ID는 유지됩니다. 다시 저장해주세요.`) + (error.cause?.code === 'PHOTO_OPTIMIZATION_FAILED' ? ` ${error.cause.message}` : '')
                             : error.message.startsWith('FORBIDDEN') ? '이 범위의 공지나 사진 자료를 수정할 권한이 없습니다.'
                           : '공지를 저장하지 못했습니다. 게시기간·대상·필수항목·사진을 확인해주세요.';
       const verificationError = ['NOTICE_READBACK_UNAVAILABLE','NOTICE_SAVE_RESULT_UNKNOWN'].includes(error.message);
@@ -1239,8 +1273,8 @@
       if (event.target.id === 'notice-routine-confirm') updateActions();
       else if (event.target.id !== 'notice-photo-input') markReviewEdited();
     });
-    ui.element('reset-notice-form').addEventListener('click', () => {
-      if (!setView('create')) return;
+    ui.element('reset-notice-form').addEventListener('click', async () => {
+      if (!await setView('create')) return;
       showMessage('새 공지를 작성합니다. 이전 저장 결과는 공지 관리 목록에서 확인할 수 있습니다.');
     });
     ui.element('new-notice-admin').addEventListener('click', () => setView('create'));
@@ -1272,6 +1306,7 @@
   }
 
   function clearAccessState() {
+    ++viewRequest;
     ++listGeneration;
     pendingLoad = null;
     options = { work_guides: [] };

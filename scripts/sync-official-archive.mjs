@@ -158,9 +158,70 @@ async function getText(url, limit = 2000000) {
   if (text.length > limit) throw new Error('Source response too large');
   return text;
 }
-async function youtubeFeed() {
+function youtubeJson(html, variable) {
+  const match = html.match(new RegExp('var ' + variable + ' = (.*?);</script>', 's'));
+  if (!match) throw new Error('Missing YouTube ' + variable);
+  return JSON.parse(match[1]);
+}
+export function youtubeVideoIds(html, channelId) {
+  if (channelIdFromHtml(html) !== channelId) throw new Error('Official channel identity changed');
+  const data = youtubeJson(html, 'ytInitialData');
+  const tabs = data.contents?.twoColumnBrowseResultsRenderer?.tabs;
+  const grid = tabs?.find(tab => tab.tabRenderer?.selected)?.tabRenderer?.content?.richGridRenderer;
+  if (!Array.isArray(grid?.contents)) throw new Error('YouTube video listing unavailable');
+  const ids = grid.contents.flatMap(item => {
+    const content = item.richItemRenderer?.content;
+    const lockup = content?.lockupViewModel;
+    const id = content?.videoRenderer?.videoId ||
+      (lockup?.contentType === 'LOCKUP_CONTENT_TYPE_VIDEO' ? lockup.contentId : null);
+    return id && /^[\w-]{11}$/.test(id) ? [id] : [];
+  });
+  if (!ids.length) throw new Error('No verified YouTube video listing');
+  return [...new Set(ids)].slice(0, 15);
+}
+export function youtubeVideoFromHtml(html, videoId, channelId) {
+  const data = youtubeJson(html, 'ytInitialPlayerResponse');
+  const video = data.videoDetails;
+  const meta = data.microformat?.playerMicroformatRenderer;
+  if (video?.videoId !== videoId || video.channelId !== channelId ||
+      meta?.externalChannelId !== channelId || video.isPrivate || meta.isUnlisted) {
+    throw new Error('YouTube video identity or public visibility verification failed');
+  }
+  // A public premiere landing page is not an already published video.
+  if (video.isUpcoming || new Date(meta.liveBroadcastDetails?.startTimestamp).getTime() > Date.now()) return null;
+  const publishedAt = koreaDate(meta.publishDate);
+  if (data.playabilityStatus?.status !== 'OK' || !publishedAt ||
+      new Date(meta.publishDate).getTime() > Date.now() || !video.title || video.title.length > 220) {
+    throw new Error('YouTube publication verification failed');
+  }
+  return {
+    id: 'youtube-' + videoId, type: 'external', source: 'youtube',
+    publisher: '태장 공식 유튜브', category: '회사소식',
+    title: video.title, summary: '태장 공식 유튜브에 게시된 「' + video.title.slice(0, 100) + '」 영상입니다.',
+    thumbnail: 'https://i.ytimg.com/vi/' + videoId + '/hqdefault.jpg',
+    thumbnailAlt: video.title + ' 영상 썸네일', publishedAt,
+    featured: false, status: 'published',
+    externalUrl: 'https://www.youtube.com/watch?v=' + videoId, externalLabel: '유튜브에서 보기'
+  };
+}
+export async function youtubeFeed(load = getText) {
   const id = YOUTUBE_CHANNEL_ID;
-  return parseYoutube(await getText('https://www.youtube.com/feeds/videos.xml?channel_id=' + id), id);
+  try {
+    const items = parseYoutube(await load('https://www.youtube.com/feeds/videos.xml?channel_id=' + id), id);
+    return Object.assign(items, { collectionMethod: 'atom' });
+  } catch (error) {
+    // Use only public pages on the same pinned official channel. Never guess dates
+    // from relative labels, recommendations, upload time or search results.
+    const ids = youtubeVideoIds(await load('https://www.youtube.com/@taejangofficial/videos'), id);
+    const items = [];
+    for (let offset = 0; offset < ids.length; offset += 3) {
+      const batch = await Promise.all(ids.slice(offset, offset + 3).map(async videoId =>
+        youtubeVideoFromHtml(await load('https://www.youtube.com/watch?v=' + videoId), videoId, id)));
+      items.push(...batch.filter(Boolean));
+    }
+    return Object.assign(items, { collectionMethod: 'verified-public-pages',
+      collectionWarning: 'YouTube Atom unavailable: ' + error.message });
+  }
 }
 async function existing() {
   const text = await readFile(TARGET, 'utf8');
@@ -190,6 +251,10 @@ export function slotAt(value) {
 export function operationStatus(collectionStatus, pendingCount) {
   return ['FAIL', 'PARTIAL'].includes(collectionStatus) ? collectionStatus
     : pendingCount > 0 ? 'PENDING_REVIEW' : collectionStatus || 'NO_CHANGES';
+}
+export function canCompleteSlot(report, pendingCount) {
+  return report.feedOk?.naver === true && report.feedOk?.youtube === true &&
+    report.newItems === 0 && pendingCount === 0;
 }
 export function isDue(value, lastCompletedSlot) {
   if (lastCompletedSlot !== undefined) return !!slotAt(value) && slotAt(value) !== lastCompletedSlot;
@@ -232,6 +297,9 @@ export async function synchronize({ apply = false, reportFile = null,
     status: errors.length === 2 ? 'FAIL' : errors.length ? 'PARTIAL' : added.length ? 'PASS' : 'NO_CHANGES',
     collectedAt: new Date().toISOString(),
     feedOk: { naver: results[0].status === 'fulfilled', youtube: results[1].status === 'fulfilled' },
+    youtubeMethod: results[1].status === 'fulfilled' ? results[1].value.collectionMethod || null : null,
+    warnings: results[1].status === 'fulfilled' && results[1].value.collectionWarning
+      ? [results[1].value.collectionWarning] : [],
     sourceItems: fetched.length, existingUpdates: data.current.length,
     newItems: added.length, added: added.map((x) => ({ id: x.id, title: x.title, date: x.publishedAt, url: x.externalUrl })),
     errors, applied: apply && added.length > 0

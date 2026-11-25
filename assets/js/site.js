@@ -26,7 +26,7 @@
     ['workplace.html', '우리의 일터'],
     ['archive.html', '소식·기록'],
     ['partnership.html', '협력·문의'],
-    ['employee-app.html', '직원앱']
+    ['resources.html', '서비스·상품']
   ];
   const STATIC_FOOTER_CONTRACT = [
     ['about.html', '태장 소개'],
@@ -34,6 +34,7 @@
     ['workplace.html', '우리의 일터'],
     ['archive.html', '소식·기록'],
     ['partnership.html', '협력·문의'],
+    ['resources.html', '서비스·상품'],
     ['location.html', '오시는 길']
   ];
 
@@ -78,8 +79,8 @@
     if (!nav) return;
     contract.forEach(([href, label]) => {
       const found = [...nav.querySelectorAll(':scope > a')].some(link => {
-        const title = (link.querySelector('.nav-entry-label') || link).textContent.trim();
-        const expected = nav.hasAttribute('data-mobile-nav') && href === 'employee-app.html' ? '직원앱 안내' : label;
+        const title = link.textContent.trim();
+        const expected = label;
         return normalizedHref(link) === href && title === expected;
       });
       if (!found) console.warn(`${scopeLabel} 정적 링크 누락: ${label} (${href})`);

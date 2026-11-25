@@ -1,0 +1,127 @@
+import { readFileSync } from 'node:fs';
+import { migrationFunctions } from './migration-function-catalog.mjs';
+
+export function employeeAdapterSql() {
+  const catalog=migrationFunctions({ before: '20261028033019' });
+  const adapter=readFileSync('supabase/migrations/20261028033026_personal_employee_menu_adapter.sql','utf8');
+  const names=new Set([...adapter.matchAll(/'(\w+)'/g)].map(match=>match[1]).filter(name=>catalog.has(`public.${name}`)));
+  for(const name of ['private_get_employee_management_context_pre375','private_employee_is_protected',
+    'private_team_lead_department','private_insert_employee','private_next_employee_id',
+    'private_employee_restore_conflict_code','private_employee_reset_recent_auth',
+    'private_can_review_employee_contact','private_active_employee_for_profile']) names.add(name);
+  let definitions='set check_function_bodies=false;\n';
+  for(const name of names) {
+    const definition=catalog.get(`public.${name}`);
+    if(!definition)throw Error(`Missing production source ${name}`);
+    definitions+=definition.replace(/^create\s+(?:or\s+replace\s+)?function/i,'create or replace function')+'\n';
+  }
+  definitions+=catalog.get('private.employee_age_insurance_snapshot')+'\nset check_function_bodies=true;\n';
+  definitions+=`do $$ declare f record; begin
+   for f in select p.oid,p.proname,n.nspname from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+    where (n.nspname='public' and p.proname=any(array[${[...names].map(name=>`'${name}'`).join(',')}]))
+      or n.nspname='private'
+   loop
+    execute format('revoke all on function %s from public,anon,authenticated',f.oid::regprocedure);
+    if f.nspname='public' and (f.proname not like 'private_%' or f.proname='private_employee_media_allowed') then
+     execute format('grant execute on function %s to authenticated',f.oid::regprocedure);
+    end if;
+   end loop;
+  end; $$;\n`;
+  return readFileSync('tests/fixtures/menu-employee-schema.sql','utf8')+`
+alter table public.roles add column name text;
+alter table public.roles add column technical boolean default false;
+alter table public.profile_roles add column scope_type text default 'company';
+alter table public.profile_roles add column granted_by uuid;
+alter table public.profile_roles add column granted_at timestamptz default now();
+alter table public.platform_capabilities add column capability_kind text default 'operational';
+alter table public.platform_capabilities add column operations_manager_auto_grant boolean default true;
+create table public.role_capability_grants(role_id int,capability_code text);
+create sequence public.employee_number_seq;
+create table auth.sessions(id uuid,user_id uuid,not_after timestamptz);
+create function auth.jwt() returns jsonb language sql stable as $$
+ select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb; $$;
+create function public.private_actor_can(text) returns boolean language sql stable security definer set search_path='' as $$
+ select $1=any(public.private_actor_capabilities()); $$;
+create function public.private_payroll_operator_allowed() returns boolean language sql stable security definer set search_path='' as $$
+ select public.current_user_has_role('operations_manager'); $$;
+create or replace function public.private_append_audit(uuid,text,text,text,text,text,jsonb default '{}')
+returns void language sql as $$ insert into public.audit_logs(actor_profile_id,action,target_type,target_id,outcome,reason_summary,metadata,created_at)
+ values($1,$2,$3,$4,$5,$6,$7,now()); $$;
+insert into public.platform_capabilities(code) select distinct unnest(capabilities) from public.menu_authority_catalog on conflict do nothing;
+create or replace function public.private_actor_capabilities_before_menu_authority() returns text[] language sql stable security definer set search_path='' as $$
+ select case when public.current_user_has_role('operations_manager') then (select array_agg(code) from public.platform_capabilities)
+ when public.current_user_has_role('promotion_lead') then array['employee.view_scoped','employee.field_audit_manage','employee.password_reset'] else '{}'::text[] end; $$;
+alter table public.people add primary key(id);
+alter table public.people alter column id set default gen_random_uuid();
+alter table public.employees add primary key(id);
+alter table public.employees alter column id set default gen_random_uuid();
+alter table public.employees alter column employment_status set default 'active';
+alter table public.employees alter column updated_at set default now();
+alter table public.employees alter column archive_snapshot set default '{}';
+alter table public.account_person_links alter column id set default gen_random_uuid();
+alter table public.account_person_links alter column linked_at set default now();
+alter table public.account_status_history alter column id set not null;
+alter table public.account_status_history alter column id add generated by default as identity;
+alter table public.account_status_history alter column created_at set default now();
+alter table public.employee_photos alter column id set default gen_random_uuid();
+alter table public.employee_photos alter column is_current set default true;
+alter table public.employee_field_audits add primary key(employee_uuid);
+alter table private.employee_sensitive_identity add primary key(employee_uuid);
+alter table public.employee_change_requests alter column id set default gen_random_uuid();
+alter table public.employee_change_requests alter column status set default 'pending';
+`+definitions+adapter+`
+-- Real repository employee functions above; only account/session and schema data are synthetic.
+-- No production Auth/Storage service or encryption implementation is substituted as a PASS.
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
+select set_profile_menu_authority('00000000-0000-4000-8000-000000000002','employee.manage',true,2,'employee adapter fixture');
+insert into public.positions(id,code,name,active,sort_order) values('10000000-0000-4000-8000-000000000001','general_worker','합성 일반직원',true,1);
+insert into public.departments(id,code,name,active,sort_order) values('20000000-0000-4000-8000-000000000001','synthetic','합성 부서',true,1);
+update public.profiles set work_email='synthetic-'||right(id::text,1)||'@example.test',position_id='10000000-0000-4000-8000-000000000001';
+select create_employee('합성 대상','2026-01-01','20000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001',true);
+select link_employee_account((select id from employees limit 1),'00000000-0000-4000-8000-000000000004','합성 직원 연결');
+create temp table expected_context as select get_employee_management_context() as value;
+grant select on expected_context to authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',false);
+set role authenticated;
+select test_assert((get_employee_management_context()->'employees')=(select value->'employees' from expected_context),'real RPC delegate roster equals operations roster including email and identity flags');
+select test_assert(get_employee_management_context()->>'access_level'='operations_manager','same employee card branch, unchanged actual roles');
+reset role;
+select test_assert(not current_user_has_role('operations_manager'),'employee adapter never impersonates role');
+select test_assert(get_employee_management_context()->'employees'->0->'linked_profile'->>'work_email'='synthetic-4@example.test','real RPC returns linked email');
+select update_employee_core((select id from employees limit 1),'합성 수정','2026-01-02',null,'10000000-0000-4000-8000-000000000001','active',null,true,'합성 수정');
+select test_assert((select full_name='합성 수정' from people limit 1),'real update RPC persists edit');
+select create_employee('합성 새 직원','2026-01-01',null,'10000000-0000-4000-8000-000000000001',false);
+select test_assert((select count(*)=2 from employees),'real create RPC works for delegate');
+select set_employee_photo((select id from employees order by employee_id limit 1),'id_photo',
+ (select id::text||'/id_photo/synthetic.png' from employees order by employee_id limit 1));
+select test_assert((select count(*)=1 from employee_photos),'real ID-photo setter works');
+select test_assert(private_employee_media_allowed((select id::text from employees limit 1),'id_photo',true),'Storage RLS helper permits ID photo read');
+select test_assert(private_employee_media_allowed((select id::text from employees limit 1),'id_photo',false),'Storage RLS helper permits ID photo write');
+select test_assert((get_operations_account_management()->>'can_manage_roles')::boolean=false,'account tools cannot reassign roles');
+select test_reject($q$select change_account_status('00000000-0000-4000-8000-000000000001','suspended','합성 권한 탈취')$q$,'MENU_AUTHORITY_PROTECTED_ACCOUNT');
+select test_reject($q$select get_target_audit_trail('promotion_content','synthetic',10)$q$,'TARGET_AUDIT_FORBIDDEN');
+select test_assert(jsonb_array_length(get_target_audit_trail('employee',(select id::text from employees order by employee_id limit 1),10))>0,'employee history allowed without other-menu audit capability');
+insert into auth.sessions values('30000000-0000-4000-8000-000000000001',auth.uid(),null);
+select set_config('request.jwt.claims','{"session_id":"30000000-0000-4000-8000-000000000001"}',false);
+select test_assert((employee_password_reset_option((select e.id from employees e join account_person_links l on l.person_id=e.person_id where l.profile_id='00000000-0000-4000-8000-000000000004'))->>'ok')::boolean,'real reset option permits delegate with live synthetic session');
+select archive_employee((select id from employees order by employee_id limit 1),'합성 직원 보관');
+select test_assert((select count(*)=1 from employees where archived_at is not null),'real archive RPC preserves archived employee');
+select restore_employee((select id from employees where archived_at is not null limit 1),'합성 직원 복원');
+select test_assert((select count(*)=0 from employees where archived_at is not null),'real restore RPC restores employee');
+select test_assert(not has_function_privilege('anon','get_employee_management_context()','EXECUTE'),'adapter preserves anon ACL denial');
+select test_assert(not has_function_privilege('authenticated','private_update_employee_core_pre148(uuid,text,date,uuid,uuid,text,date,boolean,text)','EXECUTE'),'preserved inner implementation cannot bypass RPC guard');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
+select set_profile_menu_authority('00000000-0000-4000-8000-000000000002','employee.manage',false,3,'employee fixture revoke');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',false);
+set role authenticated;
+select test_reject('select get_employee_management_context()','MENU_AUTHORITY_REVOKED');
+select test_reject($q$select create_employee('차단','2026-01-01',null,'10000000-0000-4000-8000-000000000001',true)$q$,'MENU_AUTHORITY_REVOKED');
+select test_reject($q$select get_operations_account_management()$q$,'MENU_AUTHORITY_REVOKED');
+select test_reject($q$select get_employee_insurance_deduction_settings(null,'2026-01-01')$q$,'MENU_AUTHORITY_REVOKED');
+select test_reject($q$select employee_password_reset_option(null)$q$,'MENU_AUTHORITY_REVOKED');
+reset role;
+select test_assert(not private_employee_media_allowed((select id::text from employees limit 1),'id_photo',true),'photo RLS helper denies read after revoke');
+select test_assert(not private_employee_media_allowed((select id::text from employees limit 1),'profile',false),'photo RLS helper denies write after revoke');
+select test_assert(not private_employee_scope_allowed((select id from employees limit 1)),'scope helper denies department fallback after revoke');
+`;
+}

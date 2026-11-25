@@ -1,0 +1,35 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');const C=require('../app/assets/logistics-core.js');
+test('v8 기본: 소계 6240 / 부가세 624 / 총액 6864',()=>{const t=C.calculate(C.draft());assert.equal(t.subtotal,6240);assert.equal(t.vat,624);assert.equal(t.total,6864);});
+test('v8 승인된 10박스 예시: 23474',()=>{const q=C.draft();q.lines.filter(l=>['innerBox','repack','individualLabel'].includes(l.key)).forEach(l=>l.quantity=10);q.lines.find(l=>l.key==='ship').unitPrice=6000;assert.equal(C.calculate(q).total,23474);});
+test('재포장 박스 5개를 규격별로 합산하고 모두 2차 작업에 둔다',()=>{
+ const q=C.draft();
+ const box=q.lines.find(l=>l.key==='innerBox');
+ Object.assign(box,{option:'u1',quantity:2,unitPrice:560});
+ q.lines.splice(q.lines.indexOf(box)+1,0,
+  {...box,key:'innerBox-2',option:'u3',quantity:2,unitPrice:880},
+  {...box,key:'innerBox-3',option:'u5',quantity:1,unitPrice:1840});
+ const rows=C.calculate(q).lines.filter(l=>C.isInnerBox(l.key));
+ assert.deepEqual(rows.map(l=>[l.stage,l.kind,l.quantity,l.amount]),[[2,'box',2,1120],[2,'box',2,1760],[2,'box',1,1840]]);
+ q.lines.find(l=>l.key==='innerBox-3').key='innerBox-9';
+ assert.throws(()=>C.calculate(q));
+});
+test('부가세 포함은 추가 과금 없음',()=>{const q=C.draft();q.vatMode='inclusive';const t=C.calculate(q);assert.equal(t.total,6240);assert.equal(t.supply+t.vat,6240);});
+test('개별 촬영·계측을 선택하면 합배송 사진은 유료 월에도 청구하지 않는다',()=>{
+ const q=C.draft();q.photoMonth=2;
+ q.lines.push(...C.ITEM_CHECKS.map(([key,stage,label],i)=>({key,stage,label,quantity:i===0?4:5,unitPrice:[100,200,300][i]})));
+ const result=C.calculate(q);
+ assert.deepEqual(result.lines.slice(-3).map(l=>[l.stage,l.amount]),[[1,400],[2,1000],[2,1500]]);
+ assert.equal(result.lines.find(l=>l.key==='photo').amount,0);
+ q.lines.at(-1).unitPrice='';
+ assert.throws(()=>C.calculate(q));
+ q.lines.pop();
+ assert.throws(()=>C.calculate(q));
+});
+test('기본 1칸 3개월 무료 / 추가 칸은 첫 달부터',()=>{const q=C.draft();q.storage.months=3;assert.equal(C.calculate(q).storageAmount,0);q.storage.shelves=2;assert.equal(C.calculate(q).storageAmount,45000);q.storage.shelves=1;q.storage.months=4;assert.equal(C.calculate(q).storageAmount,15000);});
+test('4개월째 1개월 청구와 3~4개월 청구',()=>{const q=C.draft();q.storage.startMonth=4;assert.equal(C.calculate(q).storageAmount,15000);q.storage.startMonth=3;q.storage.months=2;assert.equal(C.calculate(q).storageAmount,15000);});
+test('기본 단가를 바꾸어도 기존 견적 객체 불변',()=>{const rates=C.copy(C.DEFAULTS);const old=C.draft(rates);rates.repack=999;assert.equal(old.lines.find(l=>l.key==='repack').unitPrice,500);assert.equal(C.draft(rates).lines.find(l=>l.key==='repack').unitPrice,999);});
+test('무료 항목을 모두 유지하고 첫달 이후 사진 300원',()=>{const q=C.draft();assert.equal(q.lines.filter(l=>l.kind==='free').length,5);q.photoMonth=2;assert.equal(C.calculate(q).total,7194);});
+test('기타 비용·할인·수수료 계산',()=>{const q=C.draft();q.lines.push({key:'extra-test',label:'이동비',stage:5,kind:'extra',quantity:2,unitPrice:2000});q.discount=1000;q.feeEnabled=true;const t=C.calculate(q);assert.equal(t.supply,9240);assert.equal(t.vat,924);assert.equal(t.platform,1848);assert.equal(t.total,12012);});
+test('정수/범위/누락/중복/무료항목 조작 거부',()=>{for(const mutate of [q=>q.lines.pop(),q=>q.lines.push({...q.lines[0]}),q=>q.lines[0].unitPrice=100,q=>q.lines[4].quantity=-1,q=>q.discount=999999,q=>q.storage.startMonth=0,q=>q.feeRate=101,q=>q.vatMode='exempt',q=>q.lines[4].quantity='']){const q=C.draft();mutate(q);assert.throws(()=>C.calculate(q));}});
+test('팀장급 이상 실제·유효 역할과 활성 상태 모두 요구',()=>{const roles=C.ROLES;const mock=(r,e=r,active=true,sim=false)=>({getActualRoles:()=>[r],getEffectiveRoles:()=>[e],getAccessContext:()=>({account_status:active?'active':'suspended',role_simulation:{active:sim}})});for(const role of roles)assert.equal(C.allowed(mock(role)),true);for(const role of ['field_lead','general_worker','promotion_staff','super_admin'])assert.equal(C.allowed(mock(role)),false);assert.equal(C.allowed(mock('operations_manager','department_lead',true,true)),false);assert.equal(C.allowed(mock('general_worker','operations_manager')),false);assert.equal(C.allowed(mock('operations_manager','operations_manager',false)),false);});
+test('견적 입력은 계산 중 변경하지 않음',()=>{const q=C.draft(),saved=JSON.stringify(q);C.calculate(q);assert.equal(JSON.stringify(q),saved);});

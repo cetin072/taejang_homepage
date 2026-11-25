@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'none'; img-src 'self' data: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; form-action 'none'; base-uri 'none'">
+<title>직책·접속 역할 화면 미리보기 · 태장</title>
+<link rel="stylesheet" href="../staff/assets/staff.css"><link rel="stylesheet" href="assets/dashboard-shell.css"><link rel="stylesheet" href="assets/employee-management.css">
+<style>
+*{box-sizing:border-box}body{margin:0;font:16px/1.5 'Malgun Gothic',sans-serif;background:#f4f6f4;color:#21382d}.desktop-app-shell{width:100%;margin:0;border-radius:0;box-shadow:none}.app-workspace{min-width:0}#dashboard-main{width:min(100% - 32px,1180px);padding:24px 0}.app-topbar{min-height:65px}[hidden]{display:none!important}.quick-links{display:flex;flex-wrap:wrap;gap:10px}.demo-notice{padding:16px 24px;border-bottom:1px solid #cbd8d0;background:#fff}.demo-notice p{margin:4px 0}.demo-notice strong{display:block}.demo-notice small{display:block;color:#506356}.demo-reset{margin-top:10px}
+</style></head><body class="desktop-app-mode">
+<div id="desktop-app-shell" class="desktop-app-shell"><aside class="app-sidebar"><p>태장 · 화면 미리보기</p></aside><div class="app-workspace">
+<header class="app-topbar"><button id="sidebar-toggle" type="button">메뉴</button><h1 id="desktop-page-title">직원 관리</h1></header>
+<section class="demo-notice" aria-label="가상 데이터 안내"><strong>가상 직원으로 보는 화면 구성 미리보기</strong><p>실제 직원정보나 계정 권한에는 연결되지 않습니다. 저장은 이 화면 안에서만 모의 처리되며 새로고침하면 초기화됩니다.</p><small>실제 로그인·저장 기능의 수용검수용 사이트가 아닙니다. 직책과 역할 표시, 수정 과정의 디자인을 확인해 주세요.</small><button class="button button-quiet demo-reset" type="button" onclick="location.reload()">처음 상태로 보기</button></section>
+<main id="dashboard-main" class="dashboard-main"></main></div></div>
+<script>
+'use strict';
+// No credentials or browser session storage. Every data operation is local-only.
+window.fetch=async()=>{throw Error('가상 화면에서는 서버에 연결하지 않습니다.');};
+const employee={id:'demo-employee',employee_id:'DEMO-001',full_name:'가상 직원',department_id:'demo-logistics',department_name:'물류',position_id:'demo-lead',position_name:'부서 팀장',hired_on:'2026-01-02',departed_on:null,employment_status:'active',attendance_required:true,linked_profile:{id:'demo-profile',display_name:'가상 직원',work_email:'demo@example.test',account_status:'active'},updated_at:'2026-11-17T00:00:00Z'};
+const positions=[{id:'demo-worker',name:'일반 근로자'},{id:'demo-lead',name:'부서 팀장'},{id:'demo-ops',name:'운영총괄'}];
+const recommendations=[{position_id:'demo-worker',role_code:'general_worker',role_name:'일반 근로자'},{position_id:'demo-lead',role_code:'department_lead',role_name:'부서 팀장'}];
+let roles=['general_worker'],profilePosition='demo-worker',profileDepartment='demo-logistics';
+const context={access_level:'operations_manager',can_manage_sensitive_identity:false,employees:[employee],departments:[{id:'demo-logistics',name:'물류'},{id:'demo-production',name:'생산'}],positions,new_employee_positions:[],change_requests:[],self_service_contact_requests:[]};
+window.TaejangApp={getRoute:()=> 'operations_manager',hasCapabilityContract:()=>true,can:()=>false,friendlyError:e=>e.message,rpc:async(name,args)=>{
+ if(name==='get_employee_management_context')return structuredClone(context);
+ if(name==='get_employee_role_context')return {ok:true,profile_id:'demo-profile',employee_updated_at:employee.updated_at,profile_updated_at:employee.updated_at,employee_basic:structuredClone(employee),role_codes:[...roles],active_role_codes:[...roles],role_names:roles.map(code=>recommendations.find(r=>r.role_code===code)?.role_name||code),profile_position_id:profilePosition,profile_department_id:profileDepartment,can_manage:true,recommendations};
+ if(name==='update_employee_core'||name==='update_employee_core_with_role'){
+  Object.assign(employee,{full_name:args.p_full_name,hired_on:args.p_hired_on,department_id:args.p_department_id,department_name:context.departments.find(d=>d.id===args.p_department_id)?.name,position_id:args.p_position_id,position_name:positions.find(p=>p.id===args.p_position_id)?.name,employment_status:args.p_employment_status,departed_on:args.p_departed_on,attendance_required:args.p_attendance_required,updated_at:new Date().toISOString()});
+  if(name==='update_employee_core_with_role'){
+   const rec=recommendations.find(r=>r.position_id===args.p_position_id);if(rec&&!roles.includes(rec.role_code))roles.push(rec.role_code);
+   profilePosition=args.p_position_id;profileDepartment=args.p_department_id;
+  }
+  return {ok:true};
+ }
+ if(name==='get_employee_remote_work_location')return {address:'',approved:false,remote_work:false};
+ if(name==='get_target_audit_trail')return {items:[]};
+ throw Error('이 항목은 직책·역할 디자인 미리보기 범위에 포함되지 않습니다. 실제 데이터는 변경되지 않았습니다.');
+}};
+</script>
+<script src="assets/employee-remote-work.js"></script><script src="assets/employee-management-views.js"></script><script src="assets/employee-management.js"></script>
+<script>
+(async()=>{
+ if(!/^(deploy-preview-\d+--taejang-homepage\.netlify\.app|localhost|127\.0\.0\.1)$/.test(location.hostname)){
+  document.getElementById('dashboard-main').textContent='이 가상 화면은 개발 프리뷰에서만 열 수 있습니다.';return;
+ }
+ await TaejangEmployeeManagement.openEmployeeManagement();document.querySelector('[data-employee-id="demo-employee"]')?.click();
+})();
+</script></body></html>

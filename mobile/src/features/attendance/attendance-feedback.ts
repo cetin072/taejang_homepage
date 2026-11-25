@@ -50,7 +50,7 @@ export function useAttendanceFeedback() {
         : Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       void haptic.catch(() => {});
     } catch { /* Completion text remains the primary feedback. */ }
-    if (eventType !== 'clock_in' || reduced.current) return;
+    if (reduced.current) return;
     locked.current = true;
     setTurning(true);
     setFace(outgoing);

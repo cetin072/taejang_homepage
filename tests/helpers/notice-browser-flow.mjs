@@ -23,7 +23,7 @@ export async function noticeBrowserFlow({ apiUrl, publishableKey, operations, le
         '../staff/assets/auth-routing.js', 'assets/today-board.js', 'assets/staff-information-ui.js',
         'assets/notice-media.js', 'assets/capability-access.js', 'assets/app-workspace-surface.js', 'assets/app.js'
       ].map(src => `<script src="${src}"></script>`).join('') + '</body>');
-      res.setHeader('Content-Type', file.endsWith('.js') ? 'application/javascript' : file.endsWith('.css') ? 'text/css' : 'text/html; charset=utf-8');
+      res.setHeader('Content-Type', (/\.m?js$/).test(file) ? 'application/javascript' : file.endsWith('.css') ? 'text/css' : 'text/html; charset=utf-8');
       res.end(body);
     } catch { res.statusCode = 404; res.end(); }
   });

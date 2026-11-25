@@ -41,3 +41,48 @@
 .mcd-lock-notice { padding: 1rem; margin-bottom: 1rem; border-left: 4px solid var(--green, #28694e); background: #f1f6f3; }
 [data-mcd-company-defaults] > summary { cursor: pointer; font-weight: 700; padding: .5rem; }
 [data-mcd-company-defaults] > summary:focus-visible { outline: 3px solid #28694e; outline-offset: 3px; }
+.mcd-tabs { display:flex; flex-wrap:wrap; gap:6px; }
+.mcd-tabs [aria-pressed=true] { background:#235c45; color:white; }
+.monthly-client-documents { width:100%; min-width:0; box-sizing:border-box; }
+.monthly-client-documents input[type=checkbox] { width:18px; height:18px; min-height:0; margin:0; }
+.monthly-client-documents label:has(input[type=checkbox]) { display:flex; align-items:center; gap:8px; }
+.mcd-email-dialog .mcd-actions { position:sticky; bottom:0; background:white; padding:6px 0; }
+.mcd-output-sections { display:grid; gap:8px; }
+.mcd-output-sections details { border-bottom:1px solid #d8dfdb; padding:8px 0; }
+.mcd-output-sections summary { cursor:pointer; padding:6px 0; font-weight:600; }
+@media (max-width:600px) {
+  .mcd-table { min-width:0; }
+  .mcd-table tr { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); border-top:1px solid #d8dfdb; padding:6px 0; }
+  .mcd-table tr:first-child:has(th) { position:absolute; width:1px; height:1px; clip-path:inset(50%); overflow:hidden; }
+  .mcd-table td { padding:3px; border:0; text-align:left; white-space:normal; }
+  .mcd-table td::before { content:attr(data-label); display:block; color:#59635e; font-size:.75rem; }
+  .mcd-table td:first-child,.mcd-table td:last-child { grid-column:1/-1; }
+  .mcd-table td:first-child { font-weight:700; }
+  .mcd-table td:first-child::before { display:none; }
+}
+
+.service-document-workspace > .mcd-actions {
+  margin-block: 0 16px;
+}
+.service-document-workspace > [hidden] {
+  display: none;
+}
+.service-document-workspace > nav button[aria-pressed="true"] {
+  background: var(--app-brand, #215d45);
+  color: white;
+}
+.single-service-editor {
+  width: min(92vw, 920px);
+  max-height: 90vh;
+  overflow: auto;
+}
+.single-service-editor details > summary {
+  margin-block: 8px;
+  cursor: pointer;
+}
+.single-service-preview {
+  width: 100%;
+  height: 52vh;
+  border: 1px solid #c7d7cd;
+  background: white;
+}

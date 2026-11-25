@@ -41,7 +41,8 @@ test('notice detail route can acknowledge the exact current notice version', asy
   assert.match(detail, /acknowledgeMyNotice/);
   assert.match(detail, /notice\.version_no/);
   assert.match(detail, /내용 확인했습니다/);
-  assert.match(detail, /notice\.media\.map/);
+  assert.match(detail, /<NoticeBody notice=/);
+  assert.match(await text('mobile/src/features/notices/notice-body.tsx'), /notice\.media\.filter/);
   assert.match(detail, /loadNoticeMediaUrl/);
   assert.match(detail, /사진을 준비하고 있습니다/);
 });

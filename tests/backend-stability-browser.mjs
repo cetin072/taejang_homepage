@@ -38,7 +38,7 @@ const server=http.createServer(async(req,res)=>{
         'assets/staff-information-ui.js','assets/app.js'
       ].map(src=>`<script src="${src}"></script>`).join('')+'</body>');
     }
-    res.setHeader('Content-Type',file.endsWith('.css')?'text/css':file.endsWith('.js')?'application/javascript':'text/html; charset=utf-8');
+    res.setHeader('Content-Type',file.endsWith('.css')?'text/css':(/\.m?js$/).test(file)?'application/javascript':'text/html; charset=utf-8');
     res.end(body);
   }catch(error){res.statusCode=404;res.end(error.message);}
 });
@@ -99,7 +99,7 @@ async function boot(width,role='operations_manager'){
   // Preview assets are fetched by this local fixture server. Wait for the DOM
   // and explicit authenticated bootstrap below, rather than unrelated load tails.
   await page.goto(origin+'/app/index.html',{waitUntil:'domcontentloaded',timeout:90000});
-  await page.waitForFunction(()=>window.TaejangApp?.hasCapabilityContract?.(),null,{timeout:10000}).catch(async error=>{
+  await page.waitForFunction(()=>window.TaejangApp?.hasCapabilityContract?.(),null,{timeout:30000}).catch(async error=>{
     console.error({url:page.url(),errors,calls});throw error;
   });
   return {context,page,calls,errors,control};

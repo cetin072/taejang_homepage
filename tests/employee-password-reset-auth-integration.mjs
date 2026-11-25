@@ -1,5 +1,8 @@
 // Isolated Supabase only. Never accepts hosted URLs or operational identities.
 import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {readFileSync} from 'node:fs';
+import {personalEmployeeAuth} from './helpers/personal-menu-employee-auth.mjs';
 import {execFileSync,spawn} from 'node:child_process';
 import {mkdtemp,writeFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
@@ -131,6 +134,20 @@ try {
  const magic=await api('/auth/v1/verify',{body:{type:'magiclink',token_hash:link.data.hashed_token}});
  check(magic.ok&&magic.data.access_token,'isolated magic-link session established');
  check((await edge({...resetter,token:magic.data.access_token},target)).data?.code==='REAUTH_REQUIRED','magic-link session is not recent password authentication');
+ // Execute the production transport against real local Auth, preserving the
+ // current UID and employee screen while obtaining a fresh password AMR.
+ const appSource=readFileSync('app/assets/app.js','utf8');
+ const transport=appSource.slice(appSource.indexOf('  let sessionRefresh = null;'),appSource.indexOf('  async function context()'));
+ check(transport.includes('async function reauthenticate('),'production inline confirmation transport found');
+ const authState={session:magic.data,config:{url:base,publishableKey:anon}};
+ const sandbox={state:authState,fetch,storeSession:session=>{authState.session=session;},clearSession:()=>{authState.session=null;}};
+ vm.runInNewContext(transport+'\nglobalThis.confirmCurrent=reauthenticate;',sandbox);
+ const staleSession=authState.session;
+ await assert.rejects(()=>sandbox.confirmCurrent('Isolated-Wrong-Password-2026!'));
+ check(authState.session===staleSession,'incorrect inline password preserves current session and does not reset target');
+ check(await sandbox.confirmCurrent(initial),'production inline confirmation authenticates with real local Auth');
+ check(authState.session.user.id===resetter.id,'inline confirmation retains the same actor UID');
+ const inlineActor={...resetter,token:authState.session.access_token};
  const claims=JSON.parse(Buffer.from(resetter.token.split('.')[1],'base64url'));
  const recent=amr=>sql(`begin; select set_config('request.jwt.claims','${JSON.stringify({...claims,amr})}',true); select public.private_employee_reset_recent_auth(); rollback;`).split('\n').includes('t');
  for(const amr of [null,{},[],[{method:'token_refresh',timestamp:Math.floor(Date.now()/1000)}],
@@ -141,7 +158,7 @@ try {
  check(!(await rpc('private_employee_reset_recent_auth',resetter.token)).ok,'private session helper not exposed');
  const tampered=resetter.token.split('.');tampered[1]=Buffer.from(JSON.stringify({...claims,amr:[{method:'password',timestamp:Math.floor(Date.now()/1000)+99999}]})).toString('base64url');
  check((await api('/functions/v1/employee-password-reset',{token:tampered.join('.'),body:body(target),origin:'http://localhost:3000'})).status===401,'tampered AMR token rejected by Auth');
- const reset=await edge(resetter,target);
+ const reset=await edge(inlineActor,target);
  check(reset.ok&&/^\d{16}$/.test(reset.data?.temporary_password),'real Edge Admin random numeric reset');
  check((await api('/auth/v1/token?grant_type=password',{body:{email:target.email,password:reset.data.temporary_password}})).data?.user?.id===target.id,'existing UID login with temporary credential');
  check(!(await api('/auth/v1/token?grant_type=password',{body:{email:target.email,password:initial}})).ok,'old credential rejected');
@@ -168,6 +185,7 @@ try {
  const limited=await fixture('reset-limited','operations_manager','operations_manager');
  for(let i=0;i<5;i++)await reserve(limited,worker,{p_employee_number:'TJ-999999'});
  check((await reserve(limited,promo)).data?.code==='RATE_LIMITED','persistent actor limit');
+ await personalEmployeeAuth({fixture,rpc,sql,edge,api,check,ops:resetter,base,anon});
  console.log('Issue 500 isolated Auth/Edge/self-change checks passed: '+checks);
 }finally{
  child.kill('SIGTERM');

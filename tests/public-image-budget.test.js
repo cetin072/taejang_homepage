@@ -15,6 +15,7 @@ const rasterPattern = /(?:assets|images)\/[A-Za-z0-9_./-]+\.(?:avif|gif|jpe?g|pn
 // silently spread to unrelated assets.
 const representativePaths = new Set([
   'assets/images/archive/partner-company-plaques-v3.webp',
+  'assets/images/archive/standard-workplace-certificate-2026-049.png',
   'images/homepage/photo-07.webp',
   'images/homepage/photo-08-about-preview.webp'
 ]);

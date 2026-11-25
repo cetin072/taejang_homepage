@@ -178,11 +178,19 @@
     });
   }
 
+  function canAddSummaryCard(currentRoute, grid, key) {
+    const settings = window.TaejangPlatformUiSettings;
+    if (!grid.isConnected || grid.dataset.layoutEditing === '1' || settings?.isDashboardEditing?.()) return false;
+    return currentRoute !== 'operations_manager' || !settings?.isDashboardCustomized?.()
+      || (settings.getDashboardOrder?.() || []).map(normalizeCardKey).includes(key);
+  }
+
   function addPayrollCard(currentRoute, grid) {
-    if (currentRoute !== 'operations_manager' || grid.querySelector('[data-priority-dashboard-card="근태·급여관리"]')) return;
+    if (currentRoute !== 'operations_manager' || !canAddSummaryCard(currentRoute, grid, 'payroll.manage')
+      || [...grid.children].some(node => cardKey(node) === 'payroll.manage')) return;
     grid.append(card(
       '근태·급여관리',
-      '오늘 근태를 직접 입력하거나 보안업체 Excel로 채운 뒤 수정·저장하고, 급여 가안과 급여대장 Excel까지 한 화면에서 확인합니다.',
+      '확정 근태로 급여 가안을 계산하고 급여대장 Excel을 확인합니다.',
       '운영총괄 1차 사용',
       {
         label: '근태·급여관리 열기',
@@ -191,19 +199,23 @@
     ));
   }
 
+  const checkedEmployeeCards = new WeakSet();
+  const checkedHomepageCards = new WeakSet();
+
   async function addEmployeeCard(currentRoute, grid) {
-    if (!['operations_manager', 'promotion_lead', 'department_lead'].includes(currentRoute)) return;
-    if (grid.querySelector('[data-priority-dashboard-card="직원관리 요청"], [data-priority-dashboard-card="팀 직원 관리"]')) return;
+    if (!['operations_manager', 'promotion_lead', 'department_lead'].includes(currentRoute)
+      || !canAddSummaryCard(currentRoute, grid, 'employee.manage')) return;
+    if (checkedEmployeeCards.has(grid) || [...grid.children].some(node => cardKey(node) === 'employee.manage')) return;
     try {
       const context = await app().rpc('get_employee_management_context');
       const requests = Array.isArray(context?.change_requests) ? context.change_requests : [];
-      if (currentRoute === 'operations_manager' && !requests.length) return;
+      if (currentRoute === 'operations_manager' && !requests.length) { checkedEmployeeCards.add(grid); return; }
       const title = currentRoute === 'operations_manager' ? '직원관리 요청' : '팀 직원 관리';
       const body = currentRoute === 'operations_manager'
         ? '팀장이 보낸 직원 등록·수정 요청을 확인하세요.'
         : (requests.length ? '내가 보낸 직원 등록·수정 요청 상태를 확인하세요.' : '우리 팀 직원정보와 필요한 변경 요청을 관리합니다.');
       const value = requests.length ? `${requests.length}건` : undefined;
-      if (!grid.isConnected) return;
+      if (!canAddSummaryCard(currentRoute, grid, 'employee.manage')) return;
       grid.append(card(title, body, value, {
         label: currentRoute === 'operations_manager' ? '직원 관리 열기' : '팀 직원 관리 열기',
         run: () => window.TaejangEmployeeManagement?.openEmployeeManagement?.()
@@ -212,11 +224,13 @@
   }
 
   async function addHomepageApprovalCard(currentRoute, grid) {
-    if (currentRoute !== 'operations_manager' || grid.querySelector('[data-priority-dashboard-card="홈페이지 수정 승인"]')) return;
+    if (checkedHomepageCards.has(grid) || currentRoute !== 'operations_manager' || !canAddSummaryCard(currentRoute, grid, 'homepage.content')
+      || [...grid.children].some(node => cardKey(node) === 'homepage.content')) return;
     try {
       const requests = await app().rpc('get_homepage_change_requests');
       const pending = (Array.isArray(requests) ? requests : []).filter(item => item.status === 'pending');
-      if (!pending.length || !grid.isConnected) return;
+      if (!pending.length) { checkedHomepageCards.add(grid); return; }
+      if (!canAddSummaryCard(currentRoute, grid, 'homepage.content')) return;
       grid.append(card('홈페이지 수정 승인', '운영팀장이 요청한 홈페이지 글·사진 변경을 확인하세요.', `${pending.length}건`, {
         label: '홈페이지 요청 검토',
         run: () => {
@@ -287,6 +301,8 @@
     const heading = target?.querySelector('.dashboard-intro h2')?.textContent || '';
     const specialDashboard = currentRoute === 'field_lead' || currentRoute === 'ceo';
     if (!currentRoute || !grid || (!heading.includes('대시보드') && !specialDashboard)) return;
+    if (grid.dataset.layoutEditing === '1' || window.TaejangPlatformUiSettings?.isDashboardEditing?.()) return;
+    window.TaejangManagementAttention?.mount(target);
     rendering = true;
     try {
       removeLowPriorityOperationsCards(currentRoute, grid);

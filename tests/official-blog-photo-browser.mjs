@@ -12,7 +12,7 @@ const output=process.env.PROMOTION_QA_OUTPUT||'/tmp/official-blog-photo-qa';awai
 const server=createServer(async(req,res)=>{
  try { const url=new URL(req.url,'http://localhost'); if(url.pathname==='/photo-gate.html'){res.setHeader('content-type','text/html');res.end(html);return;}
  const file=path.resolve(root,'.'+decodeURIComponent(url.pathname));if(!file.startsWith(root+path.sep))throw new Error('path');
- res.setHeader('content-type',file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'text/html');res.end(await readFile(file));
+ res.setHeader('content-type',(/\.m?js$/).test(file)?'text/javascript':file.endsWith('.css')?'text/css':'text/html');res.end(await readFile(file));
  }catch{res.statusCode=404;res.end();}
 });
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));

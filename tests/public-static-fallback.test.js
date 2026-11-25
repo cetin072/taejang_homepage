@@ -31,9 +31,17 @@ function assertFallbackCards(html, key, minimum) {
 }
 
 const homeFallback = assertFallbackCards(index, 'recent-activities', 3);
-const archiveFallback = assertFallbackCards(archive, 'archive', 3);
+const archiveFallback = archive.slice(archive.indexOf('data-static-fallback="archive"'), archive.indexOf('</section>', archive.indexOf('data-static-fallback="archive"')));
+assert.equal((archiveFallback.match(/data-static-fallback-card/g) || []).length, 12);
+assert.match(archiveFallback, /naver-blog-224449863266/);
+assert.match(archiveFallback, /2026-10-28/);
+assert.match(archiveFallback, /https:\/\/blog.naver.com\/taejang-official\//);
 const activityFallback = assertFallbackCards(activities, 'activities', 3);
-const workplaceFallback = assertFallbackCards(workplace, 'workplace', 3);
+// The curated index remains complete without JS and links across existing collections.
+assert.equal((workplace.match(/class="workplace-job"/g) || []).length, 4);
+for (const href of ['minhwa-gallery.html', 'terrarium.html', 'community-esg-records.html', 'workplace/packing-care.html', 'workplace/work-together.html', 'farm.html']) {
+  assert.ok(workplace.includes('href="' + href + '"'), 'workplace index keeps its static destination: ' + href);
+}
 
 const communityStart = community.indexOf('data-static-fallback="community-esg"');
 assert.ok(communityStart >= 0, 'community-esg fallback 표시가 있어야 합니다');
@@ -41,10 +49,10 @@ const communityEnd = community.indexOf('</section>', communityStart);
 const communityFallback = community.slice(communityStart, communityEnd >= 0 ? communityEnd : undefined);
 assert.ok((communityFallback.match(/data-static-fallback-card/g) || []).length >= 3, 'community-esg fallback은 활동 기록 3건 이상을 포함해야 합니다');
 assert.match(communityFallback, /activities\/environment-cleanup-third\.html/);
-assert.match(archiveFallback, /activities\/environment-cleanup-third\.html/);
+
 assert.match(activityFallback, /activities\/environment-cleanup-third\.html/);
-assert.match(communityFallback, /activities\/environment-cleanup-second\.html/);
-assert.match(communityFallback, /activities\/environment-cleanup-first\.html/);
+assert.match(communityFallback, /activities\/environment-cleanup-fourth\.html/);
+assert.match(communityFallback, /activities\/environment-cleanup-fifth\.html/);
 
 assert.doesNotMatch(index, /data-recent-activities\s+hidden/, '메인 활동 기록은 JS 없이도 표시되어야 합니다');
 
@@ -56,11 +64,11 @@ const approvedActivityTitles = [
 for (const title of approvedActivityTitles) {
   assert.match(content, new RegExp(`title: "${title}"`), `${title}은 승인된 content.js 원본에 존재해야 합니다`);
   assert.match(homeFallback, new RegExp(title), `${title}은 메인 fallback에 있어야 합니다`);
-  assert.match(archiveFallback, new RegExp(title), `${title}은 아카이브 fallback에 있어야 합니다`);
+
   assert.match(activityFallback, new RegExp(title), `${title}은 활동 목록 fallback에 있어야 합니다`);
 }
 
-for (const title of ['세 번째 환경정비 활동을 진행했습니다', '두 번째 환경정비 활동을 진행했습니다', '첫 환경정비 활동을 진행했습니다']) {
+for (const title of ['다섯 번째 환경정비 활동을 진행했습니다', '네 번째 환경정비 활동을 진행했습니다', '세 번째 환경정비 활동을 진행했습니다']) {
   assert.match(content, new RegExp(`title: "${title}"`), `${title}은 승인된 content.js 원본에 존재해야 합니다`);
   assert.match(communityFallback, new RegExp(title), `${title}은 community-esg fallback에 있어야 합니다`);
 }
@@ -72,14 +80,15 @@ const approvedWorkplaceTitles = [
 ];
 for (const title of approvedWorkplaceTitles) {
   assert.match(content, new RegExp(`title: "${title}"`), `${title}은 승인된 content.js 원본에 존재해야 합니다`);
-  assert.match(workplaceFallback, new RegExp(title), `${title}은 일터 fallback에 있어야 합니다`);
+
 }
 
 // Runtime success replaces the baseline rather than appending duplicate cards.
-assert.match(homePreviews, /container\.replaceChildren\(\.\.\.visibleItems\.map\(createActivityCard\)\)/);
+assert.match(homePreviews, /container\.replaceChildren\(\.\.\.visibleItems\.map\(/);
+assert.match(homePreviews, /createActivityCard\(item, index === 0/);
 assert.match(contentHub, /list\.replaceChildren\(\.\.\.visible\.map\(\(item\) => createCard\(item, 'h2'\)\)\)/);
 assert.match(listing, /list\.innerHTML = items\.length[\s\S]*?items\.map\(card\)\.join\(''\)/);
-assert.match(communityScript, /list\.replaceChildren\(\.\.\.records\.map/);
+assert.match(communityScript, /list\.replaceChildren\(\.\.\.visibleRecords\.map/);
 
 // Missing runtime data is a degradation state, not a reason to erase approved HTML.
 assert.match(homePreviews, /if \(container\.dataset\.staticFallback\)[\s\S]*?section\.hidden = false/);

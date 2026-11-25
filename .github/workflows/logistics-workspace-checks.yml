@@ -1,0 +1,63 @@
+name: Logistics workspace checks
+on:
+  pull_request:
+    paths:
+      - 'app/assets/logistics*'
+      - 'app/assets/dashboard-shell.js'
+      - 'app/assets/platform-navigation-registry.js'
+      - 'supabase/migrations/*logistics_workspace.sql'
+      - 'supabase/migrations/*logistics_wallet_summary.sql'
+      - 'supabase/migrations/*logistics_split_inner_boxes.sql'
+      - 'tests/logistics*'
+      - '.github/workflows/logistics-workspace-checks.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  logistics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/logistics-core.test.cjs
+      - run: node tests/logistics-isolated.mjs
+      - name: Prepare Korean print rendering
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install --no-install-recommends -y fonts-noto-cjk poppler-utils
+      - name: Verify customer selection and historical quote navigation
+        run: node tests/logistics-customer-browser.mjs
+      - name: Verify wallet UI against isolated PostgreSQL
+        run: node tests/logistics-wallet-browser.mjs
+        env:
+          LOGISTICS_WALLET_OUTPUT: ${{ runner.temp }}/logistics-wallet
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: logistics-wallet
+          path: ${{ runner.temp }}/logistics-wallet/
+          if-no-files-found: ignore
+      - name: Verify quote printing and A4 pagination
+        run: node tests/logistics-print-browser.mjs
+        env:
+          LOGISTICS_PRINT_OUTPUT: ${{ runner.temp }}/logistics-print
+      - name: Render print evidence
+        if: always()
+        run: |
+          for pdf in "$RUNNER_TEMP"/logistics-print/*.pdf; do
+            [ -f "$pdf" ] || continue
+            pdftoppm -scale-to 1400 -png "$pdf" "${pdf%.pdf}"
+            pdftotext -layout "$pdf" "${pdf%.pdf}.txt"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: logistics-print
+          path: ${{ runner.temp }}/logistics-print/
+          if-no-files-found: ignore
+      - run: npm run build:netlify

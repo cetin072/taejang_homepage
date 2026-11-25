@@ -9,7 +9,7 @@
   'use strict';
   if (!core) throw new Error('MONTHLY_DOCUMENT_CORE_REQUIRED');
   const TEMPLATE_VERSION = 'client-template-2';
-  const supportsTemplate = version => ['claude-template-1', TEMPLATE_VERSION].includes(version);
+  const supportsTemplate = version => ['claude-template-1', TEMPLATE_VERSION, 'monthly-stages-1'].includes(version);
 
   function textXml(value, breaks) { return breaks ? core.esc(value).replace(/\r?\n/g, '</w:t><w:br/><w:t xml:space="preserve">') : core.esc(value); }
 
@@ -36,15 +36,98 @@
     });
   }
 
-  async function createDocx({ JSZip = root.JSZip, template, packageBytes, common, companies, type = 'blob' } = {}) {
+  function stagePages(stage, plan) {
+    if (!['three_step','notice_skipped','single_bundle'].includes(plan)) throw new Error('INVALID_STAGE_PLAN');
+    if (stage === 'quote') return ['Q'];
+    if (stage === 'report') return ['Rlast'];
+    if (stage === 'notice' && plan === 'three_step') return ['C'];
+    if (stage === 'result' || stage === 'closed') return plan === 'single_bundle' ? ['C','Q','Rlast'] : ['Q','Rlast'];
+    throw new Error('현재 단계에서 발행할 문서가 없습니다.');
+  }
+
+  function stageBody(template, common, company, stage, plan, settings) {
+    const pages = stagePages(stage, plan);
+    const bundle = plan === 'single_bundle' && pages.includes('C');
+    const preset = common.serviceType === 'custom' ? common.customService : settings.service_types[common.serviceType];
+    if (!preset?.item || !preset.report || !Array.isArray(preset.work) || !settings.contract_basis_text) throw new Error('용역 문구 설정을 확인하세요.');
+    const report = preset.report.replaceAll('{N}', String(common.month));
+    const serviceTitle = /^\d+월/.test(report) ? common.year+'년 '+report : report;
+    const work = preset.work.map(line => line.replaceAll('{장소}', () => common.place));
+    const safe = { outdoor:'작업 전 현장 안전교육 및 보호장구 점검', indoor_hq:'작업 전 태장 본사 실내 안전교육 및 보호장구 점검', indoor_video:'작업 전 실내 안전교육(영상 교육)', custom:common.safety.text }[common.safety.mode];
+    const education = {outdoor:'현장 안전교육',indoor_hq:'실내 안전교육(태장 본사)',indoor_video:'실내 안전교육(영상 교육)',custom:safe}[common.safety.mode];
+    const dates = pages.includes('Rlast') ? common.actualPerfDates : stage==='quote' && common.actualPerfDates?.length ? common.actualPerfDates : common.perfDates;
+    if (pages.includes('Rlast') && !dates?.length) throw new Error('REQUIRED_ACTUAL_PERFORMANCE_DATES');
+    if (!safe || !dates?.length) throw new Error('수행일과 안전교육 내용을 확인하세요.');
+    // A new cover is not a reissue of the original advance notice.
+    const issueDates = {C:bundle ? common.bundleIssueDate : common.noticeDate,Q:common.quoteDate,Rlast:common.reportDate};
+    if (bundle) {
+      const issue = core.validateDate(issueDates.C, 'BUNDLE_ISSUE_DATE');
+      if (dates.some(date => core.validateDate(date, 'SERVICE_DATE') > issue)) throw new Error('BUNDLE_ISSUE_BEFORE_PERFORMANCE');
+    }
+    const normalized = {...common, docDate:issueDates[pages[0]], perfDate:dates[0], perfDates:dates, safety:common.safety.mode === 'outdoor' ? 'outdoor' : 'indoor'};
+    const warnings = core.layoutWarnings(normalized,[company]);
+    if (warnings.length) throw new Error(warnings.join(' '));
+    const calculation = core.calculate(normalized,company);
+    if (calculation.warnings.length) throw new Error('DOCX_CALCULATION_WARNING');
+    const content = core.buildContent(normalized,company,calculation);
+    const s = content.simple;
+    const basis = settings.contract_basis_text;
+    const environmental = preset.item==='지역사회 환경정화 용역';
+    const activity=common.noticeActivity || (environmental?'지역사회 환경정화':'');
+    const exactCredit=Number((calculation.totalCredit*company.share/100).toFixed(8));
+    s.C3N=s.C3N.replace('= '+calculation.decimalCredit+' →','= '+exactCredit+' →');
+    const programs = [safe,...work,...[common.workDescription].filter(x => x && !x.split(/\r?\n/).every(line=>work.includes(line.trim()))),...common.extras.filter(e=>e.name).map(e=>[e.name,e.description].filter(Boolean).join(' — '))];
+    content.listC = programs.map((line,i)=>('가나다라마바사아자차카타파하'[i] || String(i+1))+'. '+line);
+    if(common.safety.mode==='indoor_hq')content.listC[0]='가. 실내 안전교육 — 작업 전 태장 본사에서 실시하는 안전수칙 교육 및 보호장구 점검';
+    content.listR = programs.map(line=>'· '+line);
+    Object.assign(s,{BASIS:basis, ITEM:preset.item, SERVICE:serviceTitle, RELATED:plan === 'notice_skipped' ? 'T'+s.SEQ+'호' : '태장 제'+s.SEQ+'호',
+      C2:'2. '+((company.note || common.note).replace(/^2\.\s*/, '') || s.YM+' 회차는 '+common.place+(activity?'의 '+activity+'로 진행합니다.':'에서 '+preset.item+'을 진행합니다.')),
+      C4:'4. 관련 용역은 '+s.PERF+' '+common.place+'에서 '+(activity?activity+'로 ':'')+(bundle?'수행하였으며':'수행할 예정이며')+', 세부 프로그램은 다음과 같습니다.',
+      ENDING:bundle?'제출합니다.':'제출하겠습니다. 끝.', ATTACH1:'붙임  1. 용역 견적서 1부.', ATTACH2:'2. 용역 수행 결과보고서 1부.  끝.',
+      Q1:'· 본 견적은 자회사형 장애인 표준사업장 '+(basis==='계약 별첨2(용역 제공 기준)'?'용역계약(별첨2, 용역 제공 기준)':basis)+'에 의거하며, 실제 산입 인원을 기준으로 정산합니다.',
+      Q3:'· 용역 내역: '+education+', '+(environmental?'지역사회 환경정화(폐기물 수거)':preset.item)+' — '+dates.map(d=>core.dateLabel(d).dotw).join(' / ')+' '+common.place+' 수행.',
+      R_SAFE:'· '+(common.safety.mode==='indoor_hq'?'작업 전 실내 안전교육(태장 본사) 실시 및 보호장구 점검':safe)+', 참석 확인 서명 징구', PROMOTION:'당사 홈페이지(taejang.co.kr) 및 공식 유튜브 채널(@taejangofficial)에 수행 내용을 '+(common.promotion.status==='posted'?'게시하였습니다.':'게시할 예정입니다.')
+    });
+    if (calculation.reduced) {
+      const mild = common.mildF + common.mildM;
+      s.C3='3. '+s.YM+' 현재 당사가 고용한 장애인 근로자는 '+(common.severe+mild)+'명(중증 '+common.severe+'명, 경증 '+mild+'명)이며, 귀사 지분율 '+company.share.toFixed(1)+'%를 적용한 산입 인원은 '+calculation.calculatedHeadcount+'명이나, 귀사와 별도 합의한 산입한도에 따라 귀사의 고용산입 인원은 '+s.N+'명입니다.';
+      s.C3N=s.C3N.replace('→ 최대 ', '→ ');
+      s.C3N+=' 귀사와 별도 합의한 산입한도 '+s.N+'명 적용.';
+      s.Q2=s.Q2.replace('× 산입 '+s.N+'명','× 산입 '+s.N+'명(별도 합의 산입한도 적용)');
+    }
+    const photos = {safety:common.safety.mode==='outdoor'?'현장 안전교육':'실내 안전교육',site:common.place.replace(/\s*일원$/,''),group:'단체사진'};
+    s.R_PHOTO='· 현장 사진자료 별도 첨부: 압축파일 1건 ('+common.photoSets.map(key=>photos[key]).join(' / ')+')';
+    return pages.map(page=>{
+      s.DATE=core.dateLabel(issueDates[page]).dot;
+      let xml=template[page].replace(/<w:p\b(?:(?!<\/w:p>)[\s\S])*?<\/w:p>/g, paragraph=>{
+        if (!bundle && /{{ATTACH[12]}}/.test(paragraph)) return '';
+        if (!common.photoSets.length && paragraph.includes('{{R_PHOTO}}')) return '';
+        if (common.promotion.status==='none' && paragraph.includes('{{PROMOTION}}')) return '';
+        return paragraph;
+      });
+      if (pages.length===1) {
+        // The final section is written on the document body for a standalone page.
+        xml=xml.replace(/<w:sectPr\b[^>]*>[\s\S]*?<\/w:sectPr>/g,'');
+        const extraCount=common.extras.filter(extra=>extra.name.trim()).length;
+        const spacing=page==='Q'?1.17:Math.max(0.90,1.07-0.09*extraCount);
+        xml=xml.replace(/<w:spacing\b[^>]*\/>/g,tag=>tag.replace(/w:(before|after|line)="(\d+)"/g,
+          (_,key,value)=>'w:'+key+'="'+Math.round(Number(value)*spacing)+'"'));
+      }
+      return fill(xml,page==='Rlast' && basis==='계약 별첨2(용역 제공 기준)' ? {...content,simple:{...s,BASIS:'자회사형 장애인 표준사업장 '+basis}} : content,true);
+    }).join('');
+  }
+
+  async function createDocx({ JSZip = root.JSZip, template, packageBytes, common, companies, stage, plan, settings, type = 'blob' } = {}) {
     if (!JSZip || !template || !packageBytes || !Array.isArray(companies) || !companies.length) throw new Error('MISSING_DOCX_DEPENDENCY');
-    if (!['C', 'Q', 'R', 'Rlast', 'sectR'].every(key => typeof template[key] === 'string')) throw new Error('INVALID_DOCX_TEMPLATE');
+    const staged = template.version === 'monthly-stages-1';
+    if (staged && (companies.length !== 1 || !companies[0].enabled)) throw new Error('단계별 파일은 선택한 회사 한 곳만 지원합니다.');
+    if (!staged && !['C', 'Q', 'R', 'Rlast', 'sectR'].every(key => typeof template[key] === 'string')) throw new Error('INVALID_DOCX_TEMPLATE');
     const legacy = !template.version || template.version === 'claude-template-1';
-    if (!legacy && template.version !== TEMPLATE_VERSION) throw new Error('UNSUPPORTED_DOCUMENT_TEMPLATE');
-    if (!legacy) { const warnings = core.layoutWarnings(common, companies); if (warnings.length) throw new Error(warnings.join(' ')); }
+    if (!staged && !legacy && template.version !== TEMPLATE_VERSION) throw new Error('UNSUPPORTED_DOCUMENT_TEMPLATE');
+    if (!staged && !legacy) { const warnings = core.layoutWarnings(common, companies); if (warnings.length) throw new Error(warnings.join(' ')); }
     const seenSequences = new Set();
-    let body = '';
-    companies.forEach((company, index) => {
+    let body = staged ? stageBody(template, common, companies[0], stage, plan, settings) : '';
+    if (!staged) companies.forEach((company, index) => {
       if (!company.enabled) throw new Error('DOCX_COMPANY_DISABLED');
       if (seenSequences.has(company.seq)) throw new Error('DUPLICATE_DOCUMENT_SEQUENCE');
       seenSequences.add(company.seq);
@@ -54,7 +137,7 @@
       const isLast = index === companies.length - 1;
       body += fill(template.C, content, !legacy) + fill(template.Q, content, !legacy) + fill(isLast ? template.Rlast : template.R, content, !legacy);
     });
-    const documentXml = `${template.prefix}${body}${template.sectR}</w:body></w:document>`;
+    const documentXml = `${template.prefix}${body}${staged && stage === 'notice' ? template.noticeSection : template.sectR}</w:body></w:document>`;
     if (/\{\{\w+\}\}/.test(documentXml)) throw new Error('UNREPLACED_DOCX_TOKEN');
     const zip = await JSZip.loadAsync(packageBytes);
     zip.file('word/document.xml', documentXml);
@@ -68,7 +151,7 @@
   async function loadAssets(version = TEMPLATE_VERSION) {
     if (!supportsTemplate(version)) throw new Error('UNSUPPORTED_DOCUMENT_TEMPLATE');
     const [templateResponse, packageResponse] = await Promise.all([
-      fetch(version === 'claude-template-1' ? 'assets/monthly-client-document-template-v1.json' : 'assets/monthly-client-document-template.json'),
+      fetch(version === 'monthly-stages-1' ? 'assets/monthly-client-document-template-stages.json' : version === 'claude-template-1' ? 'assets/monthly-client-document-template-v1.json' : 'assets/monthly-client-document-template.json'),
       fetch('assets/monthly-client-document-package.zip'),
     ]);
     if (!templateResponse.ok || !packageResponse.ok) throw new Error('DOCX_ASSET_LOAD_FAILED');
@@ -84,3 +167,4 @@
 
   return Object.freeze({ TEMPLATE_VERSION, supportsTemplate, createDocx, loadAssets, filename, fill });
 });
+

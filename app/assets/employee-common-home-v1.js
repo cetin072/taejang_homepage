@@ -281,7 +281,8 @@
     setMessage(card, '위치 확인을 시작합니다.');
     let stage = 'location';
     try {
-      const position = await window.TaejangAttendanceLocation.getBestPosition({
+      const latest = await app().rpc('get_my_attendance_today');
+      const position = !qaMode && (latest.remote_work === true || latest.field_work?.[eventType] === true) ? null : await window.TaejangAttendanceLocation.getBestPosition({
         onStage: stage => setMessage(card, stage === 'improving' ? '위치 정확도를 확인하고 있습니다.' : '현재 위치를 확인하고 있습니다.')
       });
       lastPosition[eventType] = position;
@@ -293,16 +294,16 @@
       const result = qaMode
         ? await app().rpc('qa_validate_attendance_event', {
             p_event_type: eventType,
-            p_latitude: position.coords.latitude,
-            p_longitude: position.coords.longitude,
-            p_accuracy_m: position.coords.accuracy,
+            p_latitude: position?.coords?.latitude ?? null,
+            p_longitude: position?.coords?.longitude ?? null,
+            p_accuracy_m: position?.coords?.accuracy ?? null,
             p_has_qa_clock_in: Boolean(qaClockInAt)
           })
         : await app().rpc('record_attendance_event', {
             p_event_type: eventType,
-            p_latitude: position.coords.latitude,
-            p_longitude: position.coords.longitude,
-            p_accuracy_m: position.coords.accuracy
+            p_latitude: position?.coords?.latitude ?? null,
+            p_longitude: position?.coords?.longitude ?? null,
+            p_accuracy_m: position?.coords?.accuracy ?? null
           });
 
       if (qaMode) {
@@ -350,7 +351,8 @@
       }
       if (result?.code !== 'LOCATION_UNCERTAIN') attempts[eventType] = Math.max(0, attempts[eventType] - 1);
       if (result?.code === 'NON_WORKDAY') setMessage(card, '오늘은 휴일이라 출퇴근을 등록할 수 없습니다.', 'error');
-      else if (result?.code === 'OUTSIDE_GEOFENCE') setMessage(card, '회사 출근 장소 안에서만 출퇴근할 수 있습니다.', 'error');
+      else if (result?.code === 'FIELD_WORK_OUTSIDE_WINDOW') setMessage(card, '현장 기록 가능 시간이 아닙니다. 담당자에게 확인해주세요.', 'error');
+      else if (result?.code === 'OUTSIDE_GEOFENCE') setMessage(card, '등록된 근무지에서만 출퇴근할 수 있습니다.', 'error');
       else if (result?.code === 'LOCATION_UNCERTAIN') {
         lastFailure[eventType] = 'LOCATION_UNCERTAIN';
         setMessage(card, attempts[eventType] < 2 ? '위치가 정확하지 않습니다. 잠시 후 다시 눌러주세요.' : '위치를 두 번 확인했지만 정확하지 않습니다.', 'error');
@@ -566,13 +568,26 @@
     await Promise.all([loadAttendance(), loadNotices()]);
   }
 
+  function prefersWorkDashboard(currentRoute) {
+    // Only roles that already have a work dashboard may skip the employee home.
+    // This is presentation routing, never an authorization grant.
+    if (!['promotion_staff', 'promotion_lead'].includes(currentRoute)) return false;
+    const requestedView = new URLSearchParams(window.location.search).get('view');
+    if (requestedView) return true;
+    return Boolean(window.matchMedia?.('(min-width: 761px) and (hover: hover) and (pointer: fine)').matches);
+  }
+
   function setup() {
     const currentRoute = route();
     if (!ALL_EMPLOYEE_HOME_ROLES.has(currentRoute)) {
       setTimeout(injectGeneralWorkerDesktopSimulationButton, 120);
       return;
     }
-    if (['general_worker', 'promotion_staff', 'promotion_lead'].includes(currentRoute)) {
+    if (prefersWorkDashboard(currentRoute)) {
+      // renderEntry already opened the authorized shell. Do not refresh or reset
+      // its selected view, and keep employee home available as an explicit action.
+      installDashboardReturn();
+    } else if (['general_worker', 'promotion_staff', 'promotion_lead'].includes(currentRoute)) {
       void startEmployeeHome();
     } else if (currentRoute === 'operations_manager') {
       installDashboardReturn();

@@ -86,7 +86,9 @@
   function cardMedia(item) {
     const media = representativeMedia(item);
     if (media.source) {
-      return `<div class="card-media"><img src="${media.source}" alt="${media.alt}" style="object-position:${media.objectPosition}" loading="lazy" decoding="async"></div>`;
+      const responsive = item.thumbnailSrcset && media.source === item.thumbnail
+        ? ` srcset="${item.thumbnailSrcset}" sizes="(max-width: 760px) 94vw, (max-width: 1000px) 48vw, 400px"` : '';
+      return `<div class="card-media"><img src="${media.source}"${responsive} alt="${media.alt}" style="object-position:${media.objectPosition}" loading="lazy" decoding="async"></div>`;
     }
     return `<div class="card-media">${contentPhoto(item, 'card')}</div>`;
   }
@@ -100,7 +102,7 @@
           <time class="card-date" datetime="${dateTimeValue(item.date)}">${item.date}</time>
           <h2>${item.title}</h2>
           <p>${item.summary}</p>
-          <span class="text-link">자세히 보기 →</span>
+          <span class="text-link">${item.linkLabel || '자세히 보기'} <span aria-hidden="true">→</span></span>
         </div>
       </a>
     </article>`;
@@ -126,6 +128,8 @@
   }
 
   function render(filter = '전체') {
+    // The workplace index links to several kinds of existing records, not just this collection.
+    if (list.hasAttribute('data-workplace-index')) return;
     if (!orderedData.length) {
       if (filters) filters.hidden = true;
       // The HTML list contains the last approved fallback. Runtime data absence is
@@ -169,6 +173,13 @@
         };
       })
       .filter((section) => section.paragraphs.length);
+  }
+
+  function renderResources(item) {
+    const links = [];
+    if (/^\d{9,15}$/.test(item.resources?.blogPost || '')) links.push('<a class="article-resource-card" href="https://blog.naver.com/taejang-official/' + item.resources.blogPost + '" target="_blank" rel="noopener noreferrer" aria-label="사진과 이야기 보기 (네이버 블로그, 새 탭)"><span class="article-resource-source">NAVER BLOG</span><strong>사진과 이야기 보기</strong><span>태장 공식 블로그 <span aria-hidden="true">↗</span> · 새 탭</span></a>');
+    if (/^[A-Za-z0-9_-]{11}$/.test(item.resources?.youtubeId || '')) links.push('<a class="article-resource-card article-resource-card--video" href="https://www.youtube.com/watch?v=' + item.resources.youtubeId + '" target="_blank" rel="noopener noreferrer" aria-label="활동 영상 보기 (유튜브, 새 탭)"><span class="article-resource-source">YOUTUBE</span><strong>활동 영상 보기</strong><span>태장의 현장 영상 <span aria-hidden="true">↗</span> · 새 탭</span></a>');
+    return links.length ? '<aside class="article-resources" aria-label="활동 관련 자료"><h2>사진과 영상으로 더 보기</h2><div class="article-resource-links">' + links.join('') + '</div></aside>' : '';
   }
 
   function renderBody(item) {
@@ -269,7 +280,7 @@
         <h1>${item.title}</h1>
         <p class="lead">${item.summary}</p>
       </header>
-      <div class="article-body">${detailMedia}${renderBody(item)}${gallery}</div>
+      <div class="article-body">${detailMedia}${renderBody(item)}${renderResources(item)}${gallery}</div>
       ${relatedPosts(item)}
       <a class="back-link back-link--bottom" href="${config.page}">${config.backLabel}</a>
     </article>`;

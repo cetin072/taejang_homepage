@@ -154,7 +154,8 @@
     setMessage(card, '위치 확인을 시작합니다.');
     let stage = 'location';
     try {
-      const position = await window.TaejangAttendanceLocation.getBestPosition({
+      const latest = await app().rpc('get_my_attendance_today');
+      const position = (latest.remote_work === true || latest.field_work?.[eventType] === true) ? null : await window.TaejangAttendanceLocation.getBestPosition({
         onStage: stage => setMessage(card, stage === 'improving' ? '위치 정확도를 확인하고 있습니다.' : '현재 위치를 확인하고 있습니다.')
       });
       lastPosition[eventType] = position;
@@ -162,9 +163,9 @@
       setMessage(card, '서버에 출근·퇴근 기록을 확인하고 있습니다.');
       const result = await app().rpc('record_attendance_event', {
         p_event_type: eventType,
-        p_latitude: position.coords.latitude,
-        p_longitude: position.coords.longitude,
-        p_accuracy_m: position.coords.accuracy
+        p_latitude: position?.coords?.latitude ?? null,
+        p_longitude: position?.coords?.longitude ?? null,
+        p_accuracy_m: position?.coords?.accuracy ?? null
       });
       if (result?.ok || ['ALREADY_RECORDED', 'EXCEPTION_APPROVED'].includes(result?.code)) {
         attempts[eventType] = 0;
@@ -176,8 +177,10 @@
       if (result?.code !== 'LOCATION_UNCERTAIN') attempts[eventType] = Math.max(0, attempts[eventType] - 1);
       if (result?.code === 'NON_WORKDAY') {
         setMessage(card, '오늘은 휴일이라 출퇴근을 등록할 수 없습니다.', 'error');
+      } else if (result?.code === 'FIELD_WORK_OUTSIDE_WINDOW') {
+        setMessage(card, '현장 기록 가능 시간이 아닙니다. 담당자에게 확인해주세요.', 'error');
       } else if (result?.code === 'OUTSIDE_GEOFENCE') {
-        setMessage(card, '회사 출근 장소 안에서만 출퇴근할 수 있습니다.', 'error');
+        setMessage(card, '등록된 근무지에서만 출퇴근할 수 있습니다.', 'error');
       } else if (result?.code === 'LOCATION_UNCERTAIN') {
         lastFailure[eventType] = 'LOCATION_UNCERTAIN';
         setMessage(card, attempts[eventType] < 2 ? '위치가 정확하지 않습니다. 잠시 후 다시 눌러주세요.' : '위치를 두 번 확인했지만 정확하지 않습니다.', 'error');
@@ -217,6 +220,10 @@
     const card = document.getElementById('worker-attendance-card');
     if (!card) return;
     card.replaceChildren(node('h2', '오늘 출퇴근'));
+    if (data?.attendance_required === false) {
+      card.append(node('p', '근태 기록 대상이 아닙니다.', 'worker-attendance-state'));
+      return;
+    }
 
     if (!data?.is_workday) {
       card.append(node('p', `오늘은 휴일입니다. (${data?.day_reason || '휴일'})`, 'worker-attendance-state'));

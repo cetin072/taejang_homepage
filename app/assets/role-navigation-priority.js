@@ -7,8 +7,9 @@
     '홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토', '홍보 승인 검토',
     '발행 관리', '발행 현황', '공개 홍보글 관리',
     '홈페이지 내용 관리', '홈페이지 직접 수정',
-    '공지 관리', '거래처 문서 관리',
-    '출근부', '근태 보정', '근태·급여관리', '외부 급여초안 상신', '외부 급여초안 검토',
+    '공지 관리',
+    '기준정보·매출 관리', '계약·월 매출', '용역 서류',
+    '출근부', '근태 보정', '근태·급여관리',
     '기업 프로필', '지원사업 레이더', '내 지원사업',
     '신규 사업 기획'
   ]);
@@ -17,8 +18,10 @@
     { key: 'employee-account', label: '직원·계정', items: ['직원 관리', '신규 직원 등록', '가입 승인'] },
     { key: 'promotion', label: '홍보', items: ['홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토', '발행 관리', '공개 홍보글 관리'] },
     { key: 'homepage', label: '홈페이지', items: ['홈페이지 내용 관리', '홈페이지 직접 수정'] },
-    { key: 'operations', label: '업무 운영', items: ['공지 관리', '거래처 문서 관리'] },
-    { key: 'payroll', label: '근태·급여', items: ['출근부', '근태 보정', '근태·급여관리', '외부 급여초안 상신', '외부 급여초안 검토'] },
+    { key: 'operations', label: '업무 운영', items: ['공지 관리'] },
+    { key: 'sales', label: '영업·매출', items: ['기준정보·매출 관리'] },
+    { key: 'services', label: '용역 관리', items: ['계약·월 매출', '용역 서류'] },
+    { key: 'payroll', label: '근태·급여', items: ['출근부', '근태 보정', '근태·급여관리'] },
     { key: 'support', label: '지원사업', items: ['기업 프로필', '지원사업 레이더', '내 지원사업'] },
     { key: 'official_channels', label: '공식 채널', items: ['홈페이지', '공식 블로그', '공식 유튜브'] }
   ]);
@@ -168,32 +171,6 @@
     link.dataset.capabilityAny = 'payroll.manage';
     link.dataset.menuKey = 'payroll.manage';
     link.setAttribute('aria-label', '근태·급여관리 사전운영 화면 열기');
-    nav.append(link);
-    return link;
-  }
-
-  function ensurePayrollHandoffEntry(nav, currentRole) {
-    if (!nav) return null;
-    const canApprove = currentRole === 'operations_manager'
-      && capabilityAllowed('payroll.handoff.approve', true);
-    const canReview = currentRole === 'operations_manager'
-      && capabilityAllowed('payroll.handoff.review', true);
-    if (!canApprove && !canReview) return null;
-
-    const label = canApprove ? '외부 급여초안 검토' : '외부 급여초안 상신';
-    const existing = findByLabel(nav, label);
-    if (existing) return existing;
-
-    const link = document.createElement('a');
-    link.href = 'payroll/handoff.html';
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    link.textContent = label;
-    link.className = 'app-nav-item';
-    link.dataset.payrollHandoffNav = '1';
-    link.dataset.capabilityAny = canApprove ? 'payroll.handoff.approve' : 'payroll.handoff.review';
-    link.dataset.menuKey = canApprove ? 'payroll.handoff.approve' : 'payroll.handoff.review';
-    link.setAttribute('aria-label', `${label} 화면 열기`);
     nav.append(link);
     return link;
   }
@@ -360,7 +337,6 @@
     composing = true;
     try {
       ensurePayrollEntry(nav, currentRole);
-      ensurePayrollHandoffEntry(nav, currentRole);
       removeLegacySupportGroups(nav);
       nav.querySelectorAll(':scope > [data-official-channel-group]').forEach(node => node.remove());
       ensureIssue207RoleContract(nav);
@@ -451,7 +427,6 @@
     ROLE_ORDER,
     ROLE_SECTIONS,
     ensurePayrollEntry,
-    ensurePayrollHandoffEntry,
     ensureIssue207RoleContract,
     dedupeCanonicalEntries,
     refreshSectionVisibility,

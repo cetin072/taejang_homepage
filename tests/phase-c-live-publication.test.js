@@ -21,7 +21,7 @@ const recoverableDelete = read(recoverableDeletePath);
 const operationsDelete = read(operationsDeletePath);
 const issue207Policy = read(issue207PolicyPath);
 const explicitPublication = read(explicitPublicationPath);
-const publishedPhotoBackfill = read('supabase/migrations/20261028090500_published_promotion_missing_photo_correction.sql');
+const publishedPhotoBackfill = read('supabase/migrations/20261125014200_published_promotion_missing_photo_correction.sql');
 const feedFunction = read('netlify/functions/public-promotion-feed.mjs');
 const externalContent = read('assets/js/external-content.js');
 const detailScript = read('assets/js/promotion-detail.js');
@@ -65,10 +65,10 @@ test('public feed exposes only public-safe RPCs to anonymous visitors', () => {
   assert.match(feedFunction, /list_public_promotion_feed/);
 });
 
-test('public hub loads live feed before the existing content hub renders', () => {
-  assert.match(externalContent, /typeof document !== 'undefined'/);
-  assert.match(externalContent, /document\.readyState === 'loading'/);
-  assert.match(externalContent, /document\.write\('<script data-live-promotion-feed src="\/\.netlify\/functions\/public-promotion-feed"/);
+test('home and archive use a nonblocking approved feed and retain the legacy feed endpoint', () => {
+  assert.match(externalContent, /public-promotion-feed\?format=json&media=browser/);
+  assert.match(externalContent, /taejang-live-promotion-ready/);
+  assert.doesNotMatch(externalContent, /document\.write/);
   assert.match(feedFunction, /window\.TAEJANG_CONTENT/);
   assert.match(feedFunction, /content\.hub\.push/);
 });

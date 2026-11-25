@@ -145,12 +145,12 @@ test('promotion and homepage image uploads use declarative restricted promotion-
   const homepage = fs.readFileSync(issue146Path, 'utf8');
   assert.match(source, /storage\/v1\/object\/promotion-media/);
   assert.match(source, /storage\/v1\/object\/public\/promotion-media/);
-  assert.match(source, /8 \* 1024 \* 1024/);
+  assert.match(source, /await optimizer\.optimizeForUpload\(file\)/);
   assert.doesNotMatch(source, /openHomepageManagement|HOMEPAGE_PAGES/);
   assert.match(homepage, /openHomepageSlots/);
   assert.match(homepage, /storage\/v1\/object\/promotion-media/);
   assert.match(homepage, /storage\/v1\/object\/public\/promotion-media/);
-  assert.match(homepage, /8 \* 1024 \* 1024/);
+  assert.match(homepage, /await optimizer\.optimizeForUpload\(file\)/);
   assert.match(homepage, /file\.accept = 'image\/jpeg,image\/png,image\/webp,image\/gif'/);
   assert.match(homepage, /create_homepage_slot_change_request/);
 

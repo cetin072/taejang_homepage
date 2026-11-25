@@ -11,10 +11,10 @@ test('monthly document route belongs to the operations manager and existing side
   const shell = read('app/assets/dashboard-shell.js');
   const registry = read('app/assets/platform-navigation-registry.js');
   const priority = read('app/assets/role-navigation-priority.js');
-  assert.match(shell, /key: 'monthly_client_documents\.manage',[\s\S]*?label: '거래처 문서 관리',[\s\S]*?capabilities: \['monthly_client_documents\.manage'\]/);
-  assert.match(registry, /key:'monthly_client_documents\.manage',[^\n]*section:'업무 운영',[^\n]*capabilities:\['monthly_client_documents\.manage'\],[^\n]*visibleRoles:\['operations_manager'\]/);
-  assert.match(priority, /label: '업무 운영', items: \[[^\]]*'거래처 문서 관리'/);
-  assert.match(priority, /'공지 관리', '거래처 문서 관리'/);
+  assert.match(shell, /key: 'monthly_client_documents\.manage',[\s\S]*?label: '용역 서류',[\s\S]*?capabilities: \['monthly_client_documents\.manage'\]/);
+  assert.match(registry, /key:'monthly_client_documents\.manage',[^\n]*section:'용역 관리',[^\n]*capabilities:\['monthly_client_documents\.manage'\],[^\n]*visibleRoles:\['operations_manager'\]/);
+  assert.match(priority, /label: '용역 관리', items: \[[^\]]*'용역 서류'/);
+  assert.match(priority, /'계약·월 매출', '용역 서류'/);
 });
 
 test('monthly document assets load locally before the feature and no CDN runtime dependency remains', () => {
@@ -25,8 +25,8 @@ test('monthly document assets load locally before the feature and no CDN runtime
   const eagerModules = appUi.slice(appUi.indexOf('const FEATURE_MODULES'), appUi.indexOf('const MONTHLY_DOCUMENT_MODULES'));
   assert.doesNotMatch(eagerModules, /jszip-3\.10\.1|monthly-client-document-(?:core|docx|email|s)/);
   const loader = appUi.slice(appUi.indexOf('function ensureMonthlyDocumentModulesLoaded'), appUi.indexOf('let modulesReady = false;'));
-  assert.match(loader, /TaejangMonthlyClientDocumentsLoader = async \(\) => \{[\s\S]*?TaejangApp\?\.can\?\.\('monthly_client_documents\.manage'\)/);
-  assert.match(loader, /ensureMonthlyDocumentModulesLoaded\(\)[\s\S]*?MonthlyClientDocuments\.open\(\)/);
+  assert.match(loader, /TaejangMonthlyClientDocumentsLoader = async \(selection\) => \{[\s\S]*?TaejangApp\?\.can\?\.\('monthly_client_documents\.manage'\)/);
+  assert.match(loader, /ensureMonthlyDocumentModulesLoaded\(\)[\s\S]*?MonthlyClientDocuments\.open\(selection\)/);
   assert.match(loader, /MONTHLY_DOCUMENT_MODULES/);
   assert.doesNotMatch(email, /pdfFilename|INVALID_PDF_FILENAME|\.pdf/);
   assert.match(email, /indoor: '실내 안전교육\(영상 교육\)'/);
@@ -120,8 +120,8 @@ test('company defaults match the handoff source, including editable Artifact due
 
 test('month switching protects unsaved inputs and edited mail photo preference', () => {
   const ui = read('app/assets/monthly-client-documents.js');
-  assert.match(ui, /fingerprint\(\) !== savedFingerprint && !window\.confirm\('저장하지 않은 변경이 있습니다\. 저장하지 않고 다른 월을 불러올까요\?'/);
-  assert.match(ui, /저장하지 않은 변경이 있습니다\. 저장하지 않고 지난달 snapshot에서 새 월을 만들까요\?/);
+  assert.match(ui, /fingerprint\(\)!==savedFingerprint\) editor\('저장하지 않고 월을 변경할까요/);
+  assert.match(ui, /picker.value=activeMonthKey/);
   const applyDraft = ui.slice(ui.indexOf('function applyNewEmailDraft'), ui.indexOf('async function copyText'));
   assert.doesNotMatch(applyDraft, /\[data-email-photos\]'\)\.checked = true/);
 });
@@ -130,9 +130,9 @@ test('month identity changes only through the atomic load flow and snapshots can
   const ui = read('app/assets/monthly-client-documents.js');
   assert.doesNotMatch(ui, /field\('연도',\s*state\.common\.year|field\('월',\s*state\.common\.month/);
   assert.match(ui, /const key = monthKey\(state\.common\.year, state\.common\.month\);[\s\S]*?record && monthKey\(record\.year, record\.month\) !== key/);
-  assert.match(ui, /async function loadMonth\(year, month, redraw = true, requireNew = false\)[\s\S]*?record = result \|\| null; revision = Number\(record\?\.revision \|\| 0\);[\s\S]*?activeMonthKey = monthKey\(year, month\);[\s\S]*?savedFingerprint = fingerprint\(\);/);
-  assert.match(ui, /async function startNewMonth\(\)[\s\S]*?loadMonth\(year,month,true,true\)/);
-  assert.match(ui, /async function copyPrevious\(\)[\s\S]*?monthly_client_documents_copy_previous[\s\S]*?loadMonth\(year,month,false\)/);
+  assert.match(ui, /async function loadMonth\(year, month, redraw = true\)[\s\S]*?record = result \|\| null; revision = Number\(record\?\.revision \|\| 0\);[\s\S]*?activeMonthKey = monthKey\(year, month\);[\s\S]*?savedFingerprint = fingerprint\(\);/);
+  assert.match(ui, /if\(!result\)\{[\s\S]*?monthly_client_documents_get_month[\s\S]*?if\(request!==loadSequence\)return/);
+  assert.match(ui, /defaultsToMonth\(state.defaults,year,month\)/);
   assert.match(ui, /async function saveMonth\(\)[\s\S]*?assertActiveMonth\(\)/);
   assert.match(ui, /async function saveMonth\(\)[\s\S]*?state\.common = window\.MonthlyClientDocumentCore\.normalizeCommon\(state\.common, \{requireReady:false\}\);[\s\S]*?p_payload: \{ common: state\.common/);
 });
@@ -142,11 +142,11 @@ test('historic snapshots cannot be submitted as current company defaults', () =>
   const ui = read('app/assets/monthly-client-documents.js');
   const saveDefaults = ui.slice(ui.indexOf('async function saveDefaults'), ui.indexOf('async function open'));
   assert.match(ui, /defaultsDraft: \(data\.defaults \|\| \[\]\)\.map/);
-  assert.match(ui, /state\.defaultsDraft\.forEach/);
+  assert.match(ui, /state\.defaultsDraft\.find/);
   assert.match(saveDefaults, /p_company_defaults:state\.defaultsDraft\.map/);
   assert.doesNotMatch(saveDefaults, /p_company_defaults:state\.companies/);
-  assert.match(ui, /현재 회사 기본값 저장/);
-  assert.match(ui, /열린 월 snapshot은 변경하지 않았습니다/);
+  assert.match(ui, /회사 기본값 수정/);
+  assert.match(ui, /다음 새 월부터 적용됩니다/);
   assert.match(ui, /function fingerprint\(\) \{ return JSON\.stringify\(\{ common: state\.common, companies: state\.companies \}\); \}/);
 });
 
@@ -156,7 +156,7 @@ test('common note is validated and duplicate month copy returns a clear code', (
   assert.match(migration, /on conflict\(year,month\) do nothing returning \* into current_row;[\s\S]*?MONTH_ALREADY_EXISTS/);
   const ui = read('app/assets/monthly-client-documents.js');
   assert.match(ui, /MONTH_ALREADY_EXISTS[\s\S]*?이미 저장된 월입니다/);
-  for (const action of ['confirmMonth','unconfirmMonth','copyPrevious']) {
+  for (const action of ['confirmMonth','unconfirmMonth']) {
     const start = ui.indexOf(`async function ${action}`);
     const end = ui.indexOf('\n  async function ', start + 1);
     const source = ui.slice(start, end < 0 ? ui.length : end);

@@ -81,7 +81,7 @@
   }
 
   // The controller owns state and all RPCs. Views only build DOM and call its actions.
-  function create({ el, button, input, select, field, setAvatar, statusLabel, listState, selectEmployee, backToList, makeEmployeeForm, photoPicker, sensitiveIdentityPanel, residentNumberPanel, insuranceDeductionPanel, nationalPensionAgeLabel, employmentInsuranceAgeLabel, requestLabel, requestSummary, saveEmployeeAppCheck, passwordResetPanel }) {
+  function create({ el, button, input, select, field, setAvatar, statusLabel, listState, selectEmployee, backToList, makeEmployeeForm, roleSummaryPanel, photoPicker, disabilityPanel, welfarePanel, sensitiveIdentityPanel, residentNumberPanel, insuranceDeductionPanel, nationalPensionAgeLabel, employmentInsuranceAgeLabel, requestLabel, requestSummary, saveEmployeeAppCheck, passwordResetPanel }) {
     function avatar(employee, path, label = '업무용 사진') {
       const placeholder = el('span', employee.full_name?.slice(0, 1) || '직', 'employee-avatar employee-avatar-placeholder');
       if (!path) return placeholder;
@@ -164,7 +164,7 @@
       render(); section.append(count, filters, head, list); return section;
     }
 
-    function employeeProfile(context, employee) {
+    function employeeProfile(context, employee, expandedSections = new Set()) {
       const card = el('article', null, 'employee-profile'); card.dataset.employeeProfile = employee.id;
       const account = accountState(employee, connectionReviewIds(context.employees));
       const back = button('← 직원 목록', backToList, true);
@@ -173,9 +173,25 @@
       title.append(heading, el('p', employee.employee_id), el('p', `${employee.department_name || '미배정'} · ${employee.position_name || '미지정'}`));
       const badges = el('div', null, 'employee-badges'); badges.append(badge(statusLabel(employee.employment_status)), badge(account.label), badge(employee.attendance_required ? '근태 대상' : '근태 제외'));
       if (account.review) badges.append(badge('연결 확인 필요', true)); title.append(badges);
-      head.append(avatar(employee, employee.profile_photo_path), title); card.append(back, head);
-      const section = (label, className = '') => {
-        const node = el('section', null, `employee-profile-section ${className}`); node.append(el('h3', label)); card.append(node); return node;
+      const photoActions = el('div', null, 'employee-photo-actions employee-profile-photo-actions');
+      photoActions.append(el('p',employee.profile_photo_path?'업무용 사진 · 등록됨':'업무용 사진 · 미등록','employee-photo-status'),photoPicker(employee, 'profile', context));
+      head.append(avatar(employee, employee.profile_photo_path), title, photoActions); card.append(back, head);
+      const section = (label, className, key, hint) => {
+        const node = el(key ? 'details' : 'section', null, `employee-profile-section ${className}`);
+        card.append(node);
+        if (!key) {
+          node.append(el('h3', label));
+          return node;
+        }
+        node.classList.add('employee-profile-fold');
+        node.dataset.employeeSection = key;
+        node.open = expandedSections.has(key);
+        const summary = el('summary');
+        summary.append(el('span', label));
+        if (hint) summary.append(el('small', hint));
+        const content = el('div', null, 'employee-profile-fold-body');
+        node.append(summary, content);
+        return content;
       };
 
       const basic = section('기본 인사정보', 'employee-section-basic');
@@ -183,6 +199,7 @@
         ['이름', employee.full_name], ['직원번호', employee.employee_id], ['부서', employee.department_name || '미배정'], ['직책', employee.position_name],
         ['입사일', employee.hired_on], ['퇴사일', employee.departed_on || '—'], ['재직상태', statusLabel(employee.employment_status)], ['근태대상', employee.attendance_required ? '대상' : '제외']
       ]); basic.append(values);
+      if (roleSummaryPanel) basic.append(roleSummaryPanel(context, employee));
       const isGlobalLead = context.access_level === 'promotion_lead_global';
       const canEditInThisCard = context.access_level === 'operations_manager'
         || (!employee.protected
@@ -198,7 +215,27 @@
         basicTitle.append(basic.querySelector('h3'), edit); basic.prepend(basicTitle);
       } else basic.append(el('p', '관리자·보호 직원 또는 타 부서 직책 변경은 운영총괄에서 처리합니다.', 'employee-protected-note'));
 
-      const appSection = section('앱 계정', 'employee-section-account');
+      const disability = disabilityPanel?.(context, employee);
+      if (disability) card.append(disability);
+      const welfare = welfarePanel?.(context, employee);
+      if (welfare) card.append(welfare);
+      if (context.access_level === 'operations_manager') {
+        const addressValue = el('dd', '불러오는 중'), remoteValue = el('dd', '불러오는 중');
+        const addressRow = el('div'), remoteRow = el('div');
+        addressRow.append(el('dt', '주소'), addressValue); remoteRow.append(el('dt', '재택근무자'), remoteValue);
+        values.append(addressRow, remoteRow);
+        window.TaejangEmployeeRemoteWork.load(employee).then(result => {
+          addressValue.textContent = result.address || '미등록';
+          remoteValue.textContent = result.approved ? '대상' : '아님';
+        }).catch(() => { addressValue.textContent = '불러오기 실패'; remoteValue.textContent = '확인 필요'; });
+      }
+
+      if (context.access_level === 'operations_manager' || context.access_level === 'promotion_lead_global') {
+        const summary = window.TaejangEmployeeLeave?.workSummary(employee); if (summary) basic.append(summary);
+        const leavePanel = window.TaejangEmployeeLeave?.employeePanel(employee);
+        if (leavePanel) card.append(leavePanel);
+      }
+      const appSection = section('앱 계정', 'employee-section-account', 'account', account.label);
       const profile = employee.linked_profile;
       const profileStatus = ({ active:'활성', inactive:'비활성', suspended:'정지', deleted:'삭제', pending:'승인 대기' })[profile?.account_status] || '확인 필요';
       appSection.append(meta([
@@ -209,24 +246,10 @@
       if (!profile) appSection.append(el('p','계정 발급 필요','help'));
       else if (!account.review && profile.account_status==='active' && employee.employment_status==='active' && passwordResetPanel)
         appSection.append(passwordResetPanel(employee));
-      const photos = section('사진', 'employee-section-photos'); const photoGrid = el('div', null, 'employee-photo-grid');
-      [['profile', '업무용 사진', employee.profile_photo_path], ['id_photo', '증명사진', employee.id_photo_path]].forEach(([type, label, path]) => {
-        const box = el('div'); box.append(el('h4', label));
-        const privateHidden = type === 'id_photo' && context.access_level !== 'operations_manager';
-        if (!privateHidden) box.append(avatar(employee, path, label));
-        box.append(el('p', privateHidden ? '현재 권한으로 등록 상태·사진 조회 불가' : path ? '등록됨' : '미등록', 'employee-photo-status'));
-        if (type === 'profile' || context.access_level === 'operations_manager'
-          || (!employee.protected
-            && (context.access_level !== 'promotion_lead_global'
-              || employee.department_id === context.department_id)))
-          box.append(photoPicker(employee, type, context));
-        photoGrid.append(box);
-      }); photos.append(photoGrid);
-
       // Keep the staff audit inside the existing card instead of a second menu.
       if ((context.access_level === 'promotion_lead_global'
            || context.access_level === 'operations_manager') && saveEmployeeAppCheck) {
-        const visit = section('앱 설치 및 현장 확인', 'employee-audit-inside-card employee-section-audit');
+        const visit = section('앱 설치 및 현장 확인', 'employee-audit-inside-card employee-section-audit', 'field-check');
         visit.append(el('p','계정 연결 및 출퇴근 기록만으로 실제 앱 설치를 확정하지 않습니다. 직원 휴대폰에서 확인해 주세요.','help'));
         const auditForm = el('form',null,'employee-app-audit-form employee-form app-compact-container app-authoring');
         const confirmation = input('checkbox');
@@ -260,7 +283,7 @@
 
       if (context.can_manage_resident_number) {
         if (context.access_level === 'promotion_lead_global') {
-          const resident = section('주민등록번호 등록·조회', 'employee-sensitive-section');
+          const resident = section('주민등록번호 등록·조회', 'employee-sensitive-section', 'resident');
           resident.append(el('p','지원사업 및 고용 인사확인용입니다. 번호는 저장 시 암호화하고, 필요 시 한 명씩 조회합니다. 급여는 조회할 수 없습니다.','help'));
           resident.append(residentNumberPanel(context,employee)
             || el('p','보호 직원의 주민번호는 운영총괄이 관리합니다.','help'));
@@ -268,7 +291,7 @@
       }
 
       if (context.can_manage_sensitive_identity || context.access_level === 'operations_manager') {
-        const sensitive = section('민감정보 / 보험', 'employee-sensitive-section');
+        const sensitive = section('민감정보 / 보험', 'employee-sensitive-section', 'sensitive');
         sensitive.append(el('p', '권한이 있는 담당자만 관리하는 정보입니다. 주민등록번호 원문은 다시 표시하지 않습니다.', 'help'));
         const tool = (label, createPanel) => {
           const details = el('details'); details.append(el('summary', label));
@@ -291,7 +314,7 @@
         if (context.access_level === 'operations_manager') tool('4대보험 공제 ON/OFF', () => insuranceDeductionPanel(employee));
       }
 
-      const record = section('기록 / 점검', 'employee-section-record');
+      const record = section('기록 / 점검', 'employee-section-record', 'records');
       record.append(el('p', `앱 계정: ${account.label}`));
       if (account.review) record.append(el('p', '연결 확인 필요 — 같은 이름·입사일의 연결/미연결 기록 또는 확인되지 않은 계정 상태가 있습니다. 중복 확정이 아니며 별도 확인이 필요합니다.', 'employee-protected-note'));
       else record.append(el('p', '현재 조회 가능한 정보에서 추가 연결 경고가 없습니다.', 'help'));

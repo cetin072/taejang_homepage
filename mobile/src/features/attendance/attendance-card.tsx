@@ -272,11 +272,11 @@ export function AttendanceCard({
 
       if (!qaAttempt && eventType === 'clock_in' && latest.clock_in_available === false) {
         attempts.current[eventType] = Math.max(0, attempts.current[eventType] - 1);
-        show('오전 6시부터 출근할 수 있습니다.', true);
+        show(latest.field_work?.clock_in ? formatTime(latest.clock_in_available_at) + '부터 현장 출근할 수 있습니다.' : '오전 6시부터 출근할 수 있습니다.', true);
         return;
       }
 
-      position = await getBestAttendancePosition({
+      position = !qaAttempt && (latest.remote_work === true || latest.field_work?.[eventType] === true) ? null : await getBestAttendancePosition({
         onStage: stage => {
           show(stage === 'improving'
             ? '위치 정확도를 확인하고 있습니다.'
@@ -289,7 +289,7 @@ export function AttendanceCard({
         : '출퇴근 기록을 확인하고 있습니다.');
 
       const result = qaAttempt
-        ? await validateAttendanceQa(client, eventType, position, Boolean(qaClockInAt))
+        ? await validateAttendanceQa(client, eventType, position!, Boolean(qaClockInAt))
         : await recordAttendanceEvent(client, eventType, position);
 
       if (result.ok || (!qaAttempt && ['ALREADY_RECORDED', 'EXCEPTION_APPROVED'].includes(result.code || ''))) {
@@ -318,7 +318,9 @@ export function AttendanceCard({
         return;
       }
 
-      if (result.code === 'LOCATION_UNCERTAIN') {
+      if (result.code === 'FIELD_WORK_OUTSIDE_WINDOW') {
+        show('현장 기록 가능 시간이 아닙니다. 담당자에게 확인해주세요.', true);
+      } else if (result.code === 'LOCATION_UNCERTAIN') {
         show(
           attempts.current[eventType] < 2
             ? '위치가 정확하지 않습니다. 잠시 후 다시 눌러주세요.'
@@ -328,7 +330,7 @@ export function AttendanceCard({
         allowException(eventType, 'LOCATION_UNCERTAIN', position);
       } else if (result.code === 'OUTSIDE_GEOFENCE') {
         attempts.current[eventType] = Math.max(0, attempts.current[eventType] - 1);
-        show('회사 출근 장소 안에서만 출퇴근할 수 있습니다.', true);
+        show('등록된 근무지에서만 출퇴근할 수 있습니다.', true);
       } else if (result.code === 'CLOCK_IN_REQUIRED') {
         attempts.current[eventType] = Math.max(0, attempts.current[eventType] - 1);
         show(qaAttempt ? '먼저 검수 출근을 완료해주세요.' : '먼저 출근 처리가 완료되어야 합니다.', true);
@@ -475,14 +477,25 @@ export function AttendanceCard({
     subtitle = `✓ 출근 완료 ${formatTime(clockIn?.event_at)}`;
   } else if (today?.is_workday === false) {
     action = null;
-    title = '오늘은 출근일이 아닙니다';
-    subtitle = today?.day_reason || '휴일입니다';
+    if (today.work_schedule?.configured === true
+      && today.work_schedule.is_workday === false
+      && today.work_schedule.leave_portion === 'full') {
+      title = '오늘은 연차입니다';
+      subtitle = '';
+    } else {
+      title = '오늘은 출근일이 아닙니다';
+      subtitle = today.day_reason || '휴일입니다';
+    }
   } else if (today?.clock_in_available === false) {
     action = null;
     title = '출근 전입니다';
-    subtitle = '오전 6시부터 출근할 수 있습니다';
+    subtitle = today.field_work?.clock_in ? formatTime(today.clock_in_available_at) + '부터 현장 출근할 수 있습니다' : '오전 6시부터 출근할 수 있습니다';
   } else if (today?.holiday_work_assigned) {
     subtitle = '휴일근무일입니다 · 회사에서 눌러주세요';
+  }
+
+  if (!qaMode && action && today?.field_work?.[action]) {
+    subtitle = `현장근무 · ${today.field_work.site}`;
   }
 
   function handleAction() {
@@ -556,6 +569,9 @@ export function AttendanceCard({
         </Pressable>
       </Animated.View>
 
+      {!previewMode && today?.work_schedule?.configured && today.work_schedule.is_workday && today.work_schedule.leave_portion ? (
+        <Text style={styles.todaySummaryTitle}>승인 반차 · 오늘 근무 {new Date(today.work_schedule.starts_at!).toLocaleTimeString('ko-KR', {timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit',hour12:false})}~{new Date(today.work_schedule.ends_at!).toLocaleTimeString('ko-KR', {timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit',hour12:false})}</Text>
+      ) : null}
       {!qaMode && today && today.attendance_required !== false && (clockIn || clockOut) ? (
         <View accessibilityLabel={previewMode ? "가상 출퇴근 기록" : "오늘 출퇴근 기록"} style={styles.todaySummary}>
           {previewMode ? <Text style={styles.todaySummaryTitle}>가상 출퇴근 내역 · 실제 기록 아님</Text> : null}

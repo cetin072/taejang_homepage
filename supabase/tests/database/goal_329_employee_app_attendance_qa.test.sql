@@ -80,10 +80,10 @@ select ok(
 
 select ok(
   pg_get_functiondef(
-    'public.record_attendance_event(text,double precision,double precision,double precision)'::regprocedure
+    'public.private_record_attendance_event_pre572(text,double precision,double precision,double precision)'::regprocedure
   ) ilike '%private_validate_attendance_attempt%'
   and pg_get_functiondef(
-    'public.record_attendance_event(text,double precision,double precision,double precision)'::regprocedure
+    'public.private_record_attendance_event_pre572(text,double precision,double precision,double precision)'::regprocedure
   ) ilike '%private_record_attendance_event_pre149%',
   'real attendance shares preflight validation and retains the existing writer'
 );

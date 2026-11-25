@@ -93,7 +93,7 @@ test('unparameterized template preserves original static behavior', async () => 
   } finally { env.restore(); }
 });
 
-test('dynamic sitemap lists only internally published public promotion URLs', async () => {
+test('dynamic sitemap lists approved public promotion URLs, including source introductions', async () => {
   const env = setup({ feed: [
     full,
     { content_id: other, content_type: 'press_release', title: '보도자료' },
@@ -107,23 +107,24 @@ test('dynamic sitemap lists only internally published public promotion URLs', as
     const xml = await response.text();
     assert.match(xml, /<loc>https:\/\/taejang.co.kr\/promotion.html\?id=11111111/);
     assert.match(xml, /<loc>https:\/\/taejang.co.kr\/promotion.html\?id=22222222/);
-    assert.equal((xml.match(/<url>/g) || []).length, 2);
-    assert.doesNotMatch(xml, /33333333|bad-id|example.org/);
+    assert.equal((xml.match(/<url>/g) || []).length, 3);
+    assert.match(xml, /33333333/);
+    assert.doesNotMatch(xml, /bad-id|example.org/);
     assert.deepEqual(env.rpcNames, ['list_public_promotion_feed']);
     assert.deepEqual(config.path, ['/promotion.html', '/sitemap-promotions.xml']);
     assert.match(readFileSync('robots.txt', 'utf8'), /sitemap-promotions\.xml/);
   } finally { env.restore(); }
 });
 
-test('external-only linked content is not indexed as a duplicate Taejang article', async () => {
+test('approved external introductions are indexable without Taejang Article attribution', async () => {
   const external = { ...full, content_type: 'external_content', external_url: 'https://example.org/source' };
   const env = setup({ detail: [external] });
   try {
     const response = await handler(new Request('https://preview.example/promotion.html?id=' + id), context);
     assert.equal(response.status, 200);
     const html = await response.text();
-    assert.match(html, /<meta name="robots" content="noindex, follow">/);
-    assert.doesNotMatch(html, /<meta name="robots" content="index, follow">/);
+    assert.match(html, /<meta name="robots" content="index, follow">/);
+    assert.doesNotMatch(html, /noindex/);
     assert.doesNotMatch(html, /"@type":"Article"/);
     assert.match(html, /href="https:\/\/example\.org\/source"/);
   } finally { env.restore(); }
@@ -154,3 +155,95 @@ test('SSR keeps clickable safe in-body URLs and escapes markup', async () => {
   } finally { env.restore(); }
 });
 
+
+test('legacy press introductions retain correct source attribution and are discoverable', async () => {
+  const item = { ...full, summary: '경남형 업무협약을 소개합니다.', public_body: '경남형 업무협약을 소개합니다.', external_url: 'https://www.gnen.net/news/articleView.html?idxno=141330', link_source_type: 'external' };
+  const saved = JSON.stringify(item);
+  const env = setup({ detail: [item], feed: [item] });
+  try {
+    const html = await (await handler(new Request('https://preview.example/promotion.html?id=' + id), context)).text();
+    assert.match(html, /index, follow/);
+    assert.doesNotMatch(html, /"@type":"Article"/);
+    assert.equal((html.match(/경남형 업무협약을 소개합니다\.<\/p>/g) || []).length, 1);
+    assert.match(html, /홈페이지 등록일:/);
+    assert.match(html, /출처: www.gnen.net/);
+    assert.match(html, /원문 미리보기입니다/);
+    const xml = await (await handler(new Request('https://preview.example/sitemap-promotions.xml'), context)).text();
+    assert.match(xml, new RegExp(id));
+    assert.equal(JSON.stringify(item), saved);
+  } finally { env.restore(); }
+});
+
+test('blog snippets link to the approved complete activity record and survive missing feed bodies', async () => {
+  const item = { ...full, summary: '안전교육과 ...', public_body: '안전교육과 ...', external_url: 'https://blog.naver.com/taejang-official/224451351676', link_source_type: 'none' };
+  const { public_body, ...listRow } = item;
+  const env = setup({ detail: [item], feed: [listRow] });
+  try {
+    const html = await (await handler(new Request('https://preview.example/promotion.html?id=' + id), context)).text();
+    assert.match(html, /index, follow/);
+    assert.match(html, /https:\/\/taejang.co.kr\/activities\/environment-cleanup-fifth.html/);
+    assert.match(html, /활동일: 2026.10.23/);
+    assert.equal((html.match(/안전교육과 \.\.\.<\/p>/g) || []).length, 1);
+    const xml = await (await handler(new Request('https://preview.example/sitemap-promotions.xml'), context)).text();
+    assert.match(xml, new RegExp(id));
+  } finally { env.restore(); }
+});
+
+test('distinct complete video descriptions stay indexable and link the activity without canonicalizing away the video', async () => {
+  const item = { ...full, external_url: 'https://www.youtube.com/watch?v=6igM9R9rE-I', link_source_type: 'taejang_youtube' };
+  const { public_body, ...listRow } = item;
+  const env = setup({ detail: [item], feed: [listRow] });
+  try {
+    const html = await (await handler(new Request('https://preview.example/promotion.html?id=' + id), context)).text();
+    assert.match(html, /"@type":"Article"/);
+    assert.match(html, /공식 활동 기록:/);
+    assert.match(html, new RegExp('rel="canonical" href="https://taejang.co.kr/promotion.html\\?id=' + id));
+    const xml = await (await handler(new Request('https://preview.example/sitemap-promotions.xml'), context)).text();
+    assert.match(xml, new RegExp(id));
+  } finally { env.restore(); }
+});
+
+test('spoofed official sources never become official related records', () => {
+  const policy = globalThis.TAEJANG_PUBLIC_CONTENT;
+  for (const external_url of ['https://blog.naver.com.evil.test/taejang-official/224451351676', 'https://user:pass@blog.naver.com/taejang-official/224451351676', 'javascript:alert(1)']) {
+    const result = policy.present({ ...full, external_url, link_source_type: 'taejang_blog' });
+    assert.equal(result.related, null);
+    assert.notEqual(result.sourceLabel, '태장 공식 블로그');
+  }
+});
+
+test('a source with summary only shows its preview once without inventing body text', async () => {
+  const item = { ...full, summary: '원문에서 제공한 미리보기입니다.', public_body: '', external_url: 'https://www.gnen.net/news/articleView.html?idxno=141330' };
+  const env = setup({ detail: [item] });
+  try {
+    const html = await (await handler(new Request('https://preview.example/promotion.html?id=' + id), context)).text();
+    assert.equal((html.match(/원문에서 제공한 미리보기입니다\.<\/p>/g) || []).length, 1);
+    assert.match(html, /원문 미리보기입니다/);
+    assert.doesNotMatch(html, /class="lead"/);
+  } finally { env.restore(); }
+});
+
+test('featured article search description starts with the actual article introduction', async () => {
+  const item = JSON.parse(readFileSync('tests/fixtures/featured-article.json', 'utf8'));
+  const env = setup({ detail: [{ ...full, ...item, content_id: id, summary: '연재 기획기사 1편 글의 순서 1 네 기업...' }] });
+  try {
+    const html = await (await handler(new Request('https://preview.example/promotion.html?id=' + id), context)).text();
+    assert.match(html, /<meta name="description" content="경남 창원시 팔용동에 있는 농업회사법인 태장/);
+    assert.doesNotMatch(html, /<meta name="description" content="연재 기획기사/);
+  } finally { env.restore(); }
+});
+
+test('visual article body and positioned captions are readable without JavaScript', async () => {
+  const f = globalThis.TAEJANG_ARTICLE_DOCUMENT;
+  const doc = {type:'doc',content:[{type:'heading',attrs:{level:2},content:[{type:'text',text:'새 소제목'}]},{type:'paragraph',content:[{type:'text',text:'사진 앞 문단'}]},{type:'image',attrs:{src:full.public_media[0].url,alt:'직접 작성한 사진 설명'}},{type:'paragraph',content:[{type:'text',text:'사진 뒤 문단'}]}]};
+  const item = {...full,public_body:f.PREFIX+JSON.stringify(doc)};
+  const env = setup({detail:[item]});
+  try {
+    const response=await handler(new Request('https://preview.example/promotion.html?id='+id),context);
+    const html=await response.text();
+    assert.match(html,/<h2>새 소제목<\/h2>/);
+    assert.match(html,/<figcaption>직접 작성한 사진 설명<\/figcaption>/);
+    assert.ok(html.indexOf('사진 앞 문단')<html.indexOf('<figcaption>')&&html.indexOf('<figcaption>')<html.indexOf('사진 뒤 문단'));
+    assert.doesNotMatch(html,/TAEJANG_ARTICLE_V1|article-gallery-item/);
+  } finally {env.restore();}
+});

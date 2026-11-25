@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(29);
+select plan(33);
 
 select has_table('public','monthly_client_document_company_defaults','monthly client company defaults table exists');
 select has_table('public','monthly_client_document_sets','monthly snapshots table exists');
@@ -26,6 +26,10 @@ select is(has_table_privilege('authenticated','public.monthly_client_document_se
 select is(has_table_privilege('authenticated','public.monthly_client_document_sets','UPDATE'),false,'monthly snapshot updates cannot bypass revision and confirmation RPCs');
 select is(has_table_privilege('authenticated','public.monthly_client_document_company_defaults','INSERT'),false,'company defaults are writable only through the guarded RPC');
 select is(has_table_privilege('authenticated','public.monthly_client_document_company_defaults','UPDATE'),false,'company defaults cannot bypass the guarded RPC');
+select is(has_table_privilege('authenticated','public.monthly_client_document_sets','DELETE'),false,'monthly snapshots cannot be deleted directly');
+select is(has_table_privilege('authenticated','public.monthly_client_document_sets','TRUNCATE'),false,'monthly snapshots cannot be truncated directly');
+select is(has_table_privilege('authenticated','public.monthly_client_document_company_defaults','DELETE'),false,'company defaults cannot be deleted directly');
+select is(has_table_privilege('authenticated','public.monthly_client_document_company_defaults','TRUNCATE'),false,'company defaults cannot be truncated directly');
 select is(has_function_privilege('anon','public.monthly_client_documents_get()','EXECUTE'),false,'anonymous users cannot invoke document RPCs');
 select is(has_function_privilege('authenticated','public.monthly_client_documents_get()','EXECUTE'),true,'authenticated callers reach guarded document RPCs');
 select is(has_function_privilege('authenticated','public.monthly_client_documents_confirm(integer,integer,integer)','EXECUTE'),true,'authenticated callers reach guarded confirmation RPC');

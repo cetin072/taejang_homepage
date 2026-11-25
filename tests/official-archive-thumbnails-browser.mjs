@@ -1,3 +1,4 @@
+import { newPhotoSafePage } from './helpers/photo-safe-browser.mjs';
 // Hosted Chrome regression: visible Naver blog cards must load genuine same-origin photos.
 // The main renderer is exercised on both PC and mobile without touching Production.
 import assert from 'node:assert/strict';
@@ -25,7 +26,7 @@ try {
     { width: 1440, height: 900, name: 'desktop' },
     { width: 390, height: 844, name: 'mobile' }
   ]) {
-    const page = await browser.newPage({ viewport, deviceScaleFactor: 1 });
+    const page = await newPhotoSafePage(browser, { viewport, deviceScaleFactor: 1 });
     try {
       const response = await page.goto(base + '/archive', { waitUntil: 'domcontentloaded', timeout: 45_000 });
       assert.equal(response?.status(), 200, 'archive document must load');

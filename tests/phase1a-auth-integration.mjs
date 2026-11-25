@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { operationsOwnedPromotionChecks } from './operations-owned-promotion-auth.mjs';
 import { operationsPublicTextEditChecks } from './operations-public-text-edit-auth.mjs';
+import { promotionEditorialChecks } from './promotion-editorial-auth.mjs';
 import { operationsMissingPromotionPhotoChecks } from './operations-missing-promotion-photo-auth.mjs';
 import { execFileSync } from 'node:child_process';
 
@@ -327,6 +328,7 @@ const approvePromotionStaff = await rpc('approve_signup_request_with_employee', 
 });
 equal(approvePromotionStaff.data?.code, 'EMPLOYEE_ACCOUNT_APPROVED', 'operations manager approves and links a promotion-staff account');
 await operationsOwnedPromotionChecks({apiUrl,rpc,sql,signUp,admin,lead,staff:promotionStaff,departmentId:promotionDepartment.data[0].id,positionId:position.data[0].id,check,equal});
+await promotionEditorialChecks({apiUrl,rpc,sql,admin,lead,staff:promotionStaff,check,equal});
 await operationsPublicTextEditChecks({apiUrl,rpc,sql,signUp,admin,lead,staff:promotionStaff,departmentId:promotionDepartment.data[0].id,positionId:position.data[0].id,check,equal});
 await operationsMissingPromotionPhotoChecks({apiUrl,rpc,sql,binaryApi,admin,lead,staff:promotionStaff,check,equal});
 const lowerRoleCrossDraftEdit = await rpc('save_promotion_draft', promotionStaff.token, {

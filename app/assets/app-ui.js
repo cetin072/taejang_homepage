@@ -130,11 +130,13 @@
 
   loadStyleOnce('assets/dashboard-accent-theme.css', 'dashboard-accent-theme');
   loadStyleOnce('assets/support-radar.css', 'support-radar');
+  loadStyleOnce('../assets/css/promotion-document.css', 'promotion-document');
   // Start independent feature requests together, but do not release app-ready until
   // every module has registered or failed. `async = false` keeps dynamically
   // inserted classic scripts executing in insertion order.
   const FEATURE_MODULES = [
     ['assets/capability-access.js', 'capability-access'],
+    ['assets/menu-authority.js', 'menu-authority'],
     ['assets/platform-ui-settings.js', 'platform-ui-settings'],
     ['assets/support-radar-access.js', 'support-radar-access'],
     ['assets/app-workspace-surface.js', 'app-workspace-surface'],
@@ -145,6 +147,9 @@
     ['assets/attendance-monthly.js', 'attendance-monthly'],
     ['assets/attendance-admin.js', 'attendance-admin'],
     ['assets/attendance-integrity-ui.js', 'attendance-integrity-ui'],
+    ['../assets/js/public-promotion-media.js', 'public-promotion-media'],
+    ['../assets/js/promotion-document.js', 'promotion-document'],
+    ['../assets/js/featured-article-layout.js', 'featured-article-layout'],
     ['assets/phase-c-workspace-v2.js', 'phase-c-workspace-v2'],
     ['assets/issue-181-promotion-live-ux.js', 'issue-181-promotion-live-ux'],
     ['assets/operations-homepage-direct.js', 'operations-homepage-direct'],
@@ -155,6 +160,7 @@
     ['assets/issue-221-employee-screen-core.js', 'issue-221-employee-screen-core'],
     ['assets/issue-221-employee-screen-switcher.js', 'issue-221-employee-screen-switcher'],
     ['assets/employee-common-home-v1.js', 'employee-common-home-v1'],
+    ['assets/employee-leave.js', 'employee-leave'],
     ['assets/employee-management-views.js', 'employee-management-views'],
     ['assets/employee-management.js', 'employee-management'],
     ['assets/operations-delete-controls.js', 'operations-delete-controls'],
@@ -174,6 +180,7 @@
     ['assets/menu-status.js', 'menu-status'],
     ['assets/phase-c-account-topbar.js', 'phase-c-account-topbar'],
     ['assets/role-navigation-priority.js', 'role-navigation-priority'],
+    ['assets/management-attention-cards.js', 'management-attention-cards'],
     ['assets/dashboard-priority-cards.js', 'dashboard-priority-cards'],
     ['assets/issue-187-promotion-live-qa.js', 'issue-187-promotion-live-qa'],
     ['assets/ux-followup-polish.js', 'ux-followup-polish'],
@@ -181,6 +188,30 @@
     ['assets/role-screen-polish.js', 'role-screen-polish'],
     ['assets/navigation-visual-stability.js', 'navigation-visual-stability']
   ];
+
+  window.TaejangLoadArticleEditor = async () => {
+    if (window.TaejangArticleEditor?.mount) return true;
+    const result = await loadScriptOnce('assets/promotion-visual-editor.js', 'promotion-visual-editor');
+    if (result.ok && window.TaejangArticleEditor?.mount) return true;
+    showFeatureFailure('본문 편집기');
+    return false;
+  };
+
+  let erpSalesLoading = null;
+  window.TaejangErpSalesLoader = async (view) => {
+    const app = window.TaejangApp;
+    if (!app?.hasCapabilityContract?.() || !app.can?.('erp_sales.read')) return;
+    try {
+      if (!erpSalesLoading) erpSalesLoading = (async () => {
+        loadStyleOnce('assets/admin-authoring.css', 'admin-authoring');
+        loadStyleOnce('assets/erp-sales.css', 'erp-sales');
+        const result = await loadScriptOnce('assets/erp-sales.js', 'erp-sales');
+        if (!result.ok || !window.TaejangErpSales?.open) throw new Error('ERP_MODULE_UNAVAILABLE');
+      })().catch(error => { erpSalesLoading = null; throw error; });
+      await erpSalesLoading;
+      await window.TaejangErpSales.open(view);
+    } catch { showFeatureFailure('기준정보·매출 관리'); }
+  };
 
   const MONTHLY_DOCUMENT_MODULES = [
     ['assets/vendor/jszip-3.10.1.min.js', 'jszip-monthly-documents'],
@@ -204,13 +235,13 @@
     });
     return monthlyDocumentsLoading;
   }
-  window.TaejangMonthlyClientDocumentsLoader = async () => {
+  window.TaejangMonthlyClientDocumentsLoader = async (selection) => {
     if (window.TaejangApp?.can?.('monthly_client_documents.manage') !== true) return;
     try {
       await ensureMonthlyDocumentModulesLoaded();
-      await window.MonthlyClientDocuments.open();
+      await window.MonthlyClientDocuments.open(selection);
     } catch {
-      showFeatureFailure('거래처 문서 관리');
+      showFeatureFailure('용역 서류');
     }
   };
 

@@ -9,7 +9,7 @@ async function text(path) {
 test('mobile attendance pins Expo Location and requests foreground use only', async () => {
   const pkg = JSON.parse(await text('mobile/package.json'));
   const app = JSON.parse(await text('mobile/app.json'));
-  assert.equal(pkg.dependencies['expo-location'], '57.0.22');
+  assert.equal(pkg.dependencies['expo-location'], '57.0.24');
   const plugin = app.expo.plugins.find(item => Array.isArray(item) && item[0] === 'expo-location');
   assert.ok(plugin, 'expo-location config plugin must be present');
   assert.equal(plugin[1].isAndroidBackgroundLocationEnabled, false);
@@ -43,7 +43,7 @@ test('mobile attendance reuses existing server RPC contracts', async () => {
 test('holiday and pre-06:00 states disable the single attendance action before GPS', async () => {
   const card = await text('mobile/src/features/attendance/attendance-card.tsx');
   const serverCheck = card.indexOf('const latest = await loadMyAttendanceToday(client)');
-  const locationCheck = card.indexOf('position = await getBestAttendancePosition');
+  const locationCheck = card.indexOf('await getBestAttendancePosition(');
   assert.ok(serverCheck >= 0 && locationCheck > serverCheck, 'server action state must be rechecked before GPS');
   assert.match(card, /today\?\.is_workday === false/);
   assert.match(card, /title = '오늘은 출근일이 아닙니다'/);

@@ -1,6 +1,9 @@
 (() => {
   'use strict';
 
+  // Retry the same selected file at the same non-upsert key, including lost responses.
+  const uploadPaths = new WeakMap();
+
   window.TaejangPromotionWorkspaceV2 = true;
 
   const SESSION_KEY = 'taejang-staff-session-v1';
@@ -232,18 +235,21 @@
   }
 
   async function uploadImage(file, { officialBlogPost = '' } = {}) {
-    if (!file) throw new Error('사진을 선택해 주세요.');
-    const allowed = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
-    if (!allowed.has(file.type)) throw new Error('JPG, PNG, WEBP, GIF 사진만 올릴 수 있습니다.');
-    if (file.size > 8 * 1024 * 1024) throw new Error('사진 1장은 8MB 이하로 올려주세요.');
+    const optimizer = await import('./photo-optimizer.mjs');
+    const optimized = await optimizer.optimizeForUpload(file);
     let auth = await authenticatedSession();
     let userId = uploadUserId(auth);
     if (!auth.access_token || !userId) throw new Error('로그인 정보가 만료되었습니다. 다시 로그인해 주세요.');
-    const extension = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' })[file.type];
+    const extension = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' })[optimized.type];
     // Keep origin identity in the Storage key, not in public_media JSON: the
     // existing SQL validator accepts only url/slot/kind/alt metadata fields.
     const originMarker = /^\d{10,14}$/.test(String(officialBlogPost)) ? `official-blog-${officialBlogPost}-` : '';
-    const path = `${userId}/${new Date().toISOString().slice(0, 10)}/${originMarker}${crypto.randomUUID()}.${extension}`;
+    let savedPath = uploadPaths.get(file);
+    if (savedPath?.owner !== userId) {
+      savedPath = { owner: userId, path: `${userId}/${new Date().toISOString().slice(0, 10)}/${originMarker}${crypto.randomUUID()}.${extension}` };
+      uploadPaths.set(file, savedPath);
+    }
+    const path = savedPath.path;
     const encodedPath = path.split('/').map(encodeURIComponent).join('/');
     const cfg = await config();
     const postUpload = currentAuth => fetch(`${cfg.url}/storage/v1/object/promotion-media/${encodedPath}`, {
@@ -251,10 +257,10 @@
       headers: {
         apikey: cfg.publishableKey,
         Authorization: `Bearer ${currentAuth.access_token}`,
-        'Content-Type': file.type,
+        'Content-Type': optimized.type,
         'x-upsert': 'false'
       },
-      body: file
+      body: optimized
     });
 
     let response;
@@ -319,8 +325,7 @@
     }
     const bytes = Uint8Array.from(atob(base64), char => char.charCodeAt(0));
     const file = new File([bytes], 'official-blog-' + key + '.' + ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' })[type], { type });
-    const decoded = await createImageBitmap(file);
-    decoded.close();
+    await (await import('./photo-optimizer.mjs')).optimizeForUpload(file);
     return file;
   }
 
@@ -334,7 +339,7 @@
   }
 
   function summaryFromBody(body) {
-    return (body || '').replace(/\s+/g, ' ').trim().slice(0, 220) || null;
+    return (globalThis.TAEJANG_ARTICLE_DOCUMENT?.plain(body) ?? body ?? '').replace(/\s+/g, ' ').trim().slice(0, 220) || null;
   }
 
   function officialBlogPostFromStoredImage(rawUrl) {
@@ -396,6 +401,7 @@
     if (action === 'schedule' && (!formState.scheduleDate.value || new Date(publicationSchedule(formState.scheduleDate.value)).getTime() <= Date.now())) {
       window.alert('실제 예약일은 미래 날짜로 선택해 주세요.'); return;
     }
+    if (!globalThis.TaejangArticleEditor?.valid(formState.body) && globalThis.TaejangArticleEditor) return;
     const body = formState.body.value;
     const title = formState.title.value.trim();
     if (!title) { window.alert('제목을 입력해 주세요.'); return; }
@@ -505,10 +511,12 @@
     const external = input('url');
     external.value = existingItem?.external_url || '';
     external.placeholder = '기사나 외부 게시물 주소를 붙여넣으세요';
+    const linkToolsSource = () => externalWrap.querySelector('[data-issue181-link-source]');
     const metaButton = button('링크에서 제목·썸네일·본문 가져오기', async () => {
       if (!external.value.trim()) { window.alert('링크를 먼저 입력해 주세요.'); return; }
       if (officialBlogKey(external.value)) { await importOfficialPhoto(true); return; }
       metaButton.disabled = true;
+      metaStatus.dataset.metadataResult = 'pending';
       metaStatus.textContent = '링크 내용을 확인하고 있습니다.';
       const requestedUrl = external.value.trim();
       const requestedGeneration = importGeneration;
@@ -517,8 +525,14 @@
         if (external.value.trim() !== requestedUrl || requestedGeneration !== importGeneration || !form.isConnected) return;
         if (metadata.url) external.value = metadata.url;
         if (metadata.title && !title.value.trim()) title.value = metadata.title;
-        if (metadata.article_text && !body.value.trim()) body.value = metadata.article_text.slice(0, 30000);
-        else if (metadata.description && !body.value.trim()) body.value = metadata.description;
+        const source = linkToolsSource();
+        const sourceType = source?.dataset.manual === '1'
+          ? source.value
+          : window.TaejangOfficialChannels?.classifyUrl?.(requestedUrl, metadata);
+        const externalSource = sourceType === 'external';
+        if (!externalSource && !body.value.trim()) {
+          body.value = (metadata.article_text || metadata.description || '').slice(0, 30000);
+        }
         // Imported thumbnails remain reference material only.
         metaPreview.replaceChildren();
         if (metadata.image) {
@@ -533,11 +547,18 @@
         copy.append(el('p', '원문 썸네일은 참고용입니다. 공개 사진은 사진 자료에 직접 첨부해 주세요.'));
         metaPreview.append(copy);
         renderLivePreview();
+        if (!metadata.title && !metadata.description && !metadata.image && !metadata.article_text) {
+          throw new Error('원문에서 제목이나 썸네일을 찾지 못했습니다.');
+        }
+        metaStatus.dataset.metadataResult = 'success';
         metaStatus.textContent = metadata.site_name === 'YouTube'
           ? (metadata.image ? '유튜브 영상 제목·썸네일을 가져왔습니다. 영상 본문은 직접 작성해 주세요.' : '유튜브 영상 제목을 가져왔습니다. 영상 본문은 직접 작성해 주세요.')
           : metadata.article_text ? '제목·썸네일·본문을 가져왔습니다.' : '가져올 수 있는 링크 정보를 반영했습니다.';
       } catch (error) {
-        metaStatus.textContent = error.message || '링크 정보를 가져오지 못했습니다.';
+        if (external.value.trim() !== requestedUrl || requestedGeneration !== importGeneration || !form.isConnected) return;
+        metaStatus.dataset.metadataResult = 'error';
+        metaStatus.textContent = (error.message || '링크 정보를 가져오지 못했습니다.') +
+          ' 제목과 본문을 직접 입력해 저장할 수 있습니다.';
       } finally { metaButton.disabled = false; }
     }, true);
     const metaStatus = el('p', '', 'phase-c-upload-status');
@@ -561,14 +582,26 @@
     fileInput.multiple = true;
     fileInput.hidden = true;
     uploadLabel.append(fileInput);
-    const uploadStatus = el('span', '사진은 최대 12장 · 장당 8MB', 'phase-c-upload-status');
+    const uploadStatus = el('span', '사진은 최대 12장 · 원본 장당 15MB · 자동 압축 후 1MB 이하', 'phase-c-upload-status');
     toolbar.append(uploadLabel, uploadStatus);
     const media = mediaFromExisting(existingItem);
     const mediaGrid = el('div', null, 'phase-c-photo-grid');
-    const state = { type, title, date, numberOrAmount, bylineKind: operationsAuthor ? bylineKind : null, scheduleDate, uploading: false, external, body, media, coverFromMedia: true, heroImage: media.find(entry => entry.url === existingItem?.hero_image_url)?.url || media[0]?.url || null, saveButtons: [] };
+    const state = { type, title, date, numberOrAmount, bylineKind: operationsAuthor ? bylineKind : null, scheduleDate, uploading: false, external, body, media, coverFromMedia: false, heroImage: media.find(entry => entry.url === existingItem?.hero_image_url)?.url || media[0]?.url || null, saveButtons: [] };
+    let articleEditor;
+    const cover = document.createElement('select');
+    cover.className = 'article-cover-select';
+    cover.setAttribute('aria-label', '목록 대표사진');
+    cover.addEventListener('change', () => { state.coverFromMedia = false; state.heroImage = cover.value || null; renderLivePreview(); });
+    function refreshCover() {
+      if (!media.some(entry => entry.url === state.heroImage)) state.heroImage = media[0]?.url || null;
+      cover.replaceChildren(...media.map((entry, index) => new Option(`${index + 1}. ${entry.alt || '사진'}`, entry.url)));
+      cover.value = state.heroImage || '';
+    }
     const livePreview = el('section', null, 'phase-c-composer-preview app-form-section');
     livePreview.dataset.composerPreview = '1';
     function renderLivePreview() {
+      articleEditor?.refresh();
+      refreshCover();
       livePreview.replaceChildren(el('h3', '게시글 미리보기'), previewCard({
         content_type: type.value, title: title.value, public_body: body.value,
         hero_image_url: state.heroImage, public_media: media,
@@ -641,19 +674,28 @@
       autoTimer = setTimeout(importOfficialPhoto, 600);
     });
     renderMediaEditor(mediaGrid, media, mediaChanged);
-    fileInput.addEventListener('change', async () => {
-      const files = [...(fileInput.files || [])];
+    let pendingFiles = [];
+    let pendingIndex = 0;
+    const retryUpload = button('실패한 사진 다시 시도', () => uploadSelected());
+    retryUpload.hidden = true;
+    toolbar.append(retryUpload);
+    async function uploadSelected() {
+      if (state.uploading) return;
+      const files = pendingFiles.slice(pendingIndex);
       if (!files.length) return;
       if (media.length + files.length > 12) { window.alert('사진은 최대 12장까지 올릴 수 있습니다.'); fileInput.value = ''; return; }
       if (!media.length) state.coverFromMedia = true;
       state.uploading = true;
       state.saveButtons.forEach(node => { node.disabled = true; });
       uploadLabel.style.pointerEvents = 'none';
+      fileInput.disabled = true;
+      retryUpload.hidden = true;
       uploadStatus.textContent = '사진을 업로드하고 있습니다.';
       try {
         for (const file of files) {
           const url = await uploadImage(file);
           media.push({ url, alt: file.name.replace(/\.[^.]+$/, ''), kind: 'selected' });
+          pendingIndex += 1;
         }
         if ((state.coverFromMedia || !state.heroImage) && media[0]) { state.heroImage = media[0].url; state.coverFromMedia = true; }
         renderMediaEditor(mediaGrid, media, mediaChanged);
@@ -661,18 +703,27 @@
         fileInput.value = '';
       } catch (error) {
         window.alert(error.message || '사진 업로드에 실패했습니다.');
-        uploadStatus.textContent = '사진 업로드 실패 · 작성 내용과 첨부한 사진은 유지됩니다.';
+        uploadStatus.textContent = '사진 업로드 실패 · ' + error.message + ' 작성 내용과 첨부한 사진은 유지됩니다.';
+        retryUpload.hidden = false;
       } finally {
         renderMediaEditor(mediaGrid, media, mediaChanged);
         mediaChanged();
         state.uploading = false;
         state.saveButtons.forEach(node => { node.disabled = false; });
         uploadLabel.style.pointerEvents = '';
+        fileInput.disabled = false;
       }
+    }
+    fileInput.addEventListener('change', () => {
+      pendingFiles = [...(fileInput.files || [])];
+      pendingIndex = 0;
+      uploadSelected();
     });
-    editor.append(toolbar, mediaGrid);
+    editor.append(toolbar, field('목록 대표사진', cover, '대표사진은 소식 목록에 표시됩니다. 본문 사진 위치와 별도로 선택하세요.'), mediaGrid);
     // The operations-manager reference order is shared by all authoring roles.
     form.append(field('본문', body), el('h3', '사진 자료'), editor, livePreview, topRow);
+    articleEditor = globalThis.TaejangArticleEditor?.mount(body, { getMedia: () => media, getTitle: () => title.value, item: existingItem });
+    if (articleEditor) livePreview.hidden = true;
     if (scheduleField) form.append(scheduleField);
     form.append(externalWrap);
 
@@ -714,6 +765,12 @@
     if (live) panel.classList.add('promotion-preview-live');
     panel.append(el('p', TYPE_LABELS[item.content_type] || '홍보자료', 'eyebrow'), el('h2', item.title || '제목 없음'));
     if (item.requested_publish_date) panel.append(el('p', `게시 희망일 ${item.requested_publish_date}`));
+    const rich = globalThis.TAEJANG_ARTICLE_DOCUMENT?.renderDOM(item, document);
+    if (rich) {
+      panel.append(rich);
+      if (!live) panel.append(button('미리보기 닫기', () => panel.remove(), true));
+      return panel;
+    }
     if (item.hero_image_url) {
       const image = document.createElement('img');
       image.src = item.hero_image_url;
@@ -988,6 +1045,8 @@
 
   async function renderLeadEdit(detail) {
     const target = main();
+    const review = target.firstElementChild;
+    if (await window.TaejangLoadArticleEditor?.() === false || target.firstElementChild !== review) return;
     document.getElementById('desktop-page-title').textContent = '홍보자료 직접 수정';
     const intro = renderIntro('홍보 검토', '홍보자료 직접 수정', '선택한 검토 건만 별도 화면에서 수정합니다. 카드가 길어지는 방식은 사용하지 않습니다.');
     const section = el('section', null, 'dashboard-section phase-c-edit-page');
@@ -999,10 +1058,12 @@
     const form = el('form', null, 'phase-c-board-form app-authoring');
     form.addEventListener('submit', event => event.preventDefault());
     form.append(field('제목', title), field('본문', body));
+    globalThis.TaejangArticleEditor?.mount(body, { getMedia: () => arr(detail.public_media), getTitle: () => title.value, item: detail });
     form.append(field('연결 링크 (선택)', external, '네이버 블로그·유튜브·인터넷 기사 등 관련 주소를 연결할 수 있습니다.'));
     form.append(field('게시 희망일 (선택)', date));
     const actions = el('div', null, 'quick-links');
     actions.append(button('수정본 저장', async () => {
+      if (globalThis.TaejangArticleEditor && !globalThis.TaejangArticleEditor.valid(body)) return;
       if (!title.value.trim()) { window.alert('제목을 입력해 주세요.'); return; }
       try {
         await app().rpc('lead_replace_promotion_revision', {
@@ -1135,18 +1196,23 @@
     if (!target || !canAny(['promotion.write', 'promotion.review_lead', 'promotion.review_operations', 'promotion.review_ceo'], PROMOTION_ROLES.has(route()))) return;
     target.hidden = false;
     target.classList.add('phase-c-v2');
-    target.replaceChildren(el('p', '홍보 업무를 불러오고 있습니다.', 'message'));
+    const loading = el('p', '홍보 업무를 불러오고 있습니다.', 'message');
+    target.replaceChildren(loading);
     try {
       const workspace = await app().rpc('get_my_promotion_workspace');
       const canWrite = can('promotion.write', WRITE_ROLES.has(workspace.role));
       const canEditOwn = can('promotion.edit_own', WRITE_ROLES.has(workspace.role));
       const canReview = canAny(['promotion.review_lead', 'promotion.review_operations', 'promotion.review_ceo'], REVIEW_ROLES.has(workspace.role));
+      if (!loading.isConnected) return;
       if (mode === 'publication') return renderPublication(workspace);
       if (mode === 'revision' && canEditOwn) return renderRevision(workspace);
-      if (mode === 'edit' && canEditOwn) return renderEdit(workspace);
-      if (mode === 'write' && canWrite) return renderWrite(workspace);
-      if (canReview) return renderReview(workspace);
-      return renderWrite(workspace);
+      const editing = mode === 'edit' && canEditOwn;
+      if (!editing && !(mode === 'write' && canWrite) && canReview) return renderReview(workspace);
+      if (await window.TaejangLoadArticleEditor?.() === false || !loading.isConnected) {
+        loading.remove();
+        return;
+      }
+      return editing ? renderEdit(workspace) : renderWrite(workspace);
     } catch (error) {
       target.replaceChildren(el('p', app().friendlyError?.(error) || '홍보 업무를 불러오지 못했습니다.', 'message error'));
     }

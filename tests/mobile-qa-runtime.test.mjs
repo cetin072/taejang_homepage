@@ -442,10 +442,16 @@ test('confirmed clock-in turns edge-on once, blocks same-frame taps and clock-ou
   assert.equal(f.render().find(n => n.type === 'Pressable').props.disabled, false);
   assert.deepEqual(f.animations.map(a => [a.toValue, a.duration, a.useNativeDriver]), [[90,210,true],[0,210,true]]);
   await f.press();
-  assert.equal(f.confirmations(), 1); assert.equal(f.haptics.length, 2); assert.equal(f.animations.length, 2);
+  assert.equal(f.confirmations(), 1); assert.equal(f.haptics.length, 2); assert.equal(f.animations.length, 3);
+  assert.equal(f.render().find(n => n.type === 'Pressable').props.accessibilityLabel, '퇴근하기');
+  assert.equal(f.render().find(n => n.type === 'Pressable').props.disabled, true);
+  f.finishAnimation();
+  assert.equal(f.render().find(n => n.type === 'Pressable').props.accessibilityLabel, '✓ 오늘 근무 완료');
+  assert.equal(f.animations.length, 4);
+  f.finishAnimation();
   assert.ok(f.render().includes('✓ 오늘 근무 완료'));
   await f.foreground(); f.render();
-  assert.equal(f.haptics.length, 2); assert.equal(f.animations.length, 2);
+  assert.equal(f.haptics.length, 2); assert.equal(f.animations.length, 4);
 });
 
 test('reduce motion uses immediate text; changing it during a turn cancels remaining motion without losing saved state', async () => {
@@ -453,6 +459,9 @@ test('reduce motion uses immediate text; changing it during a turn cancels remai
   await reduced.press();
   assert.equal(reduced.animations.length, 0); assert.equal(reduced.haptics.length, 1);
   assert.equal(reduced.render().find(n => n.type === 'Pressable').props.accessibilityLabel, '퇴근하기');
+  await reduced.press();
+  assert.equal(reduced.animations.length, 0); assert.equal(reduced.haptics.length, 2);
+  assert.ok(reduced.render().includes('✓ 오늘 근무 완료'));
   const f = await attendance({ mode: 'preview', previewScenario: 'workday', autoAnimation: false });
   await f.press(); f.reduceMotion(true);
   assert.equal(f.render().find(n => n.type === 'Pressable').props.accessibilityLabel, '퇴근하기');

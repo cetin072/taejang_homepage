@@ -135,6 +135,13 @@ test('an early app-ready event is held until all dynamically loaded feature modu
 
   assert.equal(delivered, 1, 'ready must be replayed exactly once after feature modules load');
   assert.equal(deliveredDetail.route, 'operations_manager');
+  const editors = () => document.nodes.filter(node => node.src === 'assets/promotion-visual-editor.js');
+  assert.equal(editors().length, 0, 'dashboard is ready without the article editor');
+  const first = window.TaejangLoadArticleEditor();
+  const second = window.TaejangLoadArticleEditor();
+  assert.equal(editors().length, 1, 'concurrent editor opens reuse the same request');
+  window.TaejangArticleEditor = { mount() {} };
+  assert.deepEqual(await Promise.all([first, second]), [true, true]);
   const loadedScripts = document.nodes.filter(node => node.tagName === 'SCRIPT');
   assert.ok(loadedScripts.length >= 20, 'all feature modules should have been scheduled before replay');
   assert.ok(loadedScripts.every(node => node.dataset.loaded === '1'));

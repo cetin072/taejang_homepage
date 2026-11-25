@@ -2,14 +2,24 @@
 
 상태: 공식 채널 자동 수집. 콘텐츠는 Draft PR 검수 후 병합한다.
 
+## 2026-10-28 복구 검증
+
+- 공식 `@taejangofficial/videos`는 HTTP 200이며 채널 ID와 RSS 링크 모두 기존 `UCMxv6IBvVjkRnn6yHKdXJSg`와 일치했다. 같은 ID의 Atom은 HTTP 404였다. ID 오타·권한 오류라는 근거는 없으며 YouTube 제공 측 404의 내부 원인은 확인할 수 없다.
+- Atom 우선 조회를 유지한다. 실패 시 같은 공식 채널의 선택된 동영상 탭에서 최대 15개 ID만 읽고 각 공개 watch 페이지의 videoId·channelId·공개 여부·원본 publishDate를 확인한다. 예정 공개·미래 영상은 제외하고, 날짜 누락·다른 채널·비공개·로그인 요구·파싱 변경은 실패 처리한다. 상대 날짜·업로드 날짜·검색 결과로 게시일을 추정하지 않는다. HTML 경로도 실패하면 기존 PARTIAL/FAIL 경계를 유지한다.
+- 실제 2026-10-28 11:53 KST 수집: 네이버 50건 + 공개 YouTube 5건 확인, 기존 ID 제외 **블로그 6건 추가**. 10/26 3건·10/27 2건·10/28 1건이며, 예정 공개 영상 1건은 제외했다. 원본 링크·제목·게시일을 보존했다.
+- `feedOk.youtube`는 YouTube 출처의 검증 수집 성공 여부이다. Atom 장애는 대체 경로가 성공해도 report의 `youtubeMethod: verified-public-pages`와 `warnings`에 남는다. Atom 복구 완료를 뜻하지 않는다.
+- #526의 병합 후 잔존 브랜치가 10/25 미완료 슬롯의 제안을 막았다. 새 제안은 슬롯+run ID+attempt의 독립 브랜치를 쓰며 **열린 자동 아카이브 PR만** 중복 생성 차단 기준으로 삼는다. 병합·종료·고아 브랜치를 삭제하거나 덮어쓰지 않는다.
+- 수집 결과에 신규 글이 남아 있으면 PR 생성 실패·검사 실패 때 슬롯을 완료 처리하지 않는다. 양쪽 출처 정상·새 글 0·대기 PR 0을 모두 만족해야 완료한다.
+- 이 변경은 Draft 검토 대상이며 main 병합 전에는 예약 실행에 적용되지 않는다. Production은 기존 72시간 정기 배포 정책을 유지한다.
+
 ## 2026-10-23 복구 검증
 
 - 공식 `@taejangofficial/videos`에서 확인한 채널 ID는 `UCMxv6IBvVjkRnn6yHKdXJSg`이다. 수집은 이 ID로 Atom을 직접 조회한다. HTML 조회는 매 실행 의존에서 제외했다.
 - 최초 실행 #39723625234는 YouTube 호스트 HTTP 404를 기록했지만 URL 경로를 남기지 않아 HTML/Atom 중 어느 요청인지는 소급 확정할 수 없다. 복구 시 실제 HTML·Atom·Naver RSS가 모두 200이며 Atom의 영상 5건이 같은 채널임을 확인했다.
-- `official-archive-status` Actions artifact와 Summary가 운영 점검 원장이다. 마지막 예약 실행·수집 시각, 출처별 성공, 신규 수, 검수 PR, 슬롯 지연 분·누락을 기록한다. 상태 cache는 재시도 판단용이며 유실돼도 원본 ID 대조와 슬롯별 원격 브랜치가 중복을 차단한다.
+- `official-archive-status` Actions artifact와 Summary가 운영 점검 원장이다. 마지막 예약 실행·수집 시각, 출처별 성공, 신규 수, 검수 PR, 슬롯 지연 분·누락을 기록한다. 상태 cache는 재시도 판단용이며 유실돼도 원본 ID 대조와 열린 검수 PR이 중복을 차단한다.
 - PASS / NO_CHANGES / PARTIAL / FAIL은 실제 수집 결과이며 검수 PR이 있으면 PENDING_REVIEW도 기록한다. PARTIAL은 정상 채널 자료를 보존하면서 최종 check를 실패시킨다.
 - 72시간 기준 슬롯 이후 지연 실행이나 다음 날 실행도 미완료 슬롯을 처리한다. 두 채널 정상 수집과 검수 PR 해소가 확인된 슬롯만 완료 기록한다. 피드 제공 범위보다 긴 장애는 전수 복구를 보장하지 않는다.
-- 다음 기준 슬롯: 2026-10-25 09:10 KST. 실제 Actions 시작은 지연될 수 있다. Production 48시간 정책은 별도 workflow 그대로 유지한다.
+- 당시 다음 기준 슬롯은 2026-10-25 09:10 KST였다. 실제 Actions 시작은 지연될 수 있다. Production 정책은 10/26부터 별도 workflow의 72시간 정책을 따른다.
 
 ## 목적
 
@@ -24,7 +34,7 @@
 - 스케줄: `.github/workflows/official-archive-sync.yml`
 - 배포: 기존 `docs/operations/NETLIFY_48H_PRODUCTION.md` 그대로 적용
 
-네이버 RSS의 공개 item에서 공식 `taejang-official`의 logNo·원제목·원본 발행일만 받는다. 유튜브는 공식 채널 HTML의 채널 ID를 확인하고 공개 Atom 피드의 동일 채널 videoId·제목·발행일을 사용한다. 네이버는 RSS에 담기는 최근 글까지만, 유튜브는 Atom 최근 항목까지만 발견할 수 있으므로 **전체 과거 글 전수 확인을 보장하지 않는다**. RSS 제공 또는 네트워크 접근 자체가 막히면 그 출처의 누락 개수는 미확정이다.
+네이버 RSS의 공개 item에서 공식 `taejang-official`의 logNo·원제목·원본 발행일만 받는다. 유튜브는 고정된 공식 채널 ID의 Atom을 우선 사용하고 실패 시 위 검증된 공개 페이지 경로를 사용한다. 네이버는 RSS에 담기는 최근 글까지만, 유튜브는 Atom 또는 동영상 탭의 최근 15개까지만 발견할 수 있으므로 **전체 과거 글 전수 확인을 보장하지 않는다**. RSS 제공 또는 네트워크 접근 자체가 막히면 그 출처의 누락 개수는 미확정이다.
 
 2026-10-19 GitHub Actions **실제 공개 피드 조회**: RSS·Atom 모두 접근 성공, 수집 55개 중 기존 항목 제외한 **39개(네이버 38, 공식 유튜브 1)를 Draft PR #488에 실제 등록**. 추가된 네이버 글의 대표이미지는 각 공개 원문 페이지에서 확인한 공식 OG 이미지를 사용한다. 검증된 `blogthumb.pstatic.net` 호스트만 허용하고, 이미지 연결이 실패하면 태장 공식 로고로 대체한다.
 
@@ -41,7 +51,7 @@
 - 모든 자료는 UTF-8 데이터로 보존하며 실제 발행일은 한국시간 `YYYY-MM-DD`로 표시한다. 과거 한 번만 사용한 활동일 보정 규칙을 새 글에 적용하지 않는다.
 - GitHub 기본 `GITHUB_TOKEN`의 PR 생성 권한이 저장소 설정상 제한되면 새 브랜치 push 후 PR 생성이 거부될 수 있다. 비공개 토큰을 추가하거나 권한을 우회하지 않으며 필요한 설정은 별도 사용자 승인 대상으로 보고한다.
 - Actions가 만든 PR은 `GITHUB_TOKEN` 보호 동작으로 통상 PR CI가 자동 트리거되지 않는다. 수집 작업 내 `npm run test:public`, 자체 테스트, `npm run build:netlify`를 실행하되 **PR Preview / GitHub 필수 검사는 최종 HEAD에서 별도로 확인**해야 병합 가능하다.
-- 기존 Production 배포 48시간 슬롯은 이 자동화와 완전히 독립적이다.
+- 기존 Production 배포 72시간 슬롯은 이 자동화와 완전히 독립적이다.
 
 ## 외부 이미지 표시 안정화 (2026-10-20)
 
@@ -50,7 +60,7 @@
 - Netlify `npm run build:netlify`의 기존 정적 출력 생성 단계에서 `scripts/localize-official-thumbnails.mjs`가 **공식 블로그의 확인된 HTTPS 이미지 URL만 서버 측에서 읽고** 실이미지 바이트/크기/콘텐츠 유형을 검사한다.
 - 허용한 이미지 형식(jpeg/png/webp)은 `dist/assets/images/archive/naver-blog-<logNo>.<ext>`로 생성하고, **dist의 아카이브 JS만** 같은 출처 경로로 치환한다. 원본 저장소/DB 변경 없음.
 - 서버 측 다운로드 실패 또는 비정상 파일은 기존 태장 로고로 대체한다. 외부 URL 직접 재시도나 웹 브라우저 프록시·유료 API를 도입하지 않는다.
-- Snapshot 변환은 자동 수집으로 들어오는 미래 신규 블로그 게시물에도 똑같이 적용된다. GitHub Actions는 기존처럼 Draft PR만 작성하고, 배포는 기존 고정 48시간 Production 게이트를 따른다.
+- Snapshot 변환은 자동 수집으로 들어오는 미래 신규 블로그 게시물에도 똑같이 적용된다. GitHub Actions는 기존처럼 Draft PR만 작성하고, 배포는 기존 고정 72시간 Production 게이트를 따른다.
 - Netlify 빌드 출력의 `Official Naver thumbnail snapshot` 집계에서 local/fallback 수를 확인하고, 실제 Preview의 카드 사진을 PC·모바일에서 확인한다. 로컬 회귀 테스트만으로 이미지 실제 다운로드 성공을 주장하지 않는다.
 
 ## 검증

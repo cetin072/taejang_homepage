@@ -25,7 +25,7 @@ const server = http.createServer(async(req,res) => {
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const browser = await playwright.chromium.launch({headless:true,...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:{channel:'chrome'})});
 const errors = [];
-const image = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jfIoAAAAASUVORK5CYII=','base64');
+const image = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVQI12MQtzECAADzAIbQcqsEAAAAAElFTkSuQmCC','base64');
 try {
   for (const [device,width,height] of [['pc',1440,1000],['mobile',390,844],['narrow',320,844],['tablet',768,1024]]) {
     const context = await browser.newContext({viewport:{width,height}}), page = await context.newPage();
@@ -45,6 +45,14 @@ try {
     const setFail = value=>page.evaluate(value=>{window.fail=value;},value);
     const file = ()=>page.locator('.employee-photo-actions input[type=file]').first().setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:image});
     await load(); await count(49); await fits();
+    const initialPhoto=page.locator('[data-employee-id="fixture-2"]');
+    await initialPhoto.scrollIntoViewIfNeeded();
+    await initialPhoto.locator('img').waitFor();
+    await page.waitForFunction(()=>document.querySelector('[data-employee-id="fixture-2"] img')?.naturalWidth>0);
+    assert.deepEqual(await page.evaluate(()=>[...objects].filter(([path])=>path.endsWith('.display-v1.jpg')).map(([path,blob])=>[path,blob.type,blob.size<=48*1024])),[
+      ['fixture-2/profile/existing.png.display-v1.jpg','image/jpeg',true]
+    ],'registered photo gets a small derivative inside the private bucket');
+    assert.equal(await page.evaluate(()=>calls.filter(call=>call.method==='GET'&&call.url.endsWith('/existing.png')).length),1);
     assert.equal(await page.getByLabel('재직 상태',{exact:true}).inputValue(),'active');
     assert.equal(await page.locator('[data-employee-id="fixture-48"]').count(),0);
     await page.getByLabel('재직 상태',{exact:true}).selectOption(''); await count(50);
@@ -78,12 +86,81 @@ try {
     await page.locator('.employee-list-row').focus(); await page.keyboard.press('Enter');
     await page.locator('[data-employee-profile="fixture-2"]').waitFor();
     await page.locator('.employee-profile-head img').waitFor();
-    assert.match(await page.locator('.employee-profile-head img').getAttribute('src'), /\/storage\/v1\/object\/sign\//);
+    assert.match(await page.locator('.employee-profile-head img').getAttribute('src'), /^blob:/);
+    assert.equal(await page.evaluate(()=>calls.filter(call=>call.method==='GET'&&call.url.endsWith('/existing.png')).length),1,
+      'filter changes and opening the card only download the same compressed copy');
+    if(device==='pc'){
+      const generated=await page.evaluate(async()=>{
+        const canvas=document.createElement('canvas');canvas.width=1600;canvas.height=1200;
+        const context=canvas.getContext('2d');context.fillStyle='#1c5544';context.fillRect(0,0,1600,1200);
+        const source=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
+        const {optimizeEmployeeDisplay}=await import('/app/assets/photo-optimizer.mjs');
+        const display=await optimizeEmployeeDisplay(source);
+        const bitmap=await createImageBitmap(display);
+        const shape=[bitmap.width,bitmap.height,display.type,display.size<=48*1024];
+        bitmap.close();return shape;
+      });
+      assert.deepEqual(generated,[320,240,'image/jpeg',true]);
+    }
     await page.getByRole('button',{name:'← 직원 목록',exact:true}).click();
+    if(device==='pc'){
+      await setFail('photo-denied');
+      const readCount=await page.evaluate(()=>calls.filter(call=>call.method==='GET'&&call.url.endsWith('.display-v1.jpg')).length);
+      await page.evaluate(()=>TaejangEmployeeManagement.openEmployeeManagement());
+      await page.waitForFunction(count=>calls.filter(call=>call.method==='GET'&&call.url.endsWith('.display-v1.jpg')).length>count,readCount);
+      await page.locator('[data-employee-id="fixture-2"] .employee-avatar-placeholder').waitFor();
+      assert.equal(await page.evaluate(()=>calls.filter(call=>call.method==='GET'&&call.url.endsWith('/existing.png')).length),1,
+        'a denied derivative request cannot trigger an original download');
+      await setFail('');
+    }
     await page.getByLabel('업무용 사진',{exact:true}).selectOption('no'); await count(49);
     await page.getByLabel('업무용 사진',{exact:true}).selectOption('');
 
     await open(); await fits();
+    assert.equal(await page.locator('[data-employee-profile] > details[open]').count(),0);
+    const disability=page.locator('.employee-section-basic + .employee-disability-section');
+    await disability.waitFor();
+    assert.equal(await page.evaluate(()=>calls.some(call=>call.name==='get_employee_disability_info')),false);
+    await disability.getByText('장애정보 등록·수정',{exact:true}).click();
+    await disability.getByLabel('장애 정도',{exact:true}).selectOption('severe');
+    await disability.getByLabel('장애 유형',{exact:true}).selectOption('뇌병변');
+    await setFail('db');
+    await disability.getByRole('button',{name:'장애정보 저장'}).click();
+    await disability.getByText('장애정보를 저장하지 못했습니다.',{exact:false}).waitFor();
+    assert.equal(await disability.getByLabel('장애 유형',{exact:true}).inputValue(),'뇌병변');
+    await setFail('');
+    await disability.getByRole('button',{name:'장애정보 저장'}).click();
+    await disability.getByText('장애정보를 저장했습니다.',{exact:true}).waitFor();
+    await disability.getByText('장애정보 등록·수정',{exact:true}).click();
+    await disability.getByLabel('장애 유형',{exact:true}).waitFor({state:'detached'});
+    await disability.getByText('장애정보 등록·수정',{exact:true}).click();
+    await disability.getByText('등록된 장애정보입니다.',{exact:true}).waitFor();
+    assert.equal(await disability.getByLabel('장애 유형',{exact:true}).inputValue(),'뇌병변');
+    await fits();
+    await disability.screenshot({path:path.join(output,device+'-disability.png')});
+    await disability.getByText('장애정보 등록·수정',{exact:true}).click();
+    const welfare=page.locator('.employee-welfare-section');
+    assert.equal(await page.evaluate(()=>calls.some(call=>call.name==='get_employee_welfare_info')),false);
+    await welfare.getByText('복지 자격 보기',{exact:true}).click();
+    assert.equal(await welfare.getByLabel('기초생활수급자',{exact:true}).inputValue(),'');
+    await welfare.getByLabel('기초생활수급자',{exact:true}).selectOption('yes');
+    await welfare.getByLabel('차상위계층',{exact:true}).selectOption('no');
+    await setFail('db');
+    await welfare.getByRole('button',{name:'복지 자격 저장'}).click();
+    await welfare.getByText('복지 자격을 저장하지 못했습니다.',{exact:false}).waitFor();
+    assert.equal(await welfare.getByLabel('기초생활수급자',{exact:true}).inputValue(),'yes');
+    await setFail('');
+    await welfare.getByRole('button',{name:'복지 자격 저장'}).click();
+    await welfare.getByText('복지 자격을 저장했습니다.',{exact:true}).waitFor();
+    await welfare.getByText('복지 자격 보기',{exact:true}).click();
+    await welfare.getByLabel('차상위계층',{exact:true}).waitFor({state:'detached'});
+    await welfare.getByText('복지 자격 보기',{exact:true}).click();
+    assert.equal(await welfare.getByLabel('기초생활수급자',{exact:true}).inputValue(),'yes');
+    assert.equal(await welfare.getByLabel('차상위계층',{exact:true}).inputValue(),'no');
+    await welfare.screenshot({path:path.join(output,device+'-welfare.png')});
+    await welfare.getByText('복지 자격 보기',{exact:true}).click();
+    const auditFold=page.locator('.employee-section-audit > summary');
+    await auditFold.click();
     const auditCheck=page.getByRole('checkbox',{name:'인적사항 대조 완료',exact:true});
     await auditCheck.focus();
     const wasChecked=await auditCheck.isChecked();
@@ -97,16 +174,38 @@ try {
     await page.keyboard.press('Tab');
     assert.equal(await page.getByLabel('앱 설치 상태',{exact:true}).evaluate(n=>n===document.activeElement),true,'predictable audit keyboard order');
     assert.ok(await page.getByLabel('앱 설치 상태',{exact:true}).evaluate(n=>parseFloat(getComputedStyle(n).outlineWidth)>=2),'visible keyboard focus');
+    await auditFold.click();
+    assert.equal(await auditCheck.isVisible(),false,'field audit can close after opening');
+    const basic = page.locator('.employee-section-basic');
+    await basic.getByText('가상시 테스트로 10', { exact:true }).waitFor();
+    await basic.getByRole('button', {name:'수정',exact:true}).click();
+    await basic.getByLabel('주소', {exact:true}).fill('가상시 변경로 20');
+    await basic.getByLabel('재택근무자', {exact:true}).check();
+    assert.equal(await page.getByLabel('위도',{exact:true}).count(),0);
+    assert.equal(await page.getByLabel('경도',{exact:true}).count(),0);
+    await basic.getByRole('button',{name:'직원정보 저장',exact:true}).click();
+    await basic.getByText('가상시 변경로 20',{exact:true}).waitFor();
+    assert.ok(await page.evaluate(()=>calls.some(c=>c.name==='update_employee_basic_with_remote'&&c.args.p_address==='가상시 변경로 20'&&c.args.p_enabled)));
+    await basic.getByRole('button',{name:'수정',exact:true}).click();
+    await basic.getByLabel('주소',{exact:true}).fill('');
+    assert.equal(await basic.getByLabel('재택근무자',{exact:true}).isChecked(),false);
+    await basic.getByRole('button',{name:'직원정보 저장',exact:true}).click();
+    await basic.getByText('미등록',{exact:true}).waitFor();
+    assert.equal(await page.getByText('내 직원카드',{exact:true}).count(),0);
+    await page.evaluate(()=>{calls.length=0;});
+    await fits();
+
 
     assert.equal(await page.getByText('일괄 작업',{exact:true}).count(),0);
     assert.equal(await page.locator('.employee-sensitive-bulk').count(),0);
     assert.equal(await page.locator('[data-employee-edit-form]').count(),0);
-    assert.equal(await page.locator('.employee-profile-section').count(),6);
-    const sectionColors=await page.locator('.employee-profile-section').evaluateAll(nodes=>nodes.slice(0,4).map(n=>getComputedStyle(n).backgroundColor));
+    const standardSections=page.locator('.employee-profile-section:not(.employee-disability-section):not(.employee-welfare-section):not(.employee-section-work)');
+    assert.equal(await standardSections.count(),5);
+    const sectionColors=await standardSections.evaluateAll(nodes=>nodes.slice(0,4).map(n=>getComputedStyle(n).backgroundColor));
     assert.equal(new Set(sectionColors).size,4,'employee sections must remain visually distinct');
     await page.evaluate(()=>{document.querySelector('.app-workspace').scrollTop=0;window.scrollTo(0,0);});
     await page.screenshot({path:path.join(output,device+'-profile.png'),fullPage:true});
-    await page.locator('.employee-photo-grid').scrollIntoViewIfNeeded();
+    await page.locator('.employee-profile-head').scrollIntoViewIfNeeded();
     await page.screenshot({path:path.join(output,device+'-photos-and-audit.png'),fullPage:true});
     await page.getByRole('button',{name:'수정',exact:true}).click();
     await page.getByLabel('이름',{exact:true}).fill('취소할 가상 이름');
@@ -114,7 +213,7 @@ try {
     assert.equal(await page.getByRole('button',{name:'취소',exact:true}).evaluate(node=>node.getBoundingClientRect().height>=44),true);
     await page.getByRole('button',{name:'취소',exact:true}).click();
     assert.equal(await page.locator('[data-employee-edit-form]').count(),0);
-    assert.equal(await page.evaluate(()=>calls.some(call=>call.name==='update_employee_core')),false);
+    assert.equal(await page.evaluate(()=>calls.some(call=>call.name==='update_employee_basic_with_remote')),false);
     await page.getByRole('button',{name:'수정',exact:true}).click();
     await page.getByLabel('이름',{exact:true}).fill('수정한 가상 직원');
     await setFail('db'); await page.getByRole('button',{name:'직원정보 저장',exact:true}).click();
@@ -122,10 +221,10 @@ try {
     assert.equal(await page.getByLabel('이름',{exact:true}).inputValue(),'수정한 가상 직원');
     await setFail('afterwrite'); await page.getByRole('button',{name:'직원정보 저장',exact:true}).click();
     await page.getByRole('button',{name:'최신 정보 다시 불러오기',exact:true}).waitFor();
-    const writes=await page.evaluate(()=>calls.filter(call=>call.name==='update_employee_core').length);
+    const writes=await page.evaluate(()=>calls.filter(call=>call.name==='update_employee_basic_with_remote').length);
     await page.getByRole('button',{name:'최신 정보 다시 불러오기',exact:true}).click();
     await page.locator('[data-employee-heading]').filter({hasText:'수정한 가상 직원'}).waitFor();
-    assert.equal(await page.evaluate(()=>calls.filter(call=>call.name==='update_employee_core').length),writes);
+    assert.equal(await page.evaluate(()=>calls.filter(call=>call.name==='update_employee_basic_with_remote').length),writes);
 
     for (const failure of ['storage','db','mismatch','afterwrite']) {
       await setFail(failure); await file();
@@ -155,10 +254,16 @@ try {
     await file(); await page.getByText('사진 등록 완료 · 저장 결과를 다시 확인했습니다.',{exact:true}).waitFor();
     assert.equal(await page.evaluate(()=>fixtureRefreshCount),1,'expired Storage session refreshed once');
     assert.equal(await page.evaluate(()=>objects.size>0),true);
+    assert.deepEqual(await page.evaluate(()=>{
+      const source=fixtureContext.employees[0].profile_photo_path;
+      return [objects.get(source)?.type,objects.get(source+'.display-v1.jpg')?.type,
+        calls.some(call=>call.method==='GET'&&call.url.endsWith('/'+source))];
+    }),['image/png','image/jpeg',false],'new upload keeps the original and displays only its private JPEG');
     assert.ok(await page.evaluate(()=>calls.findIndex(call=>call.name==='storage'&&call.method==='POST') < calls.findIndex(call=>call.name==='set_employee_photo')));
-    assert.match(await page.locator('.employee-photo-grid').innerText(),/등록됨/);
+    assert.match(await page.locator('.employee-profile-head').innerText(),/등록됨/);
     await fits();
     await page.locator('[data-ops-employee-tools]').waitFor({state:'attached'});
+    await page.locator('.employee-section-record > summary').click();
     await page.getByText('기존 변경 이력·직원 관리 도구',{exact:true}).click();
     assert.equal(await page.getByRole('button',{name:'변경 이력',exact:true}).count(),1);
     assert.equal(await page.getByRole('button',{name:'직원 삭제',exact:true}).count(),1);
@@ -170,6 +275,41 @@ try {
     await page.getByLabel('이름',{exact:true}).fill('가상 신규직원'); await page.getByLabel('입사일',{exact:true}).fill('2026-10-14');
     await page.getByRole('button',{name:'직원 등록',exact:true}).click(); await page.locator('.employee-list-row').first().waitFor();
     assert.equal(await page.evaluate(()=>calls.some(call=>call.name==='create_employee')),true);
+
+    // Actual personal-menu contract + shared employee screen for non-manager roles.
+    await page.addScriptTag({url:'http://127.0.0.1:'+server.address().port+'/app/assets/menu-authority.js'});
+    await page.evaluate(()=>{
+      const original=TaejangApp.rpc;
+      window.personalAllowed=true;
+      TaejangApp.rpc=async(name,args)=>name==='get_my_menu_authority'
+        ? {version:1,can_manage:false,decisions:[{menu_key:'employee.manage',allowed:personalAllowed,revision:personalAllowed?1:2}]}
+        : original(name,args);
+    });
+    for (const delegatedRole of ['general_worker','promotion_staff','promotion_lead']) {
+      await page.evaluate(async role=>{fixtureRoute=role;personalAllowed=true;await TaejangMenuAuthority.refresh();await TaejangEmployeeManagement.openEmployeeManagement();},delegatedRole);
+      await open();
+      assert.equal(await page.locator('.employee-disability-section').count(),0,'delegated employee management does not reveal disability section');
+      await page.locator('.employee-section-account > summary').click();
+      assert.match(await page.locator('.employee-section-account').innerText(),/synthetic@example.test/);
+      await page.locator('.employee-section-account > summary').click();
+      assert.equal(await page.getByText('synthetic@example.test',{exact:true}).isVisible(),false);
+      assert.equal(await page.getByRole('button',{name:'수정',exact:true}).count(),1);
+      await page.getByRole('button',{name:'수정',exact:true}).click();
+      await page.getByLabel('이름',{exact:true}).fill('합성 위임 수정 '+delegatedRole);
+      await page.getByRole('button',{name:'직원정보 저장',exact:true}).click();
+      await page.locator('[data-employee-heading]').filter({hasText:'합성 위임 수정 '+delegatedRole}).waitFor();
+      await page.evaluate(async()=>{personalAllowed=false;await TaejangMenuAuthority.refresh();});
+      assert.equal(await page.locator('[data-employee-profile]').count(),0,'revoked card and sensitive DOM cleared');
+      const countBefore=await page.evaluate(()=>calls.filter(c=>c.name==='get_employee_management_context').length);
+      await page.evaluate(()=>TaejangEmployeeManagement.openEmployeeManagement());
+      assert.equal(await page.evaluate(()=>calls.filter(c=>c.name==='get_employee_management_context').length),countBefore,'direct open after revoke cannot fetch');
+    }
+    // Restore the legacy, undecided contract for the pre-existing team-lead cases.
+    await page.evaluate(async()=>{
+      const original=TaejangApp.rpc;
+      TaejangApp.rpc=(name,args)=>name==='get_my_menu_authority'?Promise.resolve({version:1,can_manage:false,decisions:[]}):original(name,args);
+      await TaejangMenuAuthority.refresh();
+    });
 
     // Team lead contract: no sensitive fields/email/private-photo disclosure, protected employee boundary, approval requests.
     await page.evaluate(()=>{
@@ -184,13 +324,11 @@ try {
     await page.getByRole('button',{name:'← 직원 목록',exact:true}).click(); await open();
     assert.equal(await page.locator('.employee-sensitive-section,input[type=password]').count(),0);
     assert.doesNotMatch(await page.locator('[data-employee-profile]').innerText(),/synthetic@example|2000-01-01|26세/);
-    assert.match(await page.locator('.employee-photo-grid').innerText(),/조회 불가/);
+    assert.doesNotMatch(await page.locator('.employee-profile-head').innerText(),/증명사진/);
     await page.getByRole('button',{name:'수정',exact:true}).click(); await page.getByLabel('이름',{exact:true}).fill('가상 팀장 요청');
     await page.getByRole('button',{name:'수정 요청 보내기',exact:true}).click(); await page.getByText('직원정보 수정 · 처리 대기',{exact:true}).waitFor();
     assert.equal(await page.evaluate(()=>calls.some(call=>call.name==='submit_employee_change_request'&&call.args.p_request_type==='employee_update'&&call.args.p_requested_changes.full_name==='가상 팀장 요청')),true);
-    await page.locator('.employee-photo-actions input[type=file]').nth(1).setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:image});
-    await page.getByText('증명사진 변경 요청 완료 · 승인 후 반영됩니다.',{exact:true}).waitFor();
-    assert.match(await page.locator('.employee-photo-grid').innerText(),/조회 불가/);
+    assert.equal(await page.locator('.employee-profile-head input[type=file]').count(),1);
     await fits();
 
     // Operations lead must use ONE staff card, not a second survey page.
@@ -228,20 +366,47 @@ try {
     await count(49);
     assert.equal(await page.getByText('직원 현장 전수조사',{exact:true}).count(),0);
     await open(0);
+    const leadDisability=page.locator('.employee-section-basic + .employee-disability-section');
+    await leadDisability.getByText('장애정보 등록·수정',{exact:true}).click();
+    await leadDisability.getByLabel('장애 정도',{exact:true}).selectOption('mild');
+    await leadDisability.getByLabel('장애 유형',{exact:true}).selectOption('지체');
+    await leadDisability.getByRole('button',{name:'장애정보 저장',exact:true}).click();
+    await leadDisability.getByText('장애정보를 저장했습니다.',{exact:true}).waitFor();
+    await leadDisability.getByText('장애정보 등록·수정',{exact:true}).click();
+    // A delegated Employee menu returns operations_manager context for the actual lead.
+    await page.evaluate(()=>{fixtureContext.access_level='operations_manager';});
+    await page.evaluate(()=>TaejangEmployeeManagement.openEmployeeManagement());
+    await open(0);
+    const delegatedDisability=page.locator('.employee-disability-section');
+    await delegatedDisability.getByText('장애정보 등록·수정',{exact:true}).click();
+    await delegatedDisability.getByLabel('장애 정도',{exact:true}).selectOption('severe');
+    await delegatedDisability.getByRole('button',{name:'장애정보 저장',exact:true}).click();
+    await delegatedDisability.getByText('장애정보를 저장했습니다.',{exact:true}).waitFor();
+    await delegatedDisability.getByText('장애정보 등록·수정',{exact:true}).click();
+    await page.evaluate(()=>{fixtureContext.access_level='promotion_lead_global';});
+    await page.evaluate(()=>TaejangEmployeeManagement.openEmployeeManagement());
+    await open(0);
     await page.getByText('주민등록번호 등록·조회',{exact:true}).waitFor();
     await page.getByText('앱 설치 및 현장 확인',{exact:true}).waitFor();
+    const residentFold=page.locator('[data-employee-section="resident"] > summary');
+    await residentFold.click();
     assert.equal(await page.locator('.employee-resident-reveal').count(),0,'RRN hidden by default');
     const confirmDialog=dialog=>dialog.accept();
     page.on('dialog',confirmDialog);
     await page.getByRole('button',{name:'주민번호 조회',exact:true}).click();
     await page.locator('.employee-resident-reveal').waitFor();
     assert.match(await page.locator('.employee-resident-reveal').innerText(),/^[0-9]{6}-[0-9]{7}$/);
-    await page.getByRole('button',{name:'번호 숨기기',exact:true}).click();
-    assert.equal(await page.locator('.employee-resident-reveal').count(),0,'RRN hidden again');
+    await residentFold.click();
+    await page.locator('.employee-resident-reveal').waitFor({state:'detached'});
+    await residentFold.click();
+    assert.equal(await page.locator('.employee-resident-reveal').count(),0,'closing the section clears the revealed number');
+    await residentFold.click();
+    await page.locator('.employee-section-audit > summary').click();
     const checkForm=page.locator('.employee-app-audit-form');
     await checkForm.getByLabel('앱 설치 상태',{exact:true}).selectOption('not_installed');
     await checkForm.getByRole('button',{name:'현장 확인 저장',exact:true}).click();
-    await page.getByText('앱 설치 및 현장 확인',{exact:true}).waitFor();
+    await page.waitForFunction(()=>document.querySelector('details.employee-section-audit[open] select')?.value==='not_installed'
+      && calls.some(call=>call.name==='update_employee_field_audit'));
     assert.equal(await page.evaluate(()=>calls.some(call=>call.name==='update_employee_field_audit'
         &&call.args.p_app_install_status==='not_installed')),true);
     await page.getByRole('button',{name:'수정',exact:true}).click();
@@ -263,6 +428,44 @@ try {
     const attendanceBox=await attendance.boundingBox();
     assert.ok(attendanceBox.width<=24&&attendanceBox.height<=24,'new-hire checkbox remains compact');
     await page.screenshot({path:path.join(output,device+'-registration.png'),fullPage:true});
+    // A new-registration-only grant must never fetch or render an existing roster.
+    const managementReads=await page.evaluate(()=>calls.filter(c=>c.name==='get_employee_management_context').length);
+    await page.evaluate(async()=>{
+      fixtureRoute='general_worker';window.registrationAllowed=true;window.registrationWait=false;
+      const previous=TaejangApp.rpc;
+      window.registrationMetadata={registration_only:true,access_level:'operations_manager',
+        departments:fixtureContext.departments,positions:fixtureContext.positions};
+      TaejangApp.rpc=async(name,args)=>{
+        if(name==='get_my_menu_authority')return {version:1,can_manage:false,decisions:[
+          {menu_key:'employee.manage',allowed:false},{menu_key:'employee.new',allowed:registrationAllowed}]};
+        if(name==='get_employee_registration_context'){
+          calls.push({name,args});
+          if(registrationWait)return new Promise(resolve=>{window.registrationRelease=resolve;});
+          return structuredClone(registrationMetadata);
+        }
+        if(name==='create_employee_from_registration'){calls.push({name,args});return {ok:true,employee_uuid:'synthetic-registration'};}
+        return previous(name,args);
+      };
+      await TaejangMenuAuthority.refresh();await TaejangEmployeeManagement.openEmployeeManagement('new');
+    });
+    await page.getByRole('button',{name:'직원 등록',exact:true}).waitFor();
+    assert.equal(await page.getByRole('button',{name:'← 직원 목록',exact:true}).count(),0);
+    assert.equal(await page.locator('.employee-list-row,[data-employee-profile]').count(),0);
+    await page.getByLabel('이름',{exact:true}).fill('합성 등록 전용 직원');
+    await page.getByLabel('입사일',{exact:true}).fill('2026-01-01');
+    await page.getByRole('button',{name:'직원 등록',exact:true}).click();
+    await page.getByText('직원을 등록했습니다. 다음 직원을 등록할 수 있습니다.',{exact:true}).waitFor();
+    assert.equal(await page.getByLabel('이름',{exact:true}).inputValue(),'');
+    assert.equal(await page.evaluate(()=>calls.filter(c=>c.name==='get_employee_management_context').length),managementReads);
+    assert.equal(await page.evaluate(()=>calls.filter(c=>c.name==='create_employee_from_registration').length),1);
+    await fits();
+    await page.evaluate(()=>{registrationWait=true;window.registrationLoading=TaejangEmployeeManagement.openEmployeeManagement('new');});
+    await page.waitForFunction(()=>typeof registrationRelease==='function');
+    await page.evaluate(async()=>{registrationAllowed=false;await TaejangMenuAuthority.refresh();registrationRelease(structuredClone(registrationMetadata));await registrationLoading;});
+    assert.equal(await page.locator('.employee-form,[data-employee-loading]').count(),0,'late registration metadata cannot restore revoked screen');
+    const registrationReads=await page.evaluate(()=>calls.filter(c=>c.name==='get_employee_registration_context').length);
+    await page.evaluate(()=>TaejangEmployeeManagement.openEmployeeManagement('new'));
+    assert.equal(await page.evaluate(()=>calls.filter(c=>c.name==='get_employee_registration_context').length),registrationReads);
     await context.close();
     console.log('EMPLOYEE_PROFILE_BROWSER_PASS:'+device+':'+(preview?'PREVIEW':'LOCAL'));
   }

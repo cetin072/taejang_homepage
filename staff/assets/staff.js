@@ -318,5 +318,5 @@
   });
 
   window.addEventListener('pageshow', event => { if (event.persisted && state.config) restore(); });
-  (async () => { try { state.config = await loadConfig(); await restore(); } catch { show('setup-panel'); } })();
+  (async () => { try { state.config = await loadConfig(); if (element('google-signin')) element('google-signin').hidden = state.config.googleIdentityEnabled !== true; await restore(); } catch { show('setup-panel'); } })();
 })();

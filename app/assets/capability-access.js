@@ -93,6 +93,7 @@
         const context = await app.rpc('get_my_access_context_v2');
         if (!context || Number(context.access_contract_version) < 2) throw new Error('INVALID_CAPABILITY_CONTEXT');
         installApi(context, 2);
+        await window.TaejangMenuAuthority?.refresh();
         await ensureUiGates();
         document.dispatchEvent(new CustomEvent('taejang-capabilities-ready', {
           detail: {
@@ -125,7 +126,7 @@
   // This capture listener performs one additional replay after capability context is
   // resolved, so normal feature listeners start with TaejangApp.can() available.
   document.addEventListener('taejang-app-ready', event => {
-    if (replayingReady || !window.TaejangApp?.rpc) return;
+    if (replayingReady || !window.TaejangApp?.rpc || event.detail?.capabilitiesResolved) return;
     queuedReadyDetail = event.detail || {};
     event.stopImmediatePropagation();
     void refresh().finally(() => {

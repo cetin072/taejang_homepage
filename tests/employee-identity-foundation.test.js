@@ -68,7 +68,7 @@ test('employee photos use isolated guarded private storage without breaking prom
   assert.match(storage, /array_length\(storage\.foldername\(name\), 1\) >= 2/);
   assert.match(storage, /grant execute on function public\.private_promotion_media_upload_allowed\(text\) to authenticated/);
   assert.match(employeeUi, /storage\/v1\/object\/employee-private-media/);
-  assert.match(employeeUi, /storage\/v1\/object\/sign\/employee-private-media/);
+  assert.match(employeeUi, /storage\/v1\/object\/authenticated\/employee-private-media/);
   assert.doesNotMatch(employeeUi, /storage\/v1\/object\/public\/employee-private-media/);
 });
 
@@ -76,11 +76,11 @@ test('employee management UI supports direct ops management and team requests wi
   assert.match(appUi, /assets\/employee-management\.js/);
   assert.match(employeeUi, /new Set\(\['operations_manager', 'promotion_lead', 'department_lead'\]\)/);
   assert.match(employeeUi, /create_employee/);
-  assert.match(employeeUi, /update_employee_core/);
+  assert.match(employeeUi, /update_employee_basic_with_remote/);
   assert.match(employeeUi, /submit_employee_change_request/);
   assert.match(employeeUi, /review_employee_change_request/);
   assert.match(employeeUi, /직원 관리/);
-  assert.match(employeeUi, /팀 직원 관리/);
+  assert.match(employeeUi, /textContent = activeEmployeeView === 'new' \? '신규 직원 등록' : '직원 관리'/);
   assert.doesNotMatch(employeeUi, /field\(['"]직원번호['"]/);
   assert.match(safeDefaults, /p\.code='general_worker' then 0/);
 });

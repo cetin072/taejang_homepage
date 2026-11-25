@@ -1,0 +1,37 @@
+name: Community ESG Browser QA
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'community-esg*.html'
+      - 'assets/js/community-esg.js'
+      - 'assets/js/content.js'
+      - 'assets/css/community-esg.css'
+      - 'assets/images/archive/environment-cleanup-*.webp'
+      - 'scripts/generate-public-articles.mjs'
+      - 'scripts/build-netlify-publish.mjs'
+      - 'tests/community-esg-browser.mjs'
+      - '.github/workflows/community-esg-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  esg-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci
+      - run: npm run build:netlify
+      - run: node tests/community-esg-browser.mjs
+        env:
+          ESG_QA_OUTPUT: esg-qa-artifacts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: esg-latest-and-archive-320-390-1440
+          path: esg-qa-artifacts/
+          if-no-files-found: ignore

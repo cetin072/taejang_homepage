@@ -1,3 +1,4 @@
+import { newPhotoSafePage } from './helpers/photo-safe-browser.mjs';
 // Hosted, read-only QA: test public overrides with mocked approved API data.
 // Never authenticate to, write to, or mutate the live Supabase database.
 import assert from 'node:assert/strict';
@@ -28,7 +29,7 @@ const approved = {
 try {
   for (const width of [1440, 390]) {
     for (const failure of [false, true]) {
-      const page = await browser.newPage({ viewport: { width, height: 900 } });
+      const page = await newPhotoSafePage(browser, { viewport: { width, height: 900 } });
       try {
         await page.route('**/.netlify/functions/public-homepage-overrides', route =>
           route.fulfill({
