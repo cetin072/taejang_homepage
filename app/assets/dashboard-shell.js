@@ -346,11 +346,16 @@
         capabilities: ['attendance.correct']
       },
       {
+        key: 'payroll.manage',
         label: '근태·급여관리',
-        href: 'payroll/live.html',
-        dataKey: 'payroll-mvp',
-        capabilities: ['payroll.manage'],
-        newTab: true
+        run: () => window.TaejangMonthEndPayrollLoader?.(true),
+        capabilities: ['payroll.manage']
+      },
+      {
+        key: 'payslip.issue',
+        label: '급여명세서',
+        run: () => window.TaejangMonthEndPayrollLoader?.(false),
+        capabilities: ['payslip.issue']
       },
       {
         key: 'support.profile',
@@ -393,6 +398,7 @@
   function currentViewDirty() {
     if(window.TaejangEmployeeCalendar?.hasUnsavedChanges?.())return true;
     if(activeView === 'monthly_client_documents.manage')return window.MonthlyClientDocuments?.hasUnsavedChanges?.() ?? viewDirty;
+    if(activeView === 'payroll.manage')return window.TaejangMonthEndPayroll?.hasUnsavedChanges?.() ?? viewDirty;
     if(activeView === 'logistics.manage')return window.TaejangLogistics?.hasUnsavedChanges?.() ?? viewDirty;
     return viewMenuKey(activeView) === 'erp_sales.manage' ? (window.TaejangErpSales?.hasUnsavedChanges?.() ?? viewDirty) : viewDirty;
   }
@@ -420,6 +426,7 @@
       if (pendingHistoryView) return;
       closeSidebar();
       if (historyMode === 'push') history.pushState({taejangMenuView:true}, '', viewUrl(key, serviceDocument));
+      if (activeView === 'payroll.manage' || activeView === 'payslip.issue') window.TaejangMonthEndPayroll?.close();
       viewDirty = false; activeView = key;
       window.TaejangAppWorkspaceSurface?.showDashboard?.();
       if (!allowed) {
@@ -452,6 +459,7 @@
         || typeof month !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return;
     void openView('monthly_client_documents.manage', 'push', { companyId, month });
   });
+  document.addEventListener('taejang-open-payroll', () => void openView('payroll.manage', 'push'));
   window.addEventListener('popstate', () => openView(new URL(location.href).searchParams.get('view') || 'dashboard', 'pop'));
 
   function menu(_route) {
@@ -463,7 +471,8 @@
       if (authority?.allowed(viewMenuKey(item.key), true) === false) return;
       const delegated = authority?.delegated(viewMenuKey(item.key));
       // Deny stale capability contexts and role previews before rendering payroll links.
-      if (!delegated && item.capabilities?.some(code => code.startsWith('payroll.')) && _route !== 'operations_manager') return;
+      if (!delegated && item.key === 'payroll.manage' && (_route !== 'operations_manager' || window.TaejangApp?.can?.('payroll.manage') !== true)) return;
+      if (item.key === 'payslip.issue' && (_route !== 'promotion_lead' || window.TaejangApp?.can?.('payslip.issue') !== true)) return;
       const registry = window.TaejangPlatformNavigationRegistry;
       const registryItem = item.key ? registry?.byKey?.(item.key) : null;
       if (!delegated && registryItem && registry?.visibleForRole?.(registryItem, _route) === false) return;

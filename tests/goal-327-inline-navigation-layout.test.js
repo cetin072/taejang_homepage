@@ -73,7 +73,7 @@ test('Goal 327 removes dead and information/schedule navigation while preserving
   assert.match(priority, /RETIRED_NAVIGATION/);
   assert.match(registry, /key:'notice\.manage', label:'공지 관리'/);
   assert.match(shell, /label: '공지 관리'[\s\S]*notice-admin-panel/);
-  assert.match(shell, /newTab: true/);
+  assert.doesNotMatch(shell, /payroll\/live\.html/);
   assert.match(shell, /node\.target = '_blank'/);
   assert.match(shell, /node\.rel = 'noopener noreferrer'/);
 });
@@ -104,10 +104,10 @@ test('Goal 327 CSS remains balanced and hover/focus affordances avoid geometry m
   assert.doesNotMatch(hoverBlock, /\b(?:margin|padding|width|height|min-height|max-height|font-size|font-weight|transform)\s*:/);
 });
 
-test('Goal 327 uses stable dashboard keys and keeps payroll external while support stays in-platform', () => {
+test('Goal 327 uses stable dashboard keys and keeps payroll and support in-platform', () => {
   assert.match(dashboardPriority, /DEFAULT_CARD_KEY_ORDER/);
   assert.match(dashboardPriority, /mergeSavedOrder/);
-  assert.match(dashboardPriority, /window\.open\('payroll\/live\.html', '_blank', 'noopener,noreferrer'\)/);
+  assert.match(dashboardPriority, /CustomEvent\('taejang-open-payroll'\)/);
   assert.match(supportRadar, /dashboardCardKey = 'support\.radar'/);
   assert.match(supportRadar, /button\('레이더 열기', \(\) => open\('dashboard'\)\)/);
   assert.match(supportRadar, /button\('기업 프로필', renderProfile, true\)/);

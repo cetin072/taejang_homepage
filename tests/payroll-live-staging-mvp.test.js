@@ -10,7 +10,7 @@ const attendanceEditor = fs.readFileSync(path.join(root, 'app/assets/payroll-att
 const attendanceAnalyzer = fs.readFileSync(path.join(root, 'app/assets/payroll-attendance-xlsx.js'), 'utf8');
 const attendanceOperatorUx = fs.readFileSync(path.join(root, 'app/assets/payroll-attendance-operator-ux.js'), 'utf8');
 const ledgerValidator = fs.readFileSync(path.join(root, 'app/assets/payroll-ledger-validator.js'), 'utf8');
-const navPriority = fs.readFileSync(path.join(root, 'app/assets/role-navigation-priority.js'), 'utf8');
+const navPriority = fs.readFileSync(path.join(root, 'app/assets/dashboard-shell.js'), 'utf8');
 const dashboardPriority = fs.readFileSync(path.join(root, 'app/assets/dashboard-priority-cards.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'app/assets/payroll-operator-live.css'), 'utf8');
 const attendanceCss = fs.readFileSync(path.join(root, 'app/assets/payroll-attendance-editor.css'), 'utf8');
@@ -36,22 +36,14 @@ test('live payroll MVP is a safe pre-production attendance-edit and payroll-prev
   assert.doesNotMatch(html, /payroll-operator-preview\.js/i);
 });
 
-test('payroll MVP sidebar entry is capability-driven while the dashboard card remains operations-focused', () => {
-  assert.match(navPriority, /capabilityAllowed\('payroll\.manage'/);
-  assert.match(navPriority, /근태·급여관리/);
-  assert.match(navPriority, /link\.href = 'payroll\/live\.html'/);
-  assert.match(navPriority, /dataset\.payrollMvpNav = '1'/);
-  assert.match(navPriority, /dataset\.capabilityAny = 'payroll\.manage'/);
-  assert.match(navPriority, /label: '근태·급여'/);
-  assert.match(navPriority, /link\.target = '_blank'/);
-  assert.match(navPriority, /link\.rel = 'noopener noreferrer'/);
-
+test('monthly payroll sidebar and card open the same single-tab workspace', () => {
+  assert.match(navPriority, /key: 'payroll\.manage'[\s\S]*TaejangMonthEndPayrollLoader\?\.\(true\)/);
+  assert.match(navPriority, /key: 'payslip\.issue'[\s\S]*TaejangMonthEndPayrollLoader\?\.\(false\)/);
+  assert.doesNotMatch(navPriority, /payroll\/live\.html/);
   assert.match(dashboardPriority, /operations_manager:\s*\['근태·급여관리'/);
-  assert.match(dashboardPriority, /운영총괄 1차 사용/);
   assert.match(dashboardPriority, /근태·급여관리 열기/);
-  assert.match(dashboardPriority, /window\.open\('payroll\/live\.html', '_blank', 'noopener,noreferrer'\)/);
+  assert.match(dashboardPriority, /CustomEvent\('taejang-open-payroll'\)/);
 });
-
 test('live clients reuse staff auth and protected payroll RPCs', () => {
   assert.match(client, /taejang-staff-session-v1/);
   assert.match(attendanceEditor, /taejang-staff-session-v1/);

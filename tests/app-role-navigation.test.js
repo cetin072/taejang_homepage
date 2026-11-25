@@ -188,7 +188,8 @@ test('promotion sidebar visibility follows role work while retaining capabilitie
   assert.ok(!visible(ceo).has('발행 관리'));
 
   assert.equal(menuLabels(promotion.nav).filter(label => label.startsWith('공지')).join(','), '공지 관리');
-  assert.equal(menuLabels(lead.nav).filter(label => /급여/.test(label)).length, 0, 'lead has no payroll menu even with stale capabilities');
+  assert.deepEqual(menuLabels(lead.nav).filter(label => /급여/.test(label)), ['급여명세서'], 'lead has only the issued payslip menu even with stale payroll.manage');
+  assert.ok(!findMenu(lead.nav, '근태·급여관리'));
   assert.equal(menuLabels(operations.nav).filter(label => label.startsWith('외부 급여초안')).join(','), '');
 
   findMenu(promotion.nav, '홍보 글 작성').click(); await nextTurn();

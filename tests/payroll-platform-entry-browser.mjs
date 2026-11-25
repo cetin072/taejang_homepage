@@ -5,7 +5,6 @@ import { extname, join, normalize } from 'node:path';
 
 const DIST_ROOT = join(process.cwd(), 'dist');
 const APP_HTML = join(DIST_ROOT, 'app/index.html');
-const LIVE_HTML = join(DIST_ROOT, 'app/payroll/live.html');
 const SESSION_KEY = 'taejang-staff-session-v1';
 const STAGE_KEY = 'payroll-platform-entry-stage';
 const uiPreferences = {
@@ -17,7 +16,7 @@ const uiPreferences = {
   dashboard_order: [],
 };
 
-if (!existsSync(APP_HTML) || !existsSync(LIVE_HTML)) {
+if (!existsSync(APP_HTML)) {
   throw new Error('PAYROLL_PLATFORM_ENTRY_REQUIRES_DIST_BUILD');
 }
 
@@ -83,14 +82,12 @@ const appAutomation = `<script>
       }, 'desktop app shell');
 
       const link = await waitFor(
-        () => document.querySelector('#app-nav a[data-payroll-mvp-nav="1"]'),
+        () => document.querySelector('#app-nav a[data-menu-key="payroll.manage"]'),
         'payroll sidebar entry'
       );
       if ((link.textContent || '').trim() !== '근태·급여관리') throw new Error('PAYROLL_NAV_LABEL_MISMATCH');
-      if (link.getAttribute('href') !== 'payroll/live.html') throw new Error('PAYROLL_NAV_HREF_MISMATCH');
-      if (link.target !== '_blank' || !/(^|\\s)noopener(\\s|$)/.test(link.rel || '')) {
-        throw new Error('PAYROLL_NAV_NEW_TAB_SAFETY_MISSING');
-      }
+      if (new URL(link.href).searchParams.get('view') !== 'payroll.manage') throw new Error('PAYROLL_NAV_HREF_MISMATCH');
+      if (link.target === '_blank') throw new Error('PAYROLL_NAV_UNEXPECTED_NEW_TAB');
       await waitFor(
         () => document.querySelector('[data-dashboard-card-key="payroll.manage"]'),
         'payroll dashboard card'
@@ -118,8 +115,11 @@ const appAutomation = `<script>
           'payroll dashboard card after layout reload'
         );
         sessionStorage.removeItem(persistedLayoutKey);
-        sessionStorage.setItem(stageKey, 'from-operations-manager-platform');
-        window.location.assign(link.href);
+        link.click();
+        await waitFor(() => document.querySelector('.payroll-month-end .pme-body h2')?.textContent === '세무사무실에 보낼 급여대장', 'inline payroll workspace');
+        if (new URL(location.href).searchParams.get('view') !== 'payroll.manage') throw new Error('PAYROLL_ROUTE_NOT_REACHED');
+        if (document.querySelectorAll('.pme-steps button').length !== 3) throw new Error('PAYROLL_STEPS_MISSING');
+        mark('pass', 'operations-manager-platform-to-month-end-payroll');
         return;
       }
 
@@ -250,83 +250,13 @@ const appAutomation = `<script>
 })();
 </script>`;
 
-const liveAutomation = `<script>
-(() => {
-  const stageKey = ${JSON.stringify(STAGE_KEY)};
-  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-  const waitFor = async (predicate, label, timeout = 8000) => {
-    const started = Date.now();
-    while (Date.now() - started < timeout) {
-      const value = predicate();
-      if (value) return value;
-      await sleep(50);
-    }
-    throw new Error('TIMEOUT:' + label);
-  };
-  const mark = (status, message) => {
-    let node = document.getElementById('payroll-platform-entry-result');
-    if (!node) {
-      node = document.createElement('div');
-      node.id = 'payroll-platform-entry-result';
-      node.hidden = true;
-      document.body.append(node);
-    }
-    node.dataset.status = status;
-    node.dataset.message = message;
-    node.textContent = status + ':' + message;
-  };
-
-  async function run() {
-    try {
-      if (sessionStorage.getItem(stageKey) !== 'from-operations-manager-platform') {
-        throw new Error('PLATFORM_ENTRY_STAGE_MISSING');
-      }
-      if (location.pathname !== '/app/payroll/live.html') throw new Error('PAYROLL_ROUTE_NOT_REACHED');
-
-      await waitFor(() => {
-        const status = document.getElementById('payroll-live-status');
-        return status && status.textContent && status.textContent !== '불러오는 중';
-      }, 'payroll ledger bootstrap');
-      await waitFor(() => {
-        const readiness = document.getElementById('payroll-readiness-state');
-        return readiness && readiness.textContent && !readiness.textContent.includes('불러오는 중');
-      }, 'confirmed attendance readiness bootstrap');
-      await waitFor(() => {
-        const summary = document.getElementById('payroll-attendance-editor-summary');
-        return summary && summary.textContent && !summary.textContent.includes('불러오는 중');
-      }, 'fallback attendance editor bootstrap');
-
-      const badge = document.getElementById('payroll-live-environment')?.textContent || '';
-      if (!badge.includes('근태 편집')) throw new Error('PAYROLL_ENVIRONMENT_BADGE_NOT_READY');
-      const calculate = document.getElementById('payroll-confirmed-calculate');
-      if (!calculate) throw new Error('PAYROLL_CONFIRMED_CALCULATE_ACTION_MISSING');
-      if (calculate.disabled) throw new Error('PAYROLL_CONFIRMED_CALCULATE_ACTION_DISABLED');
-      if (!document.getElementById('payroll-attendance-save')) throw new Error('PAYROLL_FALLBACK_SAVE_ACTION_MISSING');
-      if (document.getElementById('payroll-attendance-recalculate')) throw new Error('PAYROLL_LEGACY_RECALCULATE_ACTION_PRESENT');
-      if (!document.getElementById('payroll-live-export')) throw new Error('PAYROLL_XLSX_ACTION_MISSING');
-
-      sessionStorage.removeItem(stageKey);
-      mark('pass', 'operations-manager-platform-to-payroll-live');
-    } catch (error) {
-      mark('fail', String(error && error.message ? error.message : error));
-    }
-  }
-
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run, { once: true });
-  else run();
-})();
-</script>`;
-
 function appHtmlWithHarness() {
   return readFileSync(APP_HTML, 'utf8')
     .replace('</head>', `${sessionBootstrap}\n</head>`)
     .replace('</body>', `${appAutomation}\n</body>`);
 }
 
-function liveHtmlWithHarness() {
-  return readFileSync(LIVE_HTML, 'utf8')
-    .replace('</body>', `${liveAutomation}\n</body>`);
-}
+
 
 const MIME = Object.freeze({
   '.html': 'text/html; charset=utf-8',
@@ -396,38 +326,8 @@ const server = createServer(async (request, response) => {
     if (request.method === 'POST' && url.pathname === '/rest/v1/rpc/list_manageable_today_records') {
       return json(response, 200, { tasks: [], information: [] });
     }
-    if (request.method === 'POST' && url.pathname === '/rest/v1/rpc/get_payroll_operator_ledger_context') {
-      return json(response, 200, {
-        access_level: 'operations_manager',
-        payroll_month: '2026-09-01',
-        month_status: 'not_started',
-        month: null,
-        latest_run: null,
-        payroll_basis: null,
-        employees: [],
-        carryover: { incoming_count: 0, outgoing_count: 0 },
-        accounting: null,
-      });
-    }
-    if (request.method === 'POST' && url.pathname === '/rest/v1/rpc/get_payroll_confirmed_attendance_readiness') {
-      return json(response, 200, {
-        payroll_month: '2026-09-01',
-        cutoff_date: '2026-09-20',
-        boundary_start: '2026-09-01',
-        ready: true,
-        blockers: [],
-        readiness_fingerprint: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-      });
-    }
-    if (request.method === 'POST' && url.pathname === '/rest/v1/rpc/get_payroll_attendance_editor_context') {
-      return json(response, 200, {
-        payroll_month: '2026-09-01',
-        accepted_batch_id: null,
-        employees: [],
-        terms: [],
-        imported_rows: [],
-        manual_entries: [],
-      });
+    if (request.method === 'POST' && url.pathname === '/rest/v1/rpc/payroll_month_end') {
+      return json(response, 200, { latest:null, publication:null });
     }
     if (request.method === 'POST' && url.pathname.startsWith('/rest/v1/rpc/')) {
       return json(response, 200, []);
@@ -446,13 +346,6 @@ const server = createServer(async (request, response) => {
       response.end(body);
       return;
     }
-    if (url.pathname === '/app/payroll/live.html') {
-      const body = liveHtmlWithHarness();
-      response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
-      response.end(body);
-      return;
-    }
-
     const relative = normalize(decodeURIComponent(url.pathname)).replace(/^([/\\])+/, '');
     const filePath = join(DIST_ROOT, relative || 'index.html');
     if (!filePath.startsWith(DIST_ROOT) || !existsSync(filePath)) {
@@ -516,4 +409,4 @@ try {
   await browser.close();
   await new Promise(resolve=>server.close(resolve));
 }
-console.log('Payroll platform entry PASS: operations-manager desktop shell -> payroll sidebar/card -> live payroll page bootstrap.');
+console.log('Payroll platform entry PASS: operations-manager desktop shell -> inline month-end payroll workspace.');

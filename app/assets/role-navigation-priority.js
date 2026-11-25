@@ -9,7 +9,7 @@
     '홈페이지 내용 관리', '홈페이지 직접 수정',
     '공지 관리',
     '기준정보·매출 관리', '계약·월 매출', '용역 서류',
-    '출근부', '근태 보정', '근태·급여관리',
+    '출근부', '근태 보정', '근태·급여관리', '급여명세서',
     '기업 프로필', '지원사업 레이더', '내 지원사업',
     '신규 사업 기획'
   ]);
@@ -21,7 +21,7 @@
     { key: 'operations', label: '업무 운영', items: ['공지 관리'] },
     { key: 'sales', label: '영업·매출', items: ['기준정보·매출 관리'] },
     { key: 'services', label: '용역 관리', items: ['계약·월 매출', '용역 서류'] },
-    { key: 'payroll', label: '근태·급여', items: ['출근부', '근태 보정', '근태·급여관리'] },
+    { key: 'payroll', label: '근태·급여', items: ['출근부', '근태 보정', '근태·급여관리', '급여명세서'] },
     { key: 'support', label: '지원사업', items: ['기업 프로필', '지원사업 레이더', '내 지원사업'] },
     { key: 'official_channels', label: '공식 채널', items: ['홈페이지', '공식 블로그', '공식 유튜브'] }
   ]);
@@ -147,32 +147,6 @@
       changed = true;
     });
     return changed;
-  }
-
-  function capabilityAllowed(capability, legacyAllowed) {
-    const app = window.TaejangApp;
-    return app?.hasCapabilityContract?.()
-      ? app.can?.(capability) === true
-      : legacyAllowed;
-  }
-
-  function ensurePayrollEntry(nav, currentRole) {
-    if (!nav || !capabilityAllowed('payroll.manage', currentRole === 'operations_manager')) return null;
-    const existing = findByLabel(nav, '근태·급여관리');
-    if (existing) return existing;
-
-    const link = document.createElement('a');
-    link.href = 'payroll/live.html';
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    link.textContent = '근태·급여관리';
-    link.className = 'app-nav-item';
-    link.dataset.payrollMvpNav = '1';
-    link.dataset.capabilityAny = 'payroll.manage';
-    link.dataset.menuKey = 'payroll.manage';
-    link.setAttribute('aria-label', '근태·급여관리 사전운영 화면 열기');
-    nav.append(link);
-    return link;
   }
 
   function priority(node) {
@@ -336,7 +310,6 @@
 
     composing = true;
     try {
-      ensurePayrollEntry(nav, currentRole);
       removeLegacySupportGroups(nav);
       nav.querySelectorAll(':scope > [data-official-channel-group]').forEach(node => node.remove());
       ensureIssue207RoleContract(nav);
@@ -426,7 +399,6 @@
     MASTER_SECTIONS,
     ROLE_ORDER,
     ROLE_SECTIONS,
-    ensurePayrollEntry,
     ensureIssue207RoleContract,
     dedupeCanonicalEntries,
     refreshSectionVisibility,
