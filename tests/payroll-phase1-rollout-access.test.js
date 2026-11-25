@@ -16,7 +16,7 @@ test('full phase-1 payroll management remains server-authorized for operations w
   assert.match(capability, /r\.code\s*=\s*'operations_manager'/i);
   assert.match(capability, /r\.code <> 'operations_manager'/i);
   assert.match(nav, /key: 'payroll\.manage'[\s\S]*capabilities: \['payroll\.manage'\]/);
-  assert.match(nav, /_route !== 'operations_manager' \|\| !window\.TaejangApp\.can\('payroll\.manage'\)/);
+  assert.match(nav, /_route !== 'operations_manager' \|\| window\.TaejangApp\?\.can\?\.\('payroll\.manage'\) !== true/);
   assert.match(cards, /currentRoute !== 'operations_manager'/i);
 });
 

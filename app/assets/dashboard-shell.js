@@ -471,8 +471,8 @@
       if (authority?.allowed(viewMenuKey(item.key), true) === false) return;
       const delegated = authority?.delegated(viewMenuKey(item.key));
       // Deny stale capability contexts and role previews before rendering payroll links.
-      if (!delegated && item.key === 'payroll.manage' && (_route !== 'operations_manager' || !window.TaejangApp.can('payroll.manage'))) return;
-      if (item.key === 'payslip.issue' && (_route !== 'promotion_lead' || !window.TaejangApp.can('payslip.issue'))) return;
+      if (!delegated && item.key === 'payroll.manage' && (_route !== 'operations_manager' || window.TaejangApp?.can?.('payroll.manage') !== true)) return;
+      if (item.key === 'payslip.issue' && (_route !== 'promotion_lead' || window.TaejangApp?.can?.('payslip.issue') !== true)) return;
       const registry = window.TaejangPlatformNavigationRegistry;
       const registryItem = item.key ? registry?.byKey?.(item.key) : null;
       if (!delegated && registryItem && registry?.visibleForRole?.(registryItem, _route) === false) return;
