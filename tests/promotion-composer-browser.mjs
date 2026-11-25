@@ -56,13 +56,16 @@ try{
   assert.equal(await live.locator('.phase-c-photo-grid img').count(),1);
   const link=page.locator('.phase-c-link-tools input[type=url]');await link.fill('https://www.youtube.com/watch?v=fixture');
   await page.locator('[data-issue181-link-source]').selectOption('taejang_youtube');
-  await page.getByRole('button',{name:'링크 정보 가져오기',exact:true}).click();await page.waitForTimeout(150);
+  const importLink=page.getByRole('button',{name:'링크 정보 가져오기',exact:true});
+  // Exercise keyboard activation so scrolling during focus cannot interrupt a pointer click.
+  await importLink.press('Enter');
+  await page.locator('.phase-c-link-tools [data-metadata-result="success"]').waitFor();
   assert.equal(await title.inputValue(),'<img src=x onerror=alert(1)> 환경정비 활동','typed text survives import');
   assert.equal(await live.locator('h2').innerText(),await title.inputValue(),'preview reflects post-import guard');
   await link.fill('https://www.sisakoreanews.kr/124037');
   await page.locator('[data-issue181-link-source]').selectOption('external');
   await page.evaluate(()=>state.externalMetadataTimeout=true);
-  await page.getByRole('button',{name:'링크 정보 가져오기',exact:true}).click();
+  await importLink.press('Enter');
   await page.getByText(/원문 응답 시간이 초과되었습니다.*직접 입력/).waitFor();
   assert.equal(await link.inputValue(),'https://www.sisakoreanews.kr/124037','editor retains the original address after timeout');
   assert.match(await body.inputValue(),/둘째 문단/,'editor preserves the typed introduction after timeout');
