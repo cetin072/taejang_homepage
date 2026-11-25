@@ -28,7 +28,6 @@
 
     <section id="login-panel" class="panel auth-panel" hidden aria-labelledby="login-title">
       <h1 id="login-title">임직원 로그인</h1>
-      <a id="google-signin" class="button" href="google-link.html?mode=signin" hidden>Google로 로그인</a>
       <form id="login-form" novalidate>
         <label>아이디
           <input name="email" type="email" autocomplete="username" aria-describedby="login-email-error" required>
@@ -40,16 +39,18 @@
         <p id="login-password-error" class="field-error" role="alert" hidden></p>
         <button class="button" type="submit">로그인</button>
       </form>
+      <div id="google-signin" hidden>
+        <div class="google-signin-divider" aria-hidden="true">또는</div>
+        <a class="google-signin-link" href="google-link.html?mode=signin">
+          <img src="assets/google-g.png" width="18" height="18" alt="">
+          <span>Google로 로그인</span>
+        </a>
+      </div>
       <div class="auth-links auth-links-split">
         <button id="show-signup" class="text-button" type="button">가입 신청</button>
         <button id="show-recovery" class="text-button" type="button">비밀번호를 잊으셨나요?</button>
         <a class="text-button" href="change-password.html">임시 비밀번호 변경하기</a>
       </div>
-      <aside class="staff-app-guide" aria-labelledby="staff-app-guide-title">
-        <h2 id="staff-app-guide-title">태장 직원앱 안내</h2>
-        <p>출퇴근 기록과 공지 확인은 직원앱에서 이용할 수 있습니다.</p>
-        <a class="staff-app-guide-link" href="../employee-app.html">직원앱 소개·이용 안내 보기 <span aria-hidden="true">→</span></a>
-      </aside>
     </section>
 
     <section id="signup-panel" class="panel auth-panel" hidden aria-labelledby="signup-title">
