@@ -190,11 +190,11 @@
       || [...grid.children].some(node => cardKey(node) === 'payroll.manage')) return;
     grid.append(card(
       '근태·급여관리',
-      '확정 근태로 급여 가안을 계산하고 급여대장 Excel을 확인합니다.',
-      '운영총괄 1차 사용',
+      '초안 작성, 세무 회신 대조, 직원 명세서 교부를 진행합니다.',
+      '월말 급여 업무',
       {
         label: '근태·급여관리 열기',
-        run: () => { window.open('payroll/live.html', '_blank', 'noopener,noreferrer'); }
+        run: () => document.dispatchEvent(new CustomEvent('taejang-open-payroll'))
       }
     ));
   }

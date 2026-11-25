@@ -245,6 +245,25 @@
     }
   };
 
+  let payrollLoading;
+  window.TaejangMonthEndPayrollLoader = async manage => {
+    if (window.TaejangApp?.can?.(manage ? 'payroll.manage' : 'payslip.issue') !== true) return;
+    try {
+      payrollLoading ||= (async () => {
+        loadStyleOnce('assets/payroll-month-end.css', 'payroll-month-end');
+        await Promise.all([
+          ['assets/payroll-attendance-xlsx.js', 'payroll-attendance-xlsx'],
+          ['assets/attendance-monthly-xlsx.js', 'attendance-monthly-xlsx'],
+          ['assets/payroll-month-end-core.js', 'payroll-month-end-core']
+        ].filter(([source]) => !document.querySelector('script[src="' + source + '"]')).map(([source, key]) => loadScriptOnce(source,key)));
+        const module = await loadScriptOnce('assets/payroll-month-end.js', 'payroll-month-end');
+        if (!module.ok || !window.TaejangMonthEndPayroll?.open) throw new Error('PAYROLL_MODULE_UNAVAILABLE');
+      })().catch(error => { payrollLoading = null; throw error; });
+      await payrollLoading;
+      window.TaejangMonthEndPayroll.open(manage);
+    } catch { showFeatureFailure('급여 관리'); }
+  };
+
   let modulesReady = false;
   let replayingReady = false;
   let queuedReadyDetail = null;
