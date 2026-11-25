@@ -76,7 +76,7 @@ test('lead and operations V2 link importer explains YouTube metadata limits with
   assert.match(workspace, /metadata\.site_name === 'YouTube'/);
   assert.match(workspace, /유튜브 영상 제목·썸네일을 가져왔습니다/);
   assert.match(workspace, /영상 본문은 직접 작성해 주세요/);
-  assert.match(workspace, /if \(metadata\.article_text && !body\.value\.trim\(\)\) body\.value = metadata\.article_text\.slice/);
+  assert.match(workspace, /!externalSource && !body\.value\.trim/);
   assert.match(workspace, /if \(metadata\.title && !title\.value\.trim\(\)\) title\.value = metadata\.title/);
   assert.doesNotMatch(workspace, /state\.heroImage = metadata\.image/);
   assert.match(workspace, /원문 썸네일은 참고용/);
@@ -104,7 +104,8 @@ test('metadata response body can remain pending after the authenticated retry ha
     },
     officialBlogKey: () => '', importGeneration: 0, form: { isConnected: true },
     external: { value: 'https://example.test/article' }, title, body, metaButton,
-    metaStatus: { textContent: '' }, metaPreview: { replaceChildren() {}, append() {} },
+    linkToolsSource: () => null,
+    metaStatus: { textContent: '', dataset: {} }, metaPreview: { replaceChildren() {}, append() {} },
     el: () => ({ append() {} }), renderLivePreview() {}, window: { alert() { throw Error('unexpected alert'); } }
   });
   vm.runInContext(metaSource, context);

@@ -50,6 +50,9 @@
       }
       if (value.includes('/.netlify/functions/external-content-meta')) {
         state.externalMetaCalls.push({ url: value, options });
+        if (state.externalMetadataTimeout) {
+          return Response.json({ error: 'FETCH_TIMEOUT' }, { status: 422 });
+        }
         if (state.externalUnauthorizedOnce) {
           state.externalUnauthorizedOnce = false;
           return new Response(JSON.stringify({ error: 'FORBIDDEN' }), {

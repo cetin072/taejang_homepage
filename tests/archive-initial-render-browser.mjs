@@ -55,7 +55,7 @@ try {
       if (mode === 'normal' || mode === 'early') {
         // Exact HTML and hydrated view must use the same first record and controls.
         const first = page.locator('[data-hub-list] article').first();
-        const title = await first.locator('h2').textContent();
+        assert.ok(await first.locator('h2').textContent());
         // The parser is deliberately waiting for content-hub.js. FontFaceSet.ready
         // can wait for parsing to finish, so capture the current paint directly.
         await page.evaluate(() => new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
@@ -69,7 +69,8 @@ try {
 
         releaseHub();
         await page.waitForFunction(() => window.TAEJANG_CONTENT_HUB && !document.querySelector('[data-archive-search-input]').disabled);
-        assert.equal(await page.locator('[data-hub-list] article').first().locator('h2').textContent(), title);
+        await page.getByRole('heading', { name: fixture.title, exact: true }).waitFor();
+        assert.equal(await first.locator('h2').textContent(), fixture.title);
         const shift = Math.abs((await page.locator('[data-hub-list] article').first().boundingBox()).y - top);
         metrics.push({ width, mode, firstCardTopShift: shift });
         assert.ok(shift <= 3, `first card moves ${shift}px at hydration`);
@@ -108,7 +109,8 @@ try {
           assert.ok(Math.abs(await page.evaluate(() => scrollY) - scroll) <= 2, `feed arrival scroll changed from ${scroll} to ${await page.evaluate(() => scrollY)}`);
           assert.equal(await search.evaluate(input => document.activeElement === input), true);
         }
-        await page.locator('[data-archive-apply-updates]').click();
+        if (mode === 'slow') await page.locator('[data-archive-apply-updates]').click();
+        else assert.equal(await page.locator('[data-archive-apply-updates]').isVisible(), false);
         assert.equal(await search.inputValue(), '민화');
         assert.equal(await page.locator('#archive-year').inputValue(), '2026');
         assert.equal(await page.locator('#archive-month').inputValue(), '10');

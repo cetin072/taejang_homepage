@@ -427,9 +427,11 @@
       const updates = feed.items.filter(item => isUsableItem(item) && JSON.stringify(known.get(item.id)) !== JSON.stringify(item));
       feedStatus.textContent = updates.length ? '새로 확인된 소식이 있습니다.' : '최신 소식을 확인했습니다.';
       applyUpdates.hidden = updates.length === 0;
-      applyUpdates.onclick = () => {
-        // Explicit refresh avoids late automatic reorder while reading/searching.
-        const anchor = [...list.children].find(card => card.getBoundingClientRect().bottom > 0);
+      if (!updates.length) return;
+      function applyFeed(preserveReadingPosition) {
+        const anchor = preserveReadingPosition
+          ? [...list.children].find(card => card.getBoundingClientRect().bottom > 0)
+          : null;
         const top = anchor?.getBoundingClientRect().top;
         for (const item of updates) known.set(item.id, item);
         baseItems.splice(0, baseItems.length, ...known.values());
@@ -455,8 +457,14 @@
         if (restored && top !== undefined) window.scrollBy(0, restored.getBoundingClientRect().top - top);
         feedStatus.textContent = '최신 소식을 반영했습니다.';
         applyUpdates.hidden = true;
-        searchInput.focus({ preventScroll: true });
-      };
+        if (preserveReadingPosition) searchInput.focus({ preventScroll: true });
+      }
+      applyUpdates.onclick = () => applyFeed(true);
+      // Apply the live feed on entry. Keep cards steady if visitors are
+      // already reading or focused on the list when a late response arrives.
+      if (document.activeElement !== searchInput && !list.contains(document.activeElement) && list.getBoundingClientRect().top >= 0) {
+        applyFeed(false);
+      }
     }
     document.addEventListener('taejang-live-promotion-ready', refreshFeed);
     refreshFeed(); // Includes a response arriving before this script initializes.

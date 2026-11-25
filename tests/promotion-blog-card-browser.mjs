@@ -69,8 +69,8 @@ try {
       'static archive renders without waiting for the delayed feed');
     const card = page.locator('[data-hub-list] article').filter({ hasText: '직원 블로그 소식' });
     const link = card.locator('a.card-link');
-    await page.locator('[data-archive-apply-updates]').click();
     await link.waitFor();
+    assert.equal(await page.locator('[data-archive-apply-updates]').isVisible(), false, 'fresh visit applies the live feed automatically');
     await link.locator('img').scrollIntoViewIfNeeded();
     await link.locator('img').evaluate(image => image.decode());
     assert.equal(await link.getAttribute('href'), source);

@@ -59,6 +59,14 @@ try{
   await page.getByRole('button',{name:'링크 정보 가져오기',exact:true}).click();await page.waitForTimeout(150);
   assert.equal(await title.inputValue(),'<img src=x onerror=alert(1)> 환경정비 활동','typed text survives import');
   assert.equal(await live.locator('h2').innerText(),await title.inputValue(),'preview reflects post-import guard');
+  await link.fill('https://www.sisakoreanews.kr/124037');
+  await page.locator('[data-issue181-link-source]').selectOption('external');
+  await page.evaluate(()=>state.externalMetadataTimeout=true);
+  await page.getByRole('button',{name:'링크 정보 가져오기',exact:true}).click();
+  await page.getByText(/원문 응답 시간이 초과되었습니다.*직접 입력/).waitFor();
+  assert.equal(await link.inputValue(),'https://www.sisakoreanews.kr/124037','editor retains the original address after timeout');
+  assert.match(await body.inputValue(),/둘째 문단/,'editor preserves the typed introduction after timeout');
+  await page.evaluate(()=>state.externalMetadataTimeout=false);
   await link.fill('javascript:alert(1)');assert.equal(await live.locator('a[href^="javascript:"]').count(),0);
   await link.fill('https://blog.naver.com/example/1');
   await page.locator('.phase-c-composer-options input[type=date]').fill('2026-10-23');
