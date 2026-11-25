@@ -21,7 +21,7 @@ const output = process.env.EMPLOYEE_APP_QA_OUTPUT || path.join(os.tmpdir(), 'tae
 await fs.mkdir(output, { recursive: true });
 const types = new Map([
   ['.html', 'text/html; charset=utf-8'], ['.css', 'text/css; charset=utf-8'],
-  ['.js', 'application/javascript; charset=utf-8'], ['.png', 'image/png'],
+  ['.js', 'application/javascript; charset=utf-8'], ['.mjs', 'application/javascript; charset=utf-8'], ['.png', 'image/png'],
   ['.webp', 'image/webp'], ['.svg', 'image/svg+xml']
 ]);
 const server = http.createServer(async (req, res) => {
@@ -248,32 +248,43 @@ try {
     console.log('PASS employee landing + homepage: ' + name);
     await context.close();
   }
-  // Exercise the actual sign-in panel with a local-only public config mock: no credentials or Auth requests.
+  // Check the sign-in layout and navigation with a synthetic public config.
   for (const [name, width, height] of [['pc', 1440, 900], ['mobile', 390, 844], ['narrow', 320, 720]]) {
     const staffContext = await newPhotoSafeContext(browser, { viewport: { width, height } });
-    await staffContext.addInitScript(() => {
-      window.TAEJANG_STAFF_CONFIG = { url: 'https://unused.invalid', publishableKey: 'test-public-config-only' };
-    });
+    let googleIdentityEnabled = true;
+    await staffContext.route('**/.netlify/functions/staff-config', route => route.fulfill({
+      json: { url: 'https://fixture.supabase.co', publishableKey: 'test-public-config-only', googleIdentityEnabled }
+    }));
+    await staffContext.route('https://fixture.supabase.co/**', route => route.abort());
     const staffPage = await staffContext.newPage();
     const visit = await staffPage.goto(base + '/staff/index.html', { waitUntil: 'domcontentloaded' });
     assert.equal(visit?.status(), 200, name + ': staff login route works');
-    await staffPage.locator('#login-panel').waitFor({ state: 'visible', timeout: 10000 });
-    assert.ok(await staffPage.locator('#login-form input[name="email"]').isVisible(), name + ': username remains visible');
-    assert.ok(await staffPage.locator('#login-form input[name="password"]').isVisible(), name + ': password remains visible');
-    const guide = staffPage.locator('#login-panel .staff-app-guide');
-    assert.equal(await guide.count(), 1, name + ': one app introduction inside sign-in');
-    const appLink = guide.getByRole('link', { name: /직원앱 소개·이용 안내 보기/ });
-    assert.ok(await appLink.isVisible(), name + ': app introduction is visible and not another login button');
-    assert.ok((await appLink.boundingBox()).height >= 44, name + ': app guide meets touch target');
-    assert.ok(isLandingRoute(new URL(await appLink.getAttribute('href'), staffPage.url()).href), name + ': app guide goes to the landing page');
-    const authBefore = await staffPage.locator('#login-form input').evaluateAll(inputs => inputs.map(input => input.value));
-    assert.ok(authBefore.every(value => !value), name + ': do not fill any real credentials');
-    await staffPage.screenshot({ path: path.join(output, 'staff-login-app-guide-' + name + '.png'), fullPage: true });
-    await appLink.click();
-    await staffPage.waitForURL(url => isLandingRoute(url.href));
-    assert.ok(isLandingRoute(staffPage.url()), name + ': app link navigates to landing without submitting the form');
+    const loginPanel = staffPage.locator('#login-panel');
+    await loginPanel.waitFor({ state: 'visible', timeout: 10000 });
+    assert.ok(await loginPanel.getByLabel('아이디', { exact: true }).isVisible());
+    assert.ok(await loginPanel.getByLabel('비밀번호', { exact: true }).isVisible());
+    const google = loginPanel.getByRole('link', { name: 'Google로 로그인', exact: true });
+    await google.waitFor();
+    const passwordButton = await loginPanel.getByRole('button', { name: '로그인', exact: true }).boundingBox();
+    const googleButton = await google.boundingBox();
+    const accountLinks = await loginPanel.locator('.auth-links').boundingBox();
+    assert.ok(googleButton.y >= passwordButton.y + passwordButton.height, name + ': Google follows password sign-in');
+    assert.ok(googleButton.y + googleButton.height <= accountLinks.y, name + ': Google precedes account links');
+    assert.ok(Math.abs(googleButton.width - passwordButton.width) <= 1 && googleButton.height >= 44,
+      name + ': Google aligns with sign-in button and has a full touch target');
+    await staffPage.waitForFunction(() => document.querySelector('.google-signin-link img')?.naturalWidth > 0);
+    assert.equal(await staffPage.getByRole('heading', { name: '태장 직원앱 안내' }).count(), 0);
+    await assertLayout(staffPage, name + ': staff login');
+    await staffPage.screenshot({ path: path.join(output, 'staff-login-' + name + '.png'), fullPage: true });
+    await google.click();
+    await staffPage.waitForURL(url => /\/staff\/google-link(?:\.html)?$/.test(url.pathname) && url.searchParams.get('mode') === 'signin');
+    await staffPage.getByRole('heading', { name: 'Google로 로그인', exact: true }).waitFor();
+    googleIdentityEnabled = false;
+    await staffPage.goto(base + '/staff/index.html', { waitUntil: 'domcontentloaded' });
+    await loginPanel.waitFor();
+    assert.equal(await staffPage.locator('#google-signin').isHidden(), true, name + ': disabled Google option hides its divider too');
     await staffContext.close();
-    console.log('PASS staff login app guide: ' + name);
+    console.log('PASS staff login Google option: ' + name);
   }
     const noJS = await newPhotoSafeContext(browser, { viewport: { width: 320, height: 720 }, javaScriptEnabled: false, reducedMotion: 'reduce' });
   const staticPage = await noJS.newPage();

@@ -59,17 +59,12 @@ test('staff entry keeps login and sign-up as separate chosen actions', () => {
   assert.doesNotMatch(html, /설치 안내는 준비 중입니다/);
 });
 
-test('staff sign-in provides an informational employee-app guide below account actions', () => {
+test('staff sign-in places the Google option between password sign-in and account links', () => {
   const html = read('staff/index.html');
-  const css = read('staff/assets/login.css');
   const login = html.match(/<section id="login-panel"[\s\S]*?<\/section>/)?.[0] || '';
-  assert.ok(login.includes('id="login-form"'));
-  assert.match(login, /id="show-recovery"[\s\S]*?class="staff-app-guide"/, 'guide follows login and account recovery actions');
-  assert.match(login, /<aside class="staff-app-guide" aria-labelledby="staff-app-guide-title">/);
-  assert.match(login, /href="\.\.\/employee-app\.html">직원앱 소개·이용 안내 보기/);
-  assert.match(css, /\.staff-app-guide-link\{[\s\S]*?min-height:44px/);
-  assert.doesNotMatch(login, /play\.google\.com|\.apk|앱 설치하기/);
-  assert.equal((html.match(/class="staff-app-guide"/g) || []).length, 1, 'only login panel contains app guide');
+  assert.match(login, /<\/form>\s*<div id="google-signin" hidden>[\s\S]*?href="google-link\.html\?mode=signin"[\s\S]*?id="show-signup"/);
+  assert.match(login, /src="assets\/google-g\.png"[^>]*alt=""/);
+  assert.doesNotMatch(login, /staff-app-guide|employee-app\.html|play\.google\.com|\.apk/);
 });
 
 test('staff entry shows an immediate loading message before its connection check completes', () => {
