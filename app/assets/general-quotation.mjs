@@ -187,6 +187,7 @@ export function mountGeneralQuotation(host){
     const frame=el('iframe');
     frame.title='견적서 인쇄 미리보기';
     frame.setAttribute('sandbox','allow-same-origin allow-modals');
+    const scrollHint=el('p','표를 좌우로 밀어 확인할 수 있습니다.','gq-preview-scroll');
     const actions=el('div','','gq-actions');
     const feedback=el('p','','message');
     feedback.setAttribute('role','status');
@@ -202,7 +203,7 @@ export function mountGeneralQuotation(host){
     frame.srcdoc=quotationHtml(quote);
     const download=button('엑셀 다운로드',()=>excel(quote,download,show));
     actions.append(print,download,button('닫기',()=>modal.close()));
-    modal.append(title,actions,feedback,frame);form.append(modal);
+    modal.append(title,actions,feedback,scrollHint,frame);form.append(modal);
     modal.addEventListener('close',()=>{modal.remove();opener?.focus();},{once:true});
     modal.showModal();
   }

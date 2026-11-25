@@ -129,7 +129,7 @@
       .attendance-holiday-work h3 { margin:0; }
       .attendance-holiday-work p { margin:8px 0 12px; line-height:1.5; }
       .attendance-holiday-work-list { display:grid; gap:8px; }
-      .attendance-field-dialog { box-sizing:border-box; width:min(560px,calc(100vw - 24px)); max-height:calc(100dvh - 24px); padding:clamp(16px,4vw,24px); border:1px solid var(--app-border,#cfdcd4); border-radius:16px; color:var(--app-text,#1b3026); }
+      .attendance-field-dialog { box-sizing:border-box; width:min(680px,calc(100vw - 24px)); max-height:calc(100dvh - 24px); padding:clamp(16px,4vw,24px); border:1px solid var(--app-border,#cfdcd4); border-radius:16px; color:var(--app-text,#1b3026); }
       .attendance-field-dialog::backdrop { background:rgba(15,23,42,.48); }
       .attendance-field-dialog h2 { margin:0 0 16px; }
       .attendance-field-dialog form,.attendance-field-settings { display:grid; gap:12px; }
@@ -137,13 +137,18 @@
       .attendance-field-mode { grid-column:1/-1; }
       .attendance-field-dialog fieldset { min-width:0; margin:0; padding:4px 10px 8px; border:1px solid var(--app-border,#cfdcd4); border-radius:10px; }
       .attendance-field-dialog legend { padding:0 4px; font-size:.92rem; font-weight:750; }
-      .attendance-field-participants { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:8px; max-height:144px; overflow:auto; padding:4px; }
+      .attendance-field-participants { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:8px; max-height:clamp(176px,calc(100dvh - 514px),360px); overflow:auto; padding:4px; }
       .attendance-field-participants small { display:block; }
       .attendance-field-dialog .error { margin:0; color:#862f29; }
       .attendance-field-dialog .error:empty,.attendance-field-dialog .field-help:empty { position:absolute; clip-path:inset(50%); }
       .attendance-field-dialog .form-actions { justify-content:flex-end; }
       .attendance-field-dialog .form-actions .button { width:auto; }
-      @media(max-width:480px){.attendance-field-settings .attendance-field-day,.attendance-field-settings .attendance-field-site{grid-column:1/-1}}
+      @media(min-width:520px){.attendance-field-participants{grid-template-columns:repeat(3,minmax(0,1fr))}}
+      @media(min-width:700px){.attendance-field-participants{grid-template-columns:repeat(4,minmax(0,1fr))}}
+      @media(max-width:480px){
+        .attendance-field-settings .attendance-field-day,.attendance-field-settings .attendance-field-site{grid-column:1/-1}
+        .attendance-field-participants{max-height:clamp(148px,calc(100dvh - 573px),300px)}
+      }
       @media(max-width:360px){
         :is(#desktop-app-shell,.app-authoring-dialog) .app-authoring-inline .attendance-field-settings input[type="time"]:required { padding-inline:7px; font-size:.875rem; }
       }

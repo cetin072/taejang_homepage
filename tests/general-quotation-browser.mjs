@@ -16,7 +16,7 @@ const html=`<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="vie
  mountGeneralQuotation(document.querySelector('main'));
 </script></html>`;
 try{
-  for(const width of [1440,390]){
+  for(const width of [1440,390,320]){
     const page=await browser.newPage({viewport:{width,height:1000},acceptDownloads:true});
     const errors=[];
     page.on('pageerror',error=>errors.push(error.message));
@@ -57,6 +57,25 @@ try{
     await expect(document.locator('table')).toContainText('2,350,000');
     await expect(document.locator('table')).toContainText('가상은행 000-000');
     const frame=page.frames().find(candidate=>candidate.url()==='about:srcdoc');
+    if(width<1440){
+      await expect(dialog.getByText('표를 좌우로 밀어 확인할 수 있습니다.')).toBeVisible();
+      const layout=await frame.evaluate(()=>{
+        const values=[...document.querySelectorAll('.money,.quantity,.grand')];
+        const allOnOneLine=values.every(cell=>{
+          const text=document.createRange();
+          text.selectNodeContents(cell);
+          const lines=text.getClientRects();
+          const box=cell.getBoundingClientRect();
+          return lines.length===1 && lines[0].left>=box.left && lines[0].right<=box.right;
+        });
+        window.scrollTo(document.documentElement.scrollWidth,0);
+        const lastAmount=document.querySelector('tbody .grand').getBoundingClientRect();
+        return {allOnOneLine,scrolled:window.scrollX>0,amountInView:lastAmount.left>=0&&lastAmount.right<=innerWidth};
+      });
+      assert.deepEqual(layout,{allOnOneLine:true,scrolled:true,amountInView:true});
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'only the document should scroll sideways');
+      await dialog.screenshot({path:output+'/preview-'+width+'.png'});
+    }
     await frame.evaluate(()=>{window.print=()=>{window.printTitle=document.title;};});
     await dialog.getByRole('button',{name:'인쇄 · PDF로 저장',exact:true}).click();
     assert.equal(await frame.evaluate(()=>window.printTitle),'가상-거래처_2026-11-25');
@@ -84,7 +103,7 @@ try{
     assert.deepEqual(errors,[]);
     await page.close();
   }
-  console.log('PASS: quote form, arithmetic, actual XLSX download, print title and one-page A4 PDF');
+  console.log('PASS: quote form, 390/320px single-line amounts, XLSX download, print title and one-page A4 PDF');
 }finally{
   await browser.close();
 }

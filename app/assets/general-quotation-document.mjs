@@ -92,6 +92,10 @@ th.key,th.column,.total{background:#edf3f0;font-weight:700}
 .title{font-size:26px;padding:19px 8px;letter-spacing:.08em}
 .money,.quantity,.grand{text-align:right;font-variant-numeric:tabular-nums}
 .grand{font-weight:750;background:#e3efe8;font-size:17px}
+@media screen and (max-width:775px){
+  table{min-width:740px;table-layout:auto}
+  .money,.quantity,.grand{white-space:nowrap}
+}
 @media print{body{padding:0;font-size:10pt}td,th{padding:5px 6px}thead{display:table-header-group}*{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
 `;
 
