@@ -101,7 +101,7 @@ try{
    await stage('상품: 10포 주문·영업비 조건·확정',async()=>{
     if(variant==='candidate'){
      await dismissEditor();
-     await page.locator('#app-nav').getByRole('link',{name:'기준정보·매출 관리',exact:true}).click();
+     await page.locator('#app-nav').getByRole('link',{name:'매출·정산',exact:true}).click();
     }
     await tab('매출·판매');await button(variant==='baseline'?'소금·상품 판매 등록':'상품 판매 등록');await select('party_id','가상 상품 고객');await select('supplier_id','가상 직배송 공급처');
     report.agentAutofill=Boolean(await field('agent_id').inputValue());
