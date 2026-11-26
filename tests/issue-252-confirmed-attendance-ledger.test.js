@@ -32,8 +32,8 @@ test('period query keeps private source inaccessible and validates its bounds', 
 
 test('attendance administration exposes a period ledger and distinguishes current from reopened revisions', () => {
   assert.match(admin, /get_confirmed_attendance_period/);
-  assert.match(admin, /확정 근태 대장/);
-  assert.match(admin, /재개방된 이전 revision도 포함/);
+  assert.match(admin, /일일 확정 이력/);
+  assert.match(admin, /이전 확정본 포함/);
   assert.match(admin, /현재 확정본/);
   assert.match(admin, /attendance\.admin_view/);
   assert.doesNotMatch(admin, /payroll\.manage/);

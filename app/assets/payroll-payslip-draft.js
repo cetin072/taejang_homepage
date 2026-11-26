@@ -154,7 +154,7 @@
     appendItem(meta, '급여월', dateLabel(data.payroll_month));
     appendItem(meta, '계산 기준일', dateLabel(data.run?.cutoff_date));
     appendItem(meta, '계산 시각', dateTimeLabel(data.run?.generated_at));
-    appendItem(meta, '계산 run', data.run?.id || '—');
+    appendItem(meta, '급여 계산 번호', data.run?.id || '—');
 
     const workList = el('payslip-work');
     workList.replaceChildren();

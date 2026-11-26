@@ -113,7 +113,7 @@
     const label = LABELS[currentSimulation.role_code] || currentSimulation.role_code;
     const attendanceNotice = currentSimulation.role_code === 'promotion_lead'
       ? '권한만 운영팀장으로 미리보기 중이며 근태 대상 여부는 실제 계정 기준입니다.'
-      : '실제 직원 계정이 아닌 테스트용 역할 화면입니다.';
+      : '현재 로그인 계정에서 직책만 바꿔 미리봅니다.';
     banner.append(
       Object.assign(document.createElement('strong'), { textContent: `${label} 역할 미리보기 중` }),
       ` · ${attendanceNotice}`
@@ -256,7 +256,7 @@
     const heading = document.createElement('h2');
     heading.textContent = '직원 화면 체험';
     const copy = document.createElement('p');
-    copy.textContent = '실제 로그인 가능한 직원은 그 직원이 실제로 보는 화면으로 열고, 실제 계정이 없는 역할만 테스트용 역할 미리보기로 보여줍니다.';
+    copy.textContent = '직원 또는 역할을 선택하세요.';
     const select = document.createElement('select');
     select.dataset.qaAccountSelect = '1';
     select.dataset.personaSelect = '1';
@@ -437,7 +437,7 @@
     const activeRole = currentSimulation?.active ? currentSimulation.role_code : null;
     button.textContent = activeRole
       ? `👤 ${LABELS[activeRole] || activeRole}으로 보는 중 ▾`
-      : '👤 내 계정 ▾';
+      : '직원 화면 미리보기';
     button.dataset.personaLauncher = '1';
     button.dataset.qaAccountPreviewButton = '1';
     button.setAttribute('aria-haspopup', 'dialog');

@@ -151,7 +151,7 @@ test('four future products and programs stay noninteractive until separately app
   assert.doesNotMatch(next, /<a\b|<button\b|<form\b|onclick=|tabindex=/);
   assert.doesNotMatch(landing, /href="terrarium-custom\.html"|href="terrarium-diy\.html"/);
   assert.doesNotMatch(landing, /name="taejang-inquiry"/);
-  assert.match(next, /가격·일정·정원·제작기간은 확정 전/);
+  assert.match(next, /가격, 일정, 정원, 제작 기간은 확정 후 안내합니다/);
 });
 
 test('same-page links and native FAQ work without new JavaScript or duplicate IDs', () => {

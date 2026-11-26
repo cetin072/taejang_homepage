@@ -1168,7 +1168,7 @@
       await renderPreview();
       await app.refreshToday().catch(() => {});
     } catch (error) {
-      const message = error.message === 'LEAD_NOTICE_BACKEND_UNAVAILABLE' ? '공지 서버 준비가 완료되지 않았습니다 (PGRST202). 새 전 직원 공지의 저장·게시·상신을 완료하지 못했습니다. 입력·예약 시각·사진을 유지합니다. 관리자에게 공지 DB 기능 반영을 요청해주세요. 기존 초안은 기존 대상으로 관리할 수 있습니다.'
+      const message = error.message === 'LEAD_NOTICE_BACKEND_UNAVAILABLE' ? '전 직원 공지를 처리하지 못했습니다. 입력 내용은 남아 있습니다. 관리자에게 문의해 주세요.'
         : error.message === 'ROUTINE_CONFIRM_REQUIRED' ? '근무제도·인사·급여·안전사고·중요 입장이 아닌 일상 안내인지 확인해주세요.'
         : error.message === 'LEAD_COMPANY_ONLY' ? '운영팀장 직접 공지는 전체 직원 대상으로만 작성할 수 있습니다.'
         : error.message === 'LEAD_PUBLIC_CHANGE_FORBIDDEN' ? '게시된 공지를 초안으로 바꾸거나 민감 공지로 직접 수정할 수 없습니다. 운영총괄 검토를 요청해주세요.'
@@ -1190,7 +1190,7 @@
                     : error.message === 'NOTICE_MEDIA_TYPE_INVALID' ? '사진은 JPG·PNG·WEBP·GIF 파일만 사용할 수 있습니다.'
                           : error.message === 'NOTICE_MEDIA_TOO_LARGE' ? '원본 사진은 15MB 이하 파일을 사용해주세요.'
                             : error.message === 'OPERATIONS_REVIEW_REQUIRED' ? '운영팀장은 공지를 작성 중으로 저장한 뒤 운영총괄에게 상신할 수 있습니다.'
-                            : error.message === 'NOTICE_SAVED_MEDIA_FAILED' ? (savedStatus === 'published' ? '공개 공지 내용과 일부 사진은 이미 직원에게 반영됐을 수 있습니다. 사진 저장에 실패했습니다. 입력과 공지 ID는 유지됩니다. 다시 저장해주세요.' : `${savedStatus === 'draft' ? '초안' : ui.STATUS[savedStatus] + ' 공지'}은 저장됐지만 사진 저장에 실패했습니다. 직원에게 공개·상신하지 않았습니다. 입력과 공지 ID는 유지됩니다. 다시 저장해주세요.`) + (error.cause?.code === 'PHOTO_OPTIMIZATION_FAILED' ? ` ${error.cause.message}` : '')
+                            : error.message === 'NOTICE_SAVED_MEDIA_FAILED' ? (savedStatus === 'published' ? '공개 공지 내용과 일부 사진은 이미 직원에게 반영됐을 수 있습니다. 사진 저장에 실패했습니다. 입력과 공지 ID는 유지됩니다. 다시 저장해주세요.' : `${savedStatus === 'draft' ? '초안' : ui.STATUS[savedStatus] + ' 공지'} 내용은 저장했습니다. 사진을 저장하지 못해 공개·상신은 보류했습니다. 다시 저장해 주세요.`) + (error.cause?.code === 'PHOTO_OPTIMIZATION_FAILED' ? ` ${error.cause.message}` : '')
                             : error.message.startsWith('FORBIDDEN') ? '이 범위의 공지나 사진 자료를 수정할 권한이 없습니다.'
                           : '공지를 저장하지 못했습니다. 게시기간·대상·필수항목·사진을 확인해주세요.';
       const verificationError = ['NOTICE_READBACK_UNAVAILABLE','NOTICE_SAVE_RESULT_UNKNOWN'].includes(error.message);

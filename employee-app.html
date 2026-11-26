@@ -13,12 +13,12 @@
 <link rel="stylesheet" href="assets/css/styles.css">
 <link rel="stylesheet" href="assets/css/visual-hierarchy.css">
 <link rel="stylesheet" href="assets/css/employee-app.css">
-<meta name="description" content="현장의 의견이 앱을 바꿉니다. 태장 직원앱의 주요 기능과 직원 의견을 반영하는 개선 과정, 개발자 노트를 소개합니다.">
-<title>태장 직원앱 | 현장의 의견이 앱을 바꿉니다</title>
+<meta name="description" content="태장 직원앱에서 출퇴근을 기록하고 연차와 사내 공지를 확인할 수 있습니다.">
+<title>태장 직원앱 | 출퇴근·연차·공지</title>
 <link rel="canonical" href="https://taejang.co.kr/employee-app.html">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="농업회사법인 태장 주식회사">
-<meta property="og:title" content="태장 직원앱 | 현장의 의견이 앱을 바꿉니다">
+<meta property="og:title" content="태장 직원앱 | 출퇴근·연차·공지">
 <meta property="og:description" content="직원들의 실제 사용 경험을 바탕으로 함께 개선하는 태장 직원앱과 개발자 노트를 소개합니다.">
 <meta property="og:url" content="https://taejang.co.kr/employee-app.html">
 <meta property="og:image" content="https://taejang.co.kr/images/og-taejang.png">
@@ -28,7 +28,7 @@
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="농업회사법인 태장 주식회사 로고">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="태장 직원앱 | 현장의 의견이 앱을 바꿉니다">
+<meta name="twitter:title" content="태장 직원앱 | 출퇴근·연차·공지">
 <meta name="twitter:description" content="직원들의 실제 사용 경험을 바탕으로 함께 개선하는 태장 직원앱과 개발자 노트를 소개합니다.">
 <meta name="twitter:image" content="https://taejang.co.kr/images/og-taejang.png">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://taejang.co.kr/"},{"@type":"ListItem","position":2,"name":"직원앱 소개","item":"https://taejang.co.kr/employee-app.html"}]}</script>
@@ -49,10 +49,9 @@
   <section class="page-hero employee-app-hero" aria-labelledby="employee-app-title">
     <div class="container employee-app-hero-layout">
       <div class="employee-app-hero-copy">
-        <div class="eyebrow">TAEJANG EMPLOYEE APP <span class="employee-app-label">직원의 하루와 함께</span></div>
         <h1 class="title" id="employee-app-title">태장 직원앱</h1>
-        <p class="employee-app-hero-message">현장의 의견이<br>앱을 바꿉니다.</p>
-        <p class="lead">출퇴근 기록부터 공지 확인까지.<br>직원들의 사용 경험을 듣고,<br>더 쉽고 편한 앱으로 함께 바꿔갑니다.</p>
+
+        <p class="lead">출퇴근을 기록하고 연차와 사내 공지를 확인하는 앱입니다.</p>
       </div>
       <figure class="employee-app-hero-art" data-hero-motion>
         <svg viewBox="0 0 540 440" aria-hidden="true" focusable="false" class="employee-app-illustration">
@@ -96,15 +95,14 @@
         </svg>
         <figcaption>직원앱의 역할을 담은 안내용 그림입니다.<br>실제 앱 화면과는 다릅니다.</figcaption>
       <div class="employee-app-hero-controls-slot"><div class="employee-app-motion-controls" data-hero-controls hidden><button type="button" data-hero-pause>일시정지</button><button type="button" data-hero-replay>다시 보기</button></div></div></figure>
-      <a class="btn employee-app-hero-link page-link" href="#developer-notes">함께 만든 변화 보기 <span class="page-link-arrow" aria-hidden="true">↓</span></a>
+      <a class="btn employee-app-hero-link page-link" href="#developer-notes">직원 의견과 개선 방향 보기 <span class="page-link-arrow" aria-hidden="true">↓</span></a>
     </div>
   </section>
 
   <section class="section employee-app-features" id="app-features" aria-labelledby="app-features-title">
     <div class="container">
-      <div class="eyebrow">DAILY GUIDE <span class="employee-app-label">하루의 필요한 순간</span></div>
-      <h2 class="title" id="app-features-title">오늘 필요한 일,<br class="employee-app-mobile-break"> 쉽게 확인하세요.</h2>
-      <p class="employee-app-section-intro">현재 사용하는 기능입니다. 정해진 순서 없이, 필요한 때 확인하세요.</p>
+      <h2 class="title" id="app-features-title">직원앱에서 할 수 있는 일</h2>
+
       <div class="employee-app-feature-grid">
         <article class="employee-app-feature">
           <div class="employee-app-feature-art" aria-hidden="true">
@@ -154,9 +152,8 @@
 
   <section class="section green-soft employee-app-principles" id="accessibility-principles" aria-labelledby="accessibility-title">
     <div class="container">
-      <div class="eyebrow">DESIGNED WITH PEOPLE <span class="employee-app-label">쉽게 쓰는 경험</span></div>
-      <h2 class="title" id="accessibility-title">많은 기능보다, 쉽게 쓰는 경험</h2>
-      <p class="employee-app-section-intro">불편함을 듣는 것에서 시작합니다.<br>직원들의 의견을 바탕으로 더 이해하기 쉬운 화면을 만듭니다.</p>
+      <h2 class="title" id="accessibility-title">읽고 누르기 쉬운 화면</h2>
+      <p class="employee-app-section-intro">직원 의견을 반영해 글자, 버튼, 안내를 다듬습니다.</p>
       <div class="employee-app-principle-layout">
         <figure class="employee-app-principle-art">
           <div class="employee-app-reading-example" aria-hidden="true">
@@ -178,9 +175,8 @@
 
   <section class="section employee-app-notes" id="developer-notes" aria-labelledby="developer-notes-title">
     <div class="container">
-      <div class="eyebrow">DEVELOPER NOTES <span class="employee-app-label">의견이 변화가 되는 과정</span></div>
-      <h2 class="title" id="developer-notes-title">함께 만든 변화</h2>
-      <p class="employee-app-section-intro">직원 의견이 나온 날짜와 불편을 줄이기 위해 정리한 기준을 기록합니다. 아래 비교는 개선 방향이며, 기능의 배포 완료를 뜻하지 않습니다.</p>
+      <h2 class="title" id="developer-notes-title">직원 의견과 개선 방향</h2>
+      <p class="employee-app-section-intro">직원 의견을 바탕으로 정리한 화면 개선안입니다.</p>
       <!-- Record feedback dates and improvement reasoning, without implying unshipped features are live. -->
       <div class="employee-app-timeline">
         <article class="employee-app-note" id="note-attendance" aria-labelledby="note-attendance-title">
@@ -190,11 +186,11 @@
           <div class="employee-app-note-content">
             <h3 id="note-attendance-title">출퇴근 버튼을 더 쉽게</h3>
             <div class="employee-app-comparison" data-comparison>
-              <p class="employee-app-comparison-caption">Before / After <span>직원 의견을 바탕으로 정리한 개선 방향</span></p>
+              <p class="employee-app-comparison-caption">기존 화면과 개선안 <span>직원 의견을 바탕으로 정리한 개선 방향</span></p>
               <div class="employee-app-note-flow">
                 <div class="employee-app-flip"><div class="employee-app-flip-inner">
-                  <dl class="employee-app-face employee-app-before"><dt><span class="employee-app-face-label">BEFORE · 이전의 불편함</span>직원의 의견</dt><dd>출근과 퇴근 버튼이 행동인지, 완료 표시인지 헷갈린다는 의견이 있었습니다.</dd></dl>
-                  <dl class="employee-app-face employee-app-after"><dt><span class="employee-app-face-label">AFTER · 개선 방향</span>개선 포인트</dt><dd>행동을 나타내는 문구와 완료 표시를 구분하는 방식을 정리했습니다. 카드 전환과 짧은 진동에 대한 의견도 함께 나눴습니다.</dd></dl>
+                  <dl class="employee-app-face employee-app-before"><dt><span class="employee-app-face-label">기존 화면</span>직원의 의견</dt><dd>출근과 퇴근 버튼이 행동인지, 완료 표시인지 헷갈린다는 의견이 있었습니다.</dd></dl>
+                  <dl class="employee-app-face employee-app-after"><dt><span class="employee-app-face-label">개선안</span>개선 포인트</dt><dd>행동을 나타내는 문구와 완료 표시를 구분하는 방식을 정리했습니다. 카드 전환과 짧은 진동에 대한 의견도 함께 나눴습니다.</dd></dl>
                 </div></div>
                 <dl class="employee-app-criterion"><dt>중요한 기준</dt><dd>누르기 전에는 무엇을 할지, 누른 뒤에는 무엇이 완료됐는지 한눈에 알 수 있어야 합니다.</dd></dl>
               </div>
@@ -209,11 +205,11 @@
           <div class="employee-app-note-content">
             <h3 id="note-notice-title">공지사항을 더 단순하게</h3>
             <div class="employee-app-comparison" data-comparison>
-              <p class="employee-app-comparison-caption">Before / After <span>직원 의견을 바탕으로 정리한 개선 방향</span></p>
+              <p class="employee-app-comparison-caption">기존 화면과 개선안 <span>직원 의견을 바탕으로 정리한 개선 방향</span></p>
               <div class="employee-app-note-flow">
                 <div class="employee-app-flip"><div class="employee-app-flip-inner">
-                  <dl class="employee-app-face employee-app-before"><dt><span class="employee-app-face-label">BEFORE · 이전의 불편함</span>개선 배경</dt><dd>비슷한 표현과 긴 설명 때문에 중요한 공지를 한눈에 찾기 어려웠습니다.</dd></dl>
-                  <dl class="employee-app-face employee-app-after"><dt><span class="employee-app-face-label">AFTER · 개선 방향</span>개선 포인트</dt><dd>중복 표현을 줄이고 제목, 날짜, 미확인 개수와 내용 보기에 집중하는 방식을 정리했습니다.</dd></dl>
+                  <dl class="employee-app-face employee-app-before"><dt><span class="employee-app-face-label">기존 화면</span>개선 배경</dt><dd>비슷한 표현과 긴 설명 때문에 중요한 공지를 한눈에 찾기 어려웠습니다.</dd></dl>
+                  <dl class="employee-app-face employee-app-after"><dt><span class="employee-app-face-label">개선안</span>개선 포인트</dt><dd>중복 표현을 줄이고 제목, 날짜, 미확인 개수와 내용 보기에 집중하는 방식을 정리했습니다.</dd></dl>
                 </div></div>
                 <dl class="employee-app-criterion"><dt>중요한 기준</dt><dd>중요한 공지 내용을 빠르게 찾고 다음 행동을 쉽게 선택할 수 있어야 합니다.</dd></dl>
               </div>
@@ -228,7 +224,6 @@
   <section class="section beige employee-app-guide" aria-labelledby="employee-app-guide-title">
     <div class="container employee-app-guide-inner">
       <div>
-        <div class="eyebrow">APP INFORMATION</div>
         <h2 class="title" id="employee-app-guide-title">직원앱 이용 안내</h2>
         <p>태장 임직원이 사용하는 앱입니다. 설치와 계정 이용 안내는 사내 담당자에게 문의할 수 있습니다.</p>
       </div>
@@ -245,7 +240,7 @@
 <footer class="footer">
   <div class="container">
     <div class="footer-top"><div><img src="images/logo-white.webp" alt="농업회사법인 태장 주식회사"><p>장애인과 함께 오래 일할 기회를 만드는 자회사형 장애인 표준사업장입니다.</p></div><div class="footer-shortcuts"><h3>바로가기</h3><a href="about.html">태장 소개</a><a href="business.html">하는 일</a><a href="workplace.html">우리의 일터</a><a href="archive.html">소식·기록</a><a href="partnership.html">협력·문의</a><a href="resources.html">서비스·상품</a><a href="location.html">오시는 길</a></div><div><h3>연락처</h3><a href="mailto:taejang2025@naver.com">taejang2025@naver.com</a><p>경남 창원시 의창구 평산로 33<br>신화 더 플렉스시티 422·423호</p></div></div>
-    <div class="footer-bottom"><div>농업회사법인 태장 주식회사 · 대표이사 이영희<br>사업자등록번호 157-86-03535<br>© <span data-current-year></span> TAEJANG. All rights reserved.<p class="footer-signature">Website planned and operated by Taejang</p></div><div><a href="privacy.html">개인정보처리방침</a> · <a href="terms.html">이용약관</a></div></div>
+    <div class="footer-bottom"><div>농업회사법인 태장 주식회사 · 대표이사 이영희<br>사업자등록번호 157-86-03535<br>© <span data-current-year></span> 태장</div><div><a href="privacy.html">개인정보처리방침</a> · <a href="terms.html">이용약관</a></div></div>
   </div>
 </footer>
 <script src="assets/js/site.js"></script>

@@ -333,7 +333,7 @@
         return [include,employee,details,editor(row,'tax_id','세무 사번','numeric'),
           editor(row,'gross','지급합계','numeric'),editor(row,'deduction','공제합계','numeric'),editor(row,'basis','산출 근거')];
       }), '급여대장 입력'));
-      const saveDraft = button('초안 저장 및 Excel 다운로드', () => update(async () => {
+      const saveDraft = button('초안 저장·엑셀 다운로드', () => update(async () => {
         monthChanged();
         if (loadedCutoff !== cutoff) throw new Error('출근부를 다시 불러와 주세요.');
         const selected = draftRows.filter(row => row.selected);
@@ -358,7 +358,7 @@
         dirty = false;
         downloadDraft(month,revision.draft,revision.revision);
         openTab(1);
-        message(`초안 v${revision.revision}을 저장하고 Excel을 내려받았습니다.`);
+        message(`초안 v${revision.revision}을 저장하고 엑셀로 내려받았습니다.`);
       }));
       saveDraft.disabled = loadedCutoff !== cutoff;
       controlsDraft.push(saveDraft);
@@ -400,10 +400,10 @@
         change();
         updatePending();
       });
-      const loadReply = button('회신 Excel 대조',() => update(async () => {
+      const loadReply = button('회신 엑셀 대조',() => update(async () => {
         monthChanged();
         const chosen = selectedFile;
-        if (!chosen || chosen.size > 4 * 1024 * 1024) throw new Error('4MB 이하의 세무 회신 Excel을 선택해 주세요.');
+        if (!chosen || chosen.size > 4 * 1024 * 1024) throw new Error('4MB 이하의 세무사 회신 엑셀을 선택해 주세요.');
         let reply;
         try {
           const parsed = await window.TaejangPayrollAttendanceXlsx.parseXlsxFile(chosen);
@@ -423,7 +423,7 @@
         message('회신 파일을 읽었습니다. 직원과 차이 항목을 확인해 주세요.');
       }));
       const source = build('div', null, 'pme-actions pme-import');
-      source.append(field(review ? '회신 파일 교체' : '세무 회신 Excel',file),loadReply);
+      source.append(field(review ? '회신 파일 교체' : '세무사 회신 엑셀',file),loadReply);
       body.append(source,pending);
       updatePending();
       if (!review) return;
