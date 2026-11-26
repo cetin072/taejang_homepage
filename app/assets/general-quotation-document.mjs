@@ -91,8 +91,7 @@ export function quotationRows(quote) {
 }
 
 const PRINT_STYLE = `
-@page{size:A4;margin:15mm}
-@page :first{margin-top:0;margin-bottom:0}
+@page{size:A4;margin:0 15mm}
 *{box-sizing:border-box}
 body{margin:0;padding:22px;font:13px/1.5 "Malgun Gothic","Noto Sans CJK KR",system-ui,sans-serif;color:#172921;background:#fff}
 h1,h2,p,dl,dd{margin:0}
@@ -127,13 +126,16 @@ dd,td{overflow-wrap:anywhere;white-space:pre-wrap}
 .quote-total dt{color:#244637;font-weight:750}
 .quote-tax-mode{display:block;font-size:10px;font-weight:500}
 .grand{font-size:19px;color:#244637;font-weight:750}
-.quote-print-gap{display:none}
+.quote-print-head,.quote-print-gap{display:none}
 @media screen and (max-width:775px){.quote-sheet{min-width:740px}}
 @media print{
   body{padding:0;font-size:10pt}
   .quote-sheet{max-width:none;padding:14mm 0 12mm}
+  .quote-parties{margin-bottom:0}
   .quote-items th,.quote-items td{padding:6px}
+  .quote-print-head{display:table-row}
   .quote-print-gap{display:table-footer-group}
+  .quote-print-head td{height:8mm;padding:0;border:0}
   .quote-print-gap td{height:9mm;padding:0;border:0}
   .quote-end,.quote-parties,tr{break-inside:avoid}
   *{print-color-adjust:exact;-webkit-print-color-adjust:exact}
@@ -159,7 +161,8 @@ export function quotationHtml(quote) {
     +party('수신',quote.customer+' 귀하',[...recipientDetails(quote),['유효기간',quote.validity],['결제 조건',quote.payment]])
     +party('공급자',quote.supplier,[['사업자등록번호',quote.businessNumber],['대표자',quote.representative],['담당자·연락처',quote.contact],['주소',quote.address]])
     +'</div><table class="quote-items" aria-label="견적 품목"><colgroup><col style="width:6%"><col style="width:35%"><col style="width:8%"><col style="width:11%"><col style="width:13%"><col style="width:16%"><col style="width:11%"></colgroup>'
-    +'<thead><tr><th class="center" scope="col">번호</th><th scope="col">품명 · 규격</th><th class="center" scope="col">단위</th><th class="quantity" scope="col">수량</th>'
+    +'<thead><tr class="quote-print-head" aria-hidden="true"><td colspan="7"></td></tr>'
+    +'<tr><th class="center" scope="col">번호</th><th scope="col">품명 · 규격</th><th class="center" scope="col">단위</th><th class="quantity" scope="col">수량</th>'
     +'<th class="money" scope="col">단가 (원)</th><th class="money" scope="col">금액 (원)</th><th scope="col">비고</th></tr></thead><tbody>'+itemRows
     +'</tbody><tfoot class="quote-print-gap" aria-hidden="true"><tr><td colspan="7"></td></tr></tfoot></table><section class="quote-end" aria-label="견적 합계 및 안내">'
     +detailList([['입금 계좌',quote.bank],['배송·기타사항',quote.notes]],'quote-notes')
