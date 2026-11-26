@@ -13,6 +13,8 @@
   let activeEmployeeView = 'existing';
   let activeEmployeeMenu = 'employee.manage';
   let selectedEmployeeId = null;
+  let renderedListContext = null;
+  const editedProfileControls = new WeakMap();
   const listState = { search: '', employment: 'active', account: '', photo: '', sort: 'position' };
   let loadSequence = 0;
   const photoUrls = new Set();
@@ -23,6 +25,7 @@
     ++loadSequence;
     currentContext = null;
     selectedEmployeeId = null;
+    renderedListContext = null;
     for (const url of photoUrls) URL.revokeObjectURL(url);
     photoUrls.clear();
     displayPhotoRequests.clear();
@@ -1287,15 +1290,33 @@
     return details;
   }
 
+  function closeEmployeeProfile() {
+    const target = main();
+    const dialog = target?.querySelector('dialog.erp-employee-review[open]');
+    if (!dialog) return;
+    const edits = editedProfileControls.get(dialog);
+    if (edits && [...edits].some(control => dialog.contains(control))
+      && !window.confirm('저장하지 않은 직원 정보가 있을 수 있습니다. 직원 목록으로 돌아갈까요?')) return;
+    const previous = selectedEmployeeId;
+    selectedEmployeeId = null;
+    dialog.close(); dialog.remove();
+    if (renderedListContext !== currentContext) {
+      const workspace = target.closest('.app-workspace');
+      const scroll = workspace?.scrollTop ?? window.scrollY;
+      renderEmployeeManagement(currentContext);
+      if (workspace?.scrollHeight > workspace?.clientHeight) workspace.scrollTop = scroll;
+      else window.scrollTo(window.scrollX, scroll);
+    }
+    const row = [...target.querySelectorAll('[data-employee-id]')].find(node => node.dataset.employeeId === previous);
+    (row || target.querySelector('.employee-filters input'))?.focus({ preventScroll:true });
+  }
+
   function getViews() {
     if (!window.TaejangEmployeeViews) throw new Error('직원관리 화면 파일을 불러오지 못했습니다. 새로고침해 주세요.');
     return window.TaejangEmployeeViews.create({
       el, button, input, select, field, setAvatar, statusLabel, listState,
       selectEmployee: id => { selectedEmployeeId = id; renderEmployeeManagement(currentContext); },
-      backToList: () => {
-        const previous = selectedEmployeeId; selectedEmployeeId = null; renderEmployeeManagement(currentContext);
-        [...main().querySelectorAll('[data-employee-id]')].find(node => node.dataset.employeeId === previous)?.focus();
-      },
+      backToList: closeEmployeeProfile,
       makeEmployeeForm, roleSummaryPanel, photoPicker, disabilityPanel, welfarePanel, sensitiveIdentityPanel, residentNumberPanel, insuranceDeductionPanel, passwordResetPanel,
       nationalPensionAgeLabel, employmentInsuranceAgeLabel, requestLabel, requestSummary,
       saveEmployeeAppCheck: async (employee, values) => {
@@ -1319,12 +1340,27 @@
     if (selectedEmployeeId && activeEmployeeView === 'existing') {
       const employee = arr(context.employees).find(item => item.id === selectedEmployeeId);
       if (employee) {
-        const previous = target.querySelector('[data-employee-profile]');
+        const existing = target.querySelector('.employee-management');
+        let dialog = existing?.querySelector('dialog.erp-employee-review[open]');
+        const previous = dialog?.querySelector('[data-employee-profile]');
         const expanded = previous?.dataset.employeeProfile === employee.id
           ? [...previous.querySelectorAll('[data-employee-section][open]')].map(node => node.dataset.employeeSection)
           : [];
-        shell.append(views.employeeProfile(context, employee, new Set(expanded))); target.replaceChildren(shell);
-        shell.querySelector('[data-employee-heading]')?.focus(); return;
+        if (!existing) return;
+        if (!dialog) {
+          dialog = el('dialog', null, 'erp-record-review erp-employee-review');
+          dialog.addEventListener('cancel', event => { event.preventDefault(); closeEmployeeProfile(); });
+          for (const event of ['input', 'change']) dialog.addEventListener(event, e => { editedProfileControls.get(dialog).add(e.target); });
+          existing.append(dialog);
+        }
+        const profile = views.employeeProfile(context, employee, new Set(expanded));
+        const heading = profile.querySelector('[data-employee-heading]');
+        heading.id = 'employee-review-title';
+        dialog.setAttribute('aria-labelledby', heading.id);
+        dialog.replaceChildren(profile);
+        editedProfileControls.set(dialog, new Set());
+        if (!dialog.open) dialog.showModal();
+        heading.focus({ preventScroll:true }); return;
       }
       selectedEmployeeId = null;
     }
@@ -1345,6 +1381,7 @@
       shell.append(createSection); target.replaceChildren(shell); return;
     }
     shell.append(views.employeeList(context));
+    renderedListContext = context;
     if (context.can_manage_sensitive_identity) {
       const bulk = el('details'); bulk.append(el('summary', '일괄 작업'));
       bulk.addEventListener('toggle', () => {
