@@ -128,3 +128,12 @@
  .erp-sales .erp-receivable-results td:nth-child(7)::before { content:"미수금 · "; }
  .erp-sales .erp-sales-results td:nth-child(2) .erp-list-amount,.erp-sales .erp-receivable-results .erp-list-amount { white-space:normal;overflow-wrap:anywhere; }
 }
+/* One strong action per local group; other controls look like controls, not alerts. */
+.erp-sales .erp-review-list > .app-authoring { background:#f8faf9;border:1px solid #e0e7e3;box-shadow:none; }
+.erp-sales .erp-sale-review .app-authoring { border-inline-start:1px solid #e0e7e3; }
+.erp-sales .erp-review-list .erp-actions .button:not(.primary),
+.erp-sales .erp-review-results [data-sale-review],
+.erp-sales .erp-sale-review .erp-editor :is(.erp-sale-workflow,.erp-actions) .button:not(.primary) {
+ background:#fff;border:1px solid #c3d1c8;color:#284b38;
+}
+.erp-sales .erp-sale-review [data-confirmed=true] > h3:focus { outline:none; }

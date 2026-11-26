@@ -1540,7 +1540,7 @@
   ])));
   if(review)await drawCloseReview(review);
  }
- function draw(){if(!body)return;body.replaceChildren();if(tab==='parties')drawMasters();else if(tab==='items')drawItems();else if(tab==='contracts')drawContracts();else if(tab==='sales')void run(drawSales);else if(tab==='receivables')void run(drawReceivables);else if(tab==='payouts')void run(drawPayoutQueue);else if(tab==='adjustments')void run(drawAdjustmentQueue);else if(tab==='purchases')void run(drawPurchases);else if(tab==='stock')void run(drawStock);else if(tab==='gifts')void run(drawGifts);else void run(drawMonthClose);}
+ function draw(){if(!body)return;body.classList.toggle('erp-review-list',['sales','receivables'].includes(tab));body.replaceChildren();if(tab==='parties')drawMasters();else if(tab==='items')drawItems();else if(tab==='contracts')drawContracts();else if(tab==='sales')void run(drawSales);else if(tab==='receivables')void run(drawReceivables);else if(tab==='payouts')void run(drawPayoutQueue);else if(tab==='adjustments')void run(drawAdjustmentQueue);else if(tab==='purchases')void run(drawPurchases);else if(tab==='stock')void run(drawStock);else if(tab==='gifts')void run(drawGifts);else void run(drawMonthClose);}
  async function open(view){if(!allowed())return;payoutBack=null;
   if(tab!=='contracts')salesTab=tab;
   tab=view==='contracts'?'contracts':salesTab;const generation=++epoch;const main=document.getElementById('dashboard-main');if(!main)return;root=el('section','','erp-sales');status=el('p','불러오는 중입니다.','message');status.setAttribute('role','status');status.tabIndex=-1;root.append(el('h2',view==='contracts'?'용역 계약·월 매출':'매출·정산'),status);main.replaceChildren(root);
