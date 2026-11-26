@@ -286,11 +286,11 @@ try {
     await staffContext.close();
     console.log('PASS staff login Google option: ' + name);
   }
-    const noJS = await newPhotoSafeContext(browser, { viewport: { width: 320, height: 720 }, javaScriptEnabled: false, reducedMotion: 'reduce' });
+  const noJS = await newPhotoSafeContext(browser, { viewport: { width: 320, height: 720 }, javaScriptEnabled: false, reducedMotion: 'reduce' });
   const staticPage = await noJS.newPage();
   await staticPage.goto(base + '/employee-app.html');
   assert.equal(await staticPage.locator('#mobile-nav').isVisible(), true);
-  for (const selector of ['.employee-app-hero-message', '.employee-app-note-flow', '.employee-app-feature']) {
+  for (const selector of ['#employee-app-title', '.employee-app-hero-copy .lead', '.employee-app-note-flow', '.employee-app-feature']) {
     assert.equal(await staticPage.locator(selector).first().isVisible(), true);
   }
   await assertLayout(staticPage, 'no-JS');
