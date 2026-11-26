@@ -9,7 +9,7 @@ try {
  const page=await browser.newPage({viewport:{width:1440,height:900}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/*',r=>r.request().url()==='https://erp-fixture.invalid/'?r.fulfill({contentType:'text/html',body:'<main id="dashboard-main"></main>'}):r.abort());
  await page.goto('https://erp-fixture.invalid/');
- for(const file of ['staff/assets/staff.css','app/assets/dashboard-shell.css','app/assets/admin-authoring.css','app/assets/erp-sales.css']){
+ for(const file of ['staff/assets/staff.css','app/assets/dashboard-shell.css','app/assets/admin-authoring.css','app/assets/dashboard-accent-theme.css','app/assets/erp-sales.css']){
   await page.addStyleTag({content:(await readFile(file,'utf8')).replace(/^@import[^;]*;/gm,'')});
  }
  await page.evaluate(()=>{const shell=document.createElement('div');shell.id='desktop-app-shell';shell.style.cssText='display:block;max-width:1100px;margin:32px auto;padding:16px';document.body.prepend(shell);shell.append(document.querySelector('#dashboard-main'));});
@@ -44,6 +44,7 @@ try {
  assert.equal(await page.evaluate(()=>window.salesCalls.filter(c=>c.name==='erp_sales_get').length),1);
  assert.equal(await page.evaluate(()=>window.salesCalls.some(c=>c.name==='erp_sales_get_receipts')),false,'receipt data stays lazy');
  assert.equal(await popup.evaluate(d=>d.classList.contains('erp-sale-review')),true);
+ assert.equal(await popup.getByRole('button',{name:'닫기',exact:true}).evaluate(n=>getComputedStyle(n).borderRadius),'4px','ERP dialog control inherits the shared radius');
  const desktopBounds=await popup.boundingBox();
  assert.ok(desktopBounds&&desktopBounds.width<=540&&desktopBounds.x+desktopBounds.width>=1439,'desktop review is anchored to the right');
  await mkdir('admin-ui-qa-artifacts/erp-workflow',{recursive:true});
