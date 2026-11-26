@@ -81,3 +81,50 @@
  .erp-sales .erp-sales-results td:last-child { grid-column:1/-1; }
  .erp-sales .erp-sales-results td:last-child::before { content:"영업자 · "; }
 }
+
+/* Sales workspace: scan the list first; load detail only on selection. */
+.erp-sales > h2 { margin:0;font-size:clamp(1.45rem,2.4vw,2rem);letter-spacing:-.035em; }
+.erp-sales .erp-tabs { background:#fff;gap:4px;border-color:#e4e9e5;padding:5px; }
+.erp-sales .erp-tabs .button:not([aria-selected=true]) { border-color:transparent;color:#35443d;background:transparent; }
+.erp-sales .erp-tabs .button:not([aria-selected=true]):hover { background:#f1f5f2; }
+.erp-sales .erp-review-results tbody tr { cursor:pointer; }
+.erp-sales .erp-review-results tbody tr:is(:hover,:focus-within) { background:#f1f7f3; }
+.erp-sales .erp-review-results th { background:#f5f7f6;color:#42524a; }
+.erp-sales .erp-review-results td:first-child,.erp-sales .erp-list-count { font-weight:700; }
+.erp-sales .erp-list-amount { font-variant-numeric:tabular-nums;white-space:nowrap; }
+.erp-sales .erp-list-count { margin:16px 0 0;color:#53645b;font-size:.88rem; }
+.erp-sales .erp-sales-results :is(th,td):nth-child(2),
+.erp-sales .erp-receivable-results :is(th,td):nth-child(n+5):nth-child(-n+7) { text-align:right; }
+.erp-sales .erp-sale-badge { display:inline-block;padding:3px 8px;border-radius:6px;background:#edf0ee;color:#405048;font-size:.8rem;font-weight:700; }
+.erp-sales .erp-sale-badge.is-confirmed { background:#e5f2e9;color:#195636; }
+.erp-sales .erp-sale-badge.is-overdue { background:#f9ede8;color:#922f20; }
+.erp-sales .erp-sale-review {
+ inset:0 0 0 auto;margin:0;width:min(540px,100%);height:100dvh;max-height:none;
+ border-width:0 0 0 1px;border-radius:0;background:#fff;box-shadow:-12px 0 36px rgb(23 56 38 / 13%);
+}
+.erp-sales .erp-sale-review::backdrop { background:rgb(15 37 26 / 14%); }
+.erp-sales .erp-sale-review .erp-editor { position:relative;background:#fff;padding:22px; }
+.erp-sales .erp-sale-review .erp-fields { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.erp-sales .erp-sale-review .erp-editor > [data-confirmed=true] > h3 { padding-inline-end:68px;font-size:1.25rem; }
+.erp-sales .erp-sale-review .erp-editor > [data-confirmed=true] > .erp-actions { position:static;border:0;background:transparent;padding:0; }
+.erp-sales .erp-sale-review [data-confirmed=true] .erp-sale-close { position:absolute;top:18px;right:22px; }
+.erp-sales .erp-confirmed-overview { display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px; }
+.erp-sales .erp-confirmed-overview > strong { font-size:1.1rem; }
+.erp-sales .erp-confirmed-overview > span:not(.erp-sale-badge) { color:#526259; }
+.erp-sales .erp-sale-review .erp-sale-workflow { border-color:#e0e9e2;background:#f6f8f7; }
+.erp-sales .erp-sale-review .erp-sale-workflow .erp-actions { gap:6px;margin:8px 0 0; }
+@media (max-width:700px) {
+ .erp-sales .erp-sale-review { width:100%;border:0; }
+ .erp-sales .erp-sale-review .erp-editor { padding:16px; }
+ .erp-sales .erp-sale-review .erp-fields { grid-template-columns:minmax(0,1fr); }
+ .erp-sales .erp-sale-review [data-confirmed=true] .erp-sale-close { top:12px;right:16px; }
+ .erp-sales .erp-receivable-results { overflow:visible; }
+ .erp-sales .erp-receivable-results :is(table,tbody) { display:block;min-width:0; }
+ .erp-sales .erp-receivable-results thead { position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%); }
+ .erp-sales .erp-receivable-results tbody tr { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:center;gap:6px 12px;padding:12px;margin-bottom:8px;border:1px solid #e4e9e5;border-radius:9px; }
+ .erp-sales .erp-receivable-results tbody td:nth-child(n) { padding:0;border:0;max-width:none;text-align:left; }
+ .erp-sales .erp-receivable-results td:nth-child(5)::before { content:"매출액 · "; }
+ .erp-sales .erp-receivable-results td:nth-child(6)::before { content:"수금액 · "; }
+ .erp-sales .erp-receivable-results td:nth-child(7)::before { content:"미수금 · "; }
+ .erp-sales .erp-sales-results td:nth-child(2) .erp-list-amount,.erp-sales .erp-receivable-results .erp-list-amount { white-space:normal;overflow-wrap:anywhere; }
+}
