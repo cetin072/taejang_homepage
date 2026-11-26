@@ -124,7 +124,7 @@ try {
  await saved('발송 기록 저장');
  await page.getByRole('row').filter({hasText:'선물 검수 거래처'}).getByText('브라우저 소금 2 포').waitFor();
  assert.equal(app.db.raw('select count(*) from public.erp_sales_transactions;'),'0','gift is not recorded as a sale');
- await page.locator('#app-nav').getByRole('link',{name:'계약·월 매출',exact:true}).click();await page.getByRole('button',{name:'용역 계약 등록',exact:true}).click();await editorDialog.getByRole('heading',{name:'등록: 용역 계약',exact:true}).waitFor();await field('title').fill('합성 1년 환경정비 계약');await field('party_id').selectOption({label:'합성 기업 브라우저'});await field('item_id').selectOption({label:'B-SVC · 브라우저 용역'});await field('starts_on').fill('2099-01-01');await field('ends_on').fill('2099-12-31');await field('monthly_supply').fill('50000');await field('monthly_tax').fill('5000');await field('billing_basis').fill('매월 말일 청구');await field('status').selectOption('active');assert.equal(await gridColumns(page.locator('.erp-editor fieldset.erp-fields').first()),3,'service contract uses three columns');await saved('저장');
+ await page.locator('#app-nav').getByRole('link',{name:'용역 계약·월 매출',exact:true}).click();await page.getByRole('button',{name:'용역 계약 등록',exact:true}).click();await editorDialog.getByRole('heading',{name:'등록: 용역 계약',exact:true}).waitFor();await field('title').fill('합성 1년 환경정비 계약');await field('party_id').selectOption({label:'합성 기업 브라우저'});await field('item_id').selectOption({label:'B-SVC · 브라우저 용역'});await field('starts_on').fill('2099-01-01');await field('ends_on').fill('2099-12-31');await field('monthly_supply').fill('50000');await field('monthly_tax').fill('5000');await field('billing_basis').fill('매월 말일 청구');await field('status').selectOption('active');assert.equal(await gridColumns(page.locator('.erp-editor fieldset.erp-fields').first()),3,'service contract uses three columns');await saved('저장');
  assert.equal(await page.getByRole('tab',{name:'용역 계약',exact:true}).count(),0);
  await page.setViewportSize({width:390,height:844});
  await page.getByRole('button',{name:'수정',exact:true}).click();
@@ -145,7 +145,7 @@ try {
  assert.equal(serviceDocUrl.searchParams.get('view'),'monthly_client_documents.manage');
  assert.equal(serviceDocUrl.searchParams.get('serviceCompany'),'beomhan');
  assert.equal(serviceDocUrl.searchParams.get('serviceMonth'),'2099-01');
- await page.locator('#app-nav').getByRole('link',{name:'계약·월 매출',exact:true}).click();
+ await page.locator('#app-nav').getByRole('link',{name:'용역 계약·월 매출',exact:true}).click();
  await page.getByRole('button',{name:'월 매출 조회',exact:true}).click();
  await field('lookup_month').fill('2099-01');
  await page.getByRole('button',{name:'선택 월 조회',exact:true}).click();
@@ -159,7 +159,7 @@ try {
  await page.getByRole('button',{name:'월 매출 생성',exact:true}).click();await editorDialog.getByRole('heading',{name:'월 매출 생성: 합성 1년 환경정비 계약',exact:true}).waitFor();await field('month').fill('2099-01');await saved('매출 생성·확인');
  await field('fee_kind').selectOption('rate');await field('fee_value').fill('2.5');await saved('매출 저장');await page.getByRole('button',{name:'매출 확정',exact:true}).click();await page.getByRole('heading',{name:'확정 매출 상세',exact:true}).waitFor();assert.equal(await field('party_id').isDisabled(),true);assert.match(await page.locator('.erp-total').textContent(),/55,000/);
  await closePopup();
- await page.locator('#app-nav').getByRole('link',{name:'계약·월 매출',exact:true}).click();
+ await page.locator('#app-nav').getByRole('link',{name:'용역 계약·월 매출',exact:true}).click();
  await page.getByRole('button',{name:'월 매출 조회',exact:true}).click();
  await field('lookup_month').fill('2099-01');
  await page.getByRole('button',{name:'선택 월 조회',exact:true}).click();
@@ -199,7 +199,7 @@ try {
  app.db.rpc('erp_sales_request_adjustment',{p_sale_id:serviceId,p_request_id:legacyId,p_kind:'service_change',p_reason:'Synthetic old client',p_detail:{amount:45000}});
  app.db.rpc('erp_sales_record_adjustment_event',{p_sale_id:serviceId,p_adjustment_id:legacyId,p_request_id:crypto.randomUUID(),p_action:'approve',p_on:app.db.raw("select (now() at time zone 'Asia/Seoul')::date;"),p_note:'Synthetic legacy record only',p_amount:null});
  await closePopup();
- await page.locator('#app-nav').getByRole('link',{name:'계약·월 매출',exact:true}).click();
+ await page.locator('#app-nav').getByRole('link',{name:'용역 계약·월 매출',exact:true}).click();
  await page.getByRole('button',{name:'월 매출 조회',exact:true}).click();
  await field('lookup_month').fill('2099-01');
  await page.getByRole('button',{name:'선택 월 조회',exact:true}).click();
@@ -590,7 +590,7 @@ try {
  }
  await page.reload();
  await page.getByRole('button',{name:'고객 등록',exact:true}).waitFor();
- await openSidebarView('계약·월 매출');
+ await openSidebarView('용역 계약·월 매출');
  await page.locator('[name=contract_period_filter]').selectOption('expiring');
  await page.getByRole('cell',{name:'합성 오늘 종료',exact:true}).waitFor();
  await page.getByRole('cell',{name:'합성 30일 종료',exact:true}).waitFor();

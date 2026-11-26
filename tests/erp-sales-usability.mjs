@@ -43,7 +43,7 @@ try{
   const openContracts=async()=>{
    if(variant==='baseline'){await tab('용역 계약');return;}
    await dismissEditor();
-   await page.locator('#app-nav').getByRole('link',{name:'계약·월 매출',exact:true}).click();
+   await page.locator('#app-nav').getByRole('link',{name:'용역 계약·월 매출',exact:true}).click();
    await page.getByRole('button',{name:'용역 계약 등록',exact:true}).waitFor();
   };
   const saleId=kind=>app.db.raw(`select id from public.erp_sales_transactions where kind='${kind}' order by created_at desc,id desc limit 1;`);
