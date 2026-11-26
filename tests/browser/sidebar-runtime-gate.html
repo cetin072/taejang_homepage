@@ -512,6 +512,12 @@
 
         current = await enterRole('operations_manager', undefined);
         assertOperationsContract(current);
+        const workspace = document.getElementById('desktop-app-shell');
+        const activeMenu = find('대시보드');
+        assert(getComputedStyle(workspace).getPropertyValue('--app-brand').trim() === '#285494', 'ERP 공통 색상 미적용');
+        assert(getComputedStyle(activeMenu).borderRadius === '0px', '사이드 메뉴에 둥근 모서리가 다시 생김');
+        assert(getComputedStyle(activeMenu).boxShadow.includes('inset'), '선택된 메뉴를 색상 외에도 표시해야 함');
+        assert(getComputedStyle(document.body).getPropertyValue('--brand').trim() === '#236545', '직원 화면 기본 브랜드 색상에 ERP 테마가 번짐');
         await assertNoPostSettleJitter('operations_manager');
         await assertFocusGeometryStable('operations_manager');
         await assertOfficialChannelsFinal();

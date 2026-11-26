@@ -6,7 +6,7 @@ import {chromium,expect} from 'playwright/test';
 const output=process.env.LOGISTICS_CUSTOMER_OUTPUT||'/tmp/logistics-customer';
 await mkdir(output,{recursive:true});
 const browser=await chromium.launch({headless:true,args:['--no-sandbox'],...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:existsSync('/usr/bin/chromium')?{executablePath:'/usr/bin/chromium'}:{channel:'chrome'})});
-const html=`<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/staff/assets/staff.css"><main id="dashboard-main"></main><script type="module">
+const html=`<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/staff/assets/staff.css"><link rel="stylesheet" href="/app/assets/dashboard-shell.css"><main id="dashboard-main"></main><script type="module">
 import '/app/assets/logistics-core.js';
 const C=TaejangLogisticsCore;
 const snapshot=C.draft();Object.assign(snapshot,{customerId:'a',customerName:'확정 당시 고객',issueDate:'2026-11-15'});snapshot.calculation=C.calculate(snapshot);
@@ -22,7 +22,7 @@ window.TaejangApp={getAccessContext:()=>({id:'fixture',account_status:'active'})
 try{for(const width of [1440,390]){
  const p=await browser.newPage({viewport:{width,height:1000}}),errors=[];let accept=false;
  p.on('pageerror',e=>errors.push(e.message));p.on('dialog',d=>accept?d.accept():d.dismiss());
- await p.route('**/*',route=>{const u=new URL(route.request().url());if(u.origin!=='https://fixture.test')return route.abort();if(u.pathname==='/')return route.fulfill({contentType:'text/html',body:html});if(!['/staff/assets/staff.css','/app/assets/logistics.js','/app/assets/logistics-core.js','/app/assets/erp-pdf.mjs','/app/assets/logistics.css'].includes(u.pathname))return route.abort();return route.fulfill({contentType:u.pathname.endsWith('.css')?'text/css':'text/javascript',body:readFileSync('.'+u.pathname,'utf8')});});
+ await p.route('**/*',route=>{const u=new URL(route.request().url());if(u.origin!=='https://fixture.test')return route.abort();if(u.pathname==='/')return route.fulfill({contentType:'text/html',body:html});if(!['/staff/assets/staff.css','/app/assets/dashboard-shell.css','/app/assets/admin-authoring.css','/app/assets/logistics.js','/app/assets/logistics-core.js','/app/assets/erp-pdf.mjs','/app/assets/logistics.css'].includes(u.pathname))return route.abort();return route.fulfill({contentType:u.pathname.endsWith('.css')?'text/css':'text/javascript',body:readFileSync('.'+u.pathname,'utf8')});});
  await p.goto('https://fixture.test/');
  const customerTab=p.getByRole('tab',{name:'고객 관리',exact:true});
  await expect(p.getByRole('tab',{name:'견적 작성',exact:true})).toHaveAttribute('aria-selected','true');
@@ -66,7 +66,11 @@ try{for(const width of [1440,390]){
  await p.screenshot({path:output+'/customers-'+width+'.png',fullPage:true});
  // Linked quote is on a different API page, uses the old customer and frozen totals.
  const writesBefore=await p.evaluate(()=>writes);
- await p.getByRole('cell',{name:'사용 a',exact:true}).click();await expect(p.getByRole('heading',{name:'물류 견적서',exact:true})).toBeVisible();await expect(p.locator('[data-quote-sheet]')).toContainText('확정 당시 고객');await expect(p.locator('[data-amount=total]')).toHaveText((await p.evaluate(()=>savedTotal)).toLocaleString('ko-KR')+'원');await expect(p.getByRole('button',{name:'차감 기록 있음',exact:true})).toBeDisabled();
+ const originAction=p.getByRole('button',{name:'확정 견적 / PDF',exact:true});await originAction.evaluate(node=>window.originalQuoteTrigger=node);
+ await p.getByRole('cell',{name:'사용 a',exact:true}).click();const quoteReview=p.getByRole('dialog',{name:'물류 견적서',exact:true});await expect(quoteReview).toBeVisible();
+ const reviewBounds=await quoteReview.boundingBox();assert.ok(reviewBounds&&reviewBounds.x+reviewBounds.width>=width-1&&(width===390?reviewBounds.x<1:reviewBounds.x>0));
+ await p.keyboard.press('Escape');await expect(quoteReview).toHaveCount(0);assert.equal(await p.evaluate(()=>document.activeElement===originalQuoteTrigger),true,'same transaction row and focus retained');
+ await originAction.click();await expect(quoteReview).toBeVisible();await expect(p.locator('[data-quote-sheet]')).toContainText('확정 당시 고객');await expect(p.locator('[data-amount=total]')).toHaveText((await p.evaluate(()=>savedTotal)).toLocaleString('ko-KR')+'원');await expect(p.getByRole('button',{name:'차감 기록 있음',exact:true})).toBeDisabled();
  await expect(p.locator('[data-quote-sheet]')).toContainText('원본 PDF 파일이 아닌');await p.getByRole('button',{name:'견적서 인쇄 / PDF 저장',exact:true}).click();await expect(p.locator('#logistics-print')).toContainText('확정 당시 고객');await p.pdf({path:output+'/historic-'+width+'.pdf',preferCSSPageSize:true});await p.evaluate(()=>dispatchEvent(new Event('afterprint')));
  await p.getByRole('button',{name:'복사해 새 견적',exact:true}).click();accept=false;await p.getByRole('button',{name:'거래 목록으로 돌아가기',exact:true}).click();await expect(p.locator('[data-quote-sheet]')).toBeVisible();accept=true;await p.getByRole('button',{name:'거래 목록으로 돌아가기',exact:true}).click();await expect(heading()).toHaveText('변경된 고객 A · 충전금');await expect(p.getByText('수기 사용 · 연결 견적 없음',{exact:true})).toBeVisible();
  await p.evaluate(()=>missing=true);await p.getByRole('button',{name:'확정 견적 / PDF',exact:true}).click();await expect(p.locator('[data-wallet-feedback]')).toContainText('복원할 수 없습니다');assert.equal(await p.evaluate(()=>writes),writesBefore);assert.deepEqual(errors,[]);

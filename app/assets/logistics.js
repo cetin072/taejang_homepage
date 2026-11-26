@@ -10,11 +10,11 @@ const permitted=()=>C.allowed(app());
 const actor=()=>app()?.getAccessContext?.()?.id||'';
 const pendingKey=()=>`taejang-logistics-pending-v1:${actor()}`;
 const clone=C.copy;
-let cancelPrint;
+let cancelPrint, reviewDialog, reviewOpener, reviewListStale;
 function report(text,error=false,nearWallet=false){
  if(!root?.isConnected)return;
- const feedback=root.querySelector('dialog[open] [data-customer-feedback]')||(nearWallet&&root.querySelector('[data-wallet-feedback]'))||status;
- if(feedback!==status){status.textContent='';status.hidden=true;}
+ const feedback=root.querySelector('dialog[open] [data-customer-feedback],dialog[open] [data-quote-review-feedback]')||(nearWallet&&root.querySelector('[data-wallet-feedback]'))||status;
+ if(feedback&&feedback!==status){status.textContent='';status.hidden=true;}
  feedback.textContent=text;feedback.className='lg-status'+(error?' error':'');feedback.hidden=!text;
 }
 function message(error){const m=String(error?.message||error);const codes={LOGISTICS_FORBIDDEN:'이 메뉴는 부서팀장급 이상만 사용할 수 있습니다.',LOGISTICS_CONFLICT:'다른 직원이 변경했습니다. 입력은 보존했습니다. 새로고침 후 확인하세요.',LOGISTICS_FUNDS:'충전금이 부족합니다. 입금 확인 후 충전하세요.',LOGISTICS_DUPLICATE_CHARGE:'이미 차감한 견적입니다.',LOGISTICS_REVERSED:'이미 정정된 거래입니다.',LOGISTICS_REQUEST_REUSE:'저장 요청이 기존 기록과 다릅니다. 담당자에게 확인하세요.',LOGISTICS_CUSTOMER:'고객을 선택하거나 등록하세요.',LOGISTICS_INVALID:'입력값을 확인하세요.',LOGISTICS_DUPLICATE_CUSTOMER:'같은 이름의 고객이 이미 등록되어 있습니다.'};
@@ -46,7 +46,8 @@ async function mutate(action,payload){
  try{
   const result=await app().rpc('mutate_logistics_workspace',{p_request_id:pending.id,p_action:pending.action,p_payload:pending.payload});
   if(generation!==epoch||owner!==actor()||!permitted()||!root?.isConnected)return;
-  const done=pending.action;pending=null;persistPending();applyResult(done,result);
+  const done=pending.action, chargedQuote=pending.payload.quoteId;pending=null;persistPending();applyResult(done,result);
+  if(done==='wallet.charge'&&confirmed?.id===chargedQuote)confirmed={...confirmed,charged:true};
   try{await read();render();report('저장했습니다.',false,action.startsWith('wallet.'));}catch(e){render();report('저장은 완료됐습니다. 목록은 새로고침으로 다시 확인하세요.',true,action.startsWith('wallet.'));}
  }catch(e){
   if(generation!==epoch||owner!==actor())return;
@@ -55,7 +56,7 @@ async function mutate(action,payload){
   report(message(e),true,action.startsWith('wallet.'));showRetry();
  }finally{busy=false;if(root){root.removeAttribute('aria-busy');content.inert=false;}}
 }
-function showRetry(){root?.querySelector('[data-logistics-retry]')?.remove();if(!pending)return;const retry=button('저장 결과 확인 / 같은 요청 재시도',()=>mutate(pending.action,pending.payload));retry.dataset.logisticsRetry='1';(root.querySelector('dialog[open] [data-customer-feedback]')||(pending.action.startsWith('wallet.')&&root.querySelector('[data-wallet-feedback]'))||status).after(retry);}
+function showRetry(){root?.querySelector('[data-logistics-retry]')?.remove();if(!pending)return;const retry=button('저장 결과 확인 / 같은 요청 재시도',()=>mutate(pending.action,pending.payload));retry.dataset.logisticsRetry='1';(root.querySelector('dialog[open] [data-customer-feedback],dialog[open] [data-quote-review-feedback]')||(pending.action.startsWith('wallet.')&&root.querySelector('[data-wallet-feedback]'))||status).after(retry);}
 function newQuote(nextCustomer=customer){if(dirty&&!confirm('작성 중인 입력을 버리고 새 견적을 만들까요?'))return;customer=nextCustomer;quoteReturn=null;quote=C.draft(state.settings.data);quote.customerId=customer;confirmed=null;dirty=false;tab='quote';render();}
 async function changeTab(next){
  if(busy||next===tab)return;
@@ -71,7 +72,15 @@ async function changeTab(next){
  settingsDirty=false;tab=next;quoteReturn=null;
  render();report('');
 }
-function render(){if(!permitted()||!root?.isConnected)return;walletDirty=false;tabs.querySelectorAll('button').forEach(b=>{const selected=b.dataset.tab===tab;b.classList.toggle('active',selected);b.setAttribute('aria-selected',String(selected));});content.replaceChildren();if(tab==='quote')renderQuote();else if(tab==='customers')renderCustomers();else if(tab==='history')renderHistory();else renderSettings();showRetry();}
+function render(){if(!permitted()||!root?.isConnected)return;
+ if(reviewDialog?.isConnected){
+  if(confirmed&&tab==='quote'){
+   reviewListStale=true;
+   const scroll=reviewDialog.scrollTop;reviewDialog.replaceChildren();renderReviewBody(reviewDialog);reviewDialog.scrollTop=scroll;showRetry();return;
+  }
+  dismissReview();
+ }
+ walletDirty=false;tabs.querySelectorAll('button').forEach(b=>{const selected=b.dataset.tab===tab;b.classList.toggle('active',selected);b.setAttribute('aria-selected',String(selected));});content.replaceChildren();if(tab==='quote')renderQuote();else if(tab==='customers')renderCustomers();else if(tab==='history')renderHistory();else renderSettings();showRetry();}
 function rowCost(id,value){root.querySelectorAll(`[data-amount="${id}"]`).forEach(node=>node.textContent=value);}
 function totals(){try{const t=confirmed&&quote.calculation?quote.calculation:C.calculate(quote);for(const line of t.lines)rowCost(line.key,money(line.amount));for(const key of ['workSubtotal','storageAmount','subtotal','supply','vat','platform','total'])rowCost(key,money(t[key]));
  const selected=state.customers.find(c=>c.id===quote.customerId);rowCost('balance',selected?money(selected.balance):'고객 미선택');rowCost('remaining',selected?money(Number(selected.balance)-(isCharged()?0:t.total)):'—');
@@ -96,13 +105,14 @@ function walletSummary(c,total){
 }
 function out(key,initial='—'){const n=el('output',initial);n.dataset.amount=key;return n;}
 function quoteChange(){dirty=true;totals();}
-function renderQuote(){
+function renderQuote(target=content){
  if(!quote)quote=C.draft(state.settings.data);
- const actions=el('div','','lg-toolbar lg-no-print');actions.append(button('+ 새 견적',newQuote),el('span',confirmed?'확정 당시 저장 내용 · PDF 재생성':'고객 선택 → 견적 확정 → 인쇄·PDF 저장 → 별도 차감','lg-muted'));
- if(quoteReturn)actions.append(button('거래 목록으로 돌아가기',()=>{if(dirty&&!confirm('작성 중인 견적을 버리고 거래 목록으로 돌아갈까요?'))return;tab=quoteReturn;quoteReturn=null;render();root.querySelector('[data-wallet-heading]')?.focus();}));
- content.append(actions);
+ const actions=el('div','','lg-toolbar lg-no-print');if(target===content)actions.append(button('+ 새 견적',newQuote));actions.append(el('span',confirmed?'확정 당시 저장 내용 · PDF 재생성':'고객 선택 → 견적 확정 → 인쇄·PDF 저장 → 별도 차감','lg-muted'));
+ if(quoteReturn)actions.append(button('거래 목록으로 돌아가기',returnToQuoteList));
+ target.append(actions);
  const sheet=el('article','','lg-panel lg-sheet');sheet.dataset.quoteSheet='1';
  const header=el('header','','lg-header'),title=el('div');title.append(el('h2','물류 견적서'),el('p',confirmed?.number||'견적번호 자동 발급','lg-muted'));header.append(title);sheet.append(header);
+ if(target!==content){const heading=title.querySelector('h2');heading.id='lg-quote-review-title';heading.tabIndex=-1;}
  const fields=el('div','','lg-fields');
  const choices=[['','고객 선택'],...state.customers.map(c=>[c.id,c.name])];
  if(confirmed){const label=el('label','고객명');label.append(el('span',quote.customerName));fields.append(label);}else field(fields,'고객명',quote.customerId,v=>{quote.customerId=v;customer=v;quoteChange();},{options:choices});
@@ -205,11 +215,11 @@ function renderQuote(){
  else{controls.append(button('견적서 인쇄 / PDF 저장',printQuote,true),button('복사해 새 견적',()=>{confirmed=null;quote=clone(quote);delete quote.number;dirty=true;render();}));}
  sheet.append(controls);
  if(confirmed)sheet.append(el('p','보관된 원본 PDF 파일이 아닌 확정 당시 저장 내용으로 다시 생성합니다. 인쇄창에서 PDF로 저장을 선택하세요. A4 · 배율 100% · 머리글/바닥글 해제 권장.','lg-help lg-no-print'));
- content.append(sheet);
+ target.append(sheet);
  const wallet=el('section','','lg-panel lg-no-print');wallet.append(el('h3','고객 충전금'));
  const walletBody=el('div');walletBody.dataset.walletSummary='1';wallet.replaceChildren(walletBody);
  if(confirmed){const charged=state.quotes.find(q=>q.id===confirmed.id)?.charged||confirmed.charged;const b=button(charged?'차감 기록 있음':'충전금에서 차감',()=>{if(confirm('이 견적 금액을 충전금에서 차감할까요?'))void mutate('wallet.charge',{quoteId:confirmed.id});},true);b.disabled=!!charged||Number(confirmed.total)===0;wallet.append(b);}
- content.append(wallet);
+ target.append(wallet);
  if(confirmed)sheet.querySelectorAll('input,select').forEach(n=>n.disabled=true);
  totals();
 }
@@ -325,7 +335,34 @@ function walletEditor(c){
  update();form.append(fields,preview,actions,feedback);panel.append(form);content.append(panel);renderEntries(panel);pager(panel);
 }
 
-async function openEntryQuote(entry){
+function dismissReview(){
+ if(reviewDialog?.open)reviewDialog.close();
+ reviewDialog?.remove();reviewDialog=null;
+}
+function returnToQuoteList(){
+ if(busy||!quoteReturn||!permitted())return;
+ if(dirty&&!confirm('작성 중인 견적을 버리고 거래 목록으로 돌아갈까요?'))return;
+ const retain=reviewDialog?.isConnected&&!reviewListStale;
+ dismissReview();tab=quoteReturn;quoteReturn=null;dirty=false;
+ if(!retain)render();
+ const opener=reviewOpener?.isConnected?reviewOpener:root.querySelector('[data-wallet-heading],#lg-history-title');
+ opener?.focus({preventScroll:true});reviewOpener=null;
+}
+function renderReviewBody(dialog){
+ const feedback=el('p','','lg-status');feedback.dataset.quoteReviewFeedback='1';feedback.setAttribute('role','status');feedback.hidden=true;
+ dialog.append(feedback);
+ renderQuote(dialog);
+}
+function showQuoteReview(found,opener){
+ quoteReturn=tab;quote=clone(found.snapshot);confirmed=found;dirty=false;tab='quote';
+ const dialog=el('dialog','','erp-record-review erp-quote-review');
+ dialog.setAttribute('aria-labelledby','lg-quote-review-title');
+ dialog.addEventListener('cancel',event=>{event.preventDefault();returnToQuoteList();});
+ reviewOpener=opener;reviewListStale=false;reviewDialog=dialog;root.append(dialog);
+ renderReviewBody(dialog);dialog.showModal();dialog.querySelector('h2')?.focus({preventScroll:true});
+}
+
+async function openEntryQuote(entry,opener){
  if(busy||!entry.quote_id||!leaveCustomerInputs())return;
  const generation=epoch,owner=actor();busy=true;root.setAttribute('aria-busy','true');content.inert=true;
  try{
@@ -338,21 +375,23 @@ async function openEntryQuote(entry){
   }
   if(!found?.snapshot?.calculation){report('이 거래의 확정 당시 저장 내용을 찾을 수 없습니다. 원본 PDF는 보관되지 않아 복원할 수 없습니다.',true,true);return;}
   if(dirty&&!confirm('작성 중인 견적을 버리고 확정 견적을 볼까요?'))return;
-  quoteReturn=tab;quote=clone(found.snapshot);confirmed=found;dirty=false;tab='quote';render();content.inert=false;
-  const heading=root.querySelector('[data-quote-sheet] h2');heading.tabIndex=-1;heading.focus();
+  showQuoteReview(found,opener);
  }catch(e){report(message(e),true,true);}
  finally{busy=false;root?.removeAttribute('aria-busy');content.inert=false;}
 }
 function renderEntries(parent){
  const rows=state.entries.map(t=>{
   const reverse=button(t.reversed||t.reversal_of?'정정 완료':'정정',()=>{const reason=prompt('정정 사유 (원 거래는 보존됩니다)');if(reason?.trim())void mutate('wallet.reverse',{entryId:t.id,reason:reason.trim()});});reverse.disabled=!!t.reversed||!!t.reversal_of;
-  const view=t.quote_id?button('확정 견적 / PDF',()=>openEntryQuote(t)):el('span',t.source==='manual'?'수기 사용 · 연결 견적 없음':'연결 견적 없음','lg-muted');
+  const view=t.quote_id?button('확정 견적 / PDF',()=>openEntryQuote(t,view)):el('span',t.source==='manual'?'수기 사용 · 연결 견적 없음':'연결 견적 없음','lg-muted');
   return [new Date(t.created_at).toLocaleString('ko-KR'),t.customer_name,t.reversal_of?'정정':t.type==='deposit'?'충전':'사용',(t.type==='deposit'?'+':'−')+money(t.amount),t.memo,t.actor,view,reverse];
  });const grid=table(['일시','고객','구분','금액','메모','담당자','확정 견적','정정'],rows);
- grid.querySelectorAll('tbody tr').forEach((row,i)=>{const entry=state.entries[i];if(!entry.quote_id)return;row.classList.add('lg-entry-row');row.addEventListener('click',event=>{if(event.target.closest('button,a,input,select,textarea,[role="button"]'))return;void openEntryQuote(entry);});});parent.append(grid);
+ grid.querySelectorAll('tbody tr').forEach((row,i)=>{const entry=state.entries[i];if(!entry.quote_id)return;row.classList.add('lg-entry-row');row.addEventListener('click',event=>{if(event.target.closest('button,a,input,select,textarea,[role="button"]'))return;if(window.getSelection()?.isCollapsed)void openEntryQuote(entry,row.querySelector('button'));});});parent.append(grid);
 }
 function renderHistory(){
- const panel=el('section','','lg-panel');panel.append(el('h3','거래 내역'));const filters=el('div','','lg-fields');customerChoices(filters);const search=field(filters,'견적번호 / 고객 / 메모',query,v=>query=v);search.addEventListener('keydown',e=>{if(e.key==='Enter'){page=0;void reload();}});filters.append(button('조회',()=>{page=0;void reload();}));panel.append(filters,el('h3','확정 견적'));panel.append(table(['견적번호','고객','금액','담당자','충전금','보기'],state.quotes.map(q=>[q.number,q.snapshot.customerName,money(q.total),q.actor,q.charged?'차감 기록 있음':'미차감',button('견적 보기 / 인쇄',()=>{quote=clone(q.snapshot);confirmed=q;customer=q.customer_id;dirty=false;tab='quote';render();})])));panel.append(el('h3','충전 · 사용 · 정정'));renderEntries(panel);content.append(panel);pager(panel);
+ const panel=el('section','','lg-panel');const heading=el('h3','거래 내역');heading.id='lg-history-title';heading.tabIndex=-1;panel.append(heading);const filters=el('div','','lg-fields');customerChoices(filters);const search=field(filters,'견적번호 / 고객 / 메모',query,v=>query=v);search.addEventListener('keydown',e=>{if(e.key==='Enter'){page=0;void reload();}});filters.append(button('조회',()=>{page=0;void reload();}));panel.append(filters,el('h3','확정 견적'));panel.append(table(['견적번호','고객','금액','담당자','충전금','보기'],state.quotes.map(q=>{
+  const open=button('견적 보기 / 인쇄',()=>openEntryQuote({quote_id:q.id,customer_id:q.customer_id},open));
+  return [q.number,q.snapshot.customerName,money(q.total),q.actor,q.charged?'차감 기록 있음':'미차감',open];
+ })));panel.append(el('h3','충전 · 사용 · 정정'));renderEntries(panel);content.append(panel);pager(panel);
 }
 function pager(parent){const bar=el('div','','lg-pager'),back=button('이전',()=>{if(tab==='customers'&&!leaveCustomerInputs())return;page--;void reload();}),next=button('다음',()=>{if(tab==='customers'&&!leaveCustomerInputs())return;page++;void reload();});back.disabled=page===0;next.disabled=(page+1)*50>=(tab==='customers'?state.entryCount:Math.max(state.quoteCount,state.entryCount));bar.append(back,el('span',(page+1)+'페이지'),next);parent.append(bar);}
 function renderSettings(){
@@ -385,11 +424,11 @@ async function printQuote(){
  try{cancelPrint=printErpPdf(customerName||'물류 견적서',issueDate,clearPrint);}catch{report('인쇄창을 열지 못했습니다. 다시 눌러 주세요.',true);}
 }
 function clearPrint(){cancelPrint=null;document.body.classList.remove('lg-printing');document.getElementById('logistics-print')?.remove();}
-function revoke(){if(permitted()&&sessionOwner===actor())return;epoch++;pending=null;state=null;quote=null;confirmed=null;dirty=false;root?.replaceChildren(el('p','이 메뉴를 사용할 권한이 없습니다.'));cancelPrint?.();}
+function revoke(){if(permitted()&&sessionOwner===actor())return;epoch++;pending=null;state=null;quote=null;confirmed=null;dirty=false;dismissReview();reviewOpener=null;root?.replaceChildren(el('p','이 메뉴를 사용할 권한이 없습니다.'));cancelPrint?.();}
 for(const event of ['taejang-app-ready','taejang-capabilities-changed','taejang-menu-authority-changed'])document.addEventListener(event,revoke);
 window.addEventListener('storage',event=>{if(event.key==='taejang-staff-session-v1')revoke();});
 async function open(){
- if(!permitted())throw Error('LOGISTICS_FORBIDDEN');if(sessionOwner!==actor()){state=null;quote=null;confirmed=null;dirty=false;pending=null;tab='quote';customer='';query='';page=0;customerSearch='';quoteReturn=null;}sessionOwner=actor();epoch++;root=el('section','','lg');const host=document.getElementById('dashboard-main');host.replaceChildren(root);
+ if(!permitted())throw Error('LOGISTICS_FORBIDDEN');if(reviewDialog?.isConnected){tab=quoteReturn||'history';quoteReturn=null;}dismissReview();reviewOpener=null;if(sessionOwner!==actor()){state=null;quote=null;confirmed=null;dirty=false;pending=null;tab='quote';customer='';query='';page=0;customerSearch='';quoteReturn=null;}sessionOwner=actor();epoch++;root=el('section','','lg');const host=document.getElementById('dashboard-main');host.replaceChildren(root);
  const head=el('header','','lg-toolbar');head.append(el('h2','물류 관리'),button('새로고침',reload));tabs=el('nav','','lg-tabs');tabs.setAttribute('aria-label','물류 업무');tabs.setAttribute('role','tablist');for(const [key,label] of [['quote','견적 작성'],['customers','고객 관리'],['history','거래 내역'],['settings','단가 설정']]){const b=button(label,()=>changeTab(key));b.dataset.tab=key;b.setAttribute('role','tab');tabs.append(b);}status=el('p','','lg-status');status.setAttribute('role','status');content=el('div');root.append(head,tabs,status,content);
  if(!document.querySelector('[data-logistics-style]')){const link=document.createElement('link');link.rel='stylesheet';link.href=new URL('./logistics.css',import.meta.url).href;link.dataset.logisticsStyle='1';document.head.append(link);}
  try{const saved=sessionStorage.getItem(pendingKey());pending=saved?JSON.parse(saved):null;}catch{pending=null;}

@@ -133,12 +133,13 @@ test('desktop platform owns one viewport so sidebar and page scroll do not fight
   assert.match(dashboardCss, /body\.desktop-app-mode \.app-workspace[\s\S]*overflow-y:\s*auto/);
 });
 
-test('accent theme keeps restrained colors while real accordion headings own sidebar categories', () => {
-  assert.match(accentCss, /--app-accent-gold:\s*#b48632/);
-  assert.match(accentCss, /--app-accent-blue:\s*#4f7080/);
-  assert.match(accentCss, /--app-accent-coral:\s*#a86857/);
-  assert.match(accentCss, /dashboard-card:nth-child\(4n \+ 2\)/);
-  assert.match(accentCss, /dashboard-intro[\s\S]*border-left:\s*5px solid var\(--app-brand\)/);
+test('workspace theme keeps flat controls and a scoped palette without replacing accordion structure', () => {
+  assert.match(accentCss, /@media screen\s*\{\s*#desktop-app-shell/);
+  assert.match(accentCss, /--app-brand:\s*#285494/);
+  assert.match(accentCss, /--erp-control-radius:\s*4px/);
+  assert.match(accentCss, /\.app-nav > :is\(a,button\) \{ border-radius:0/);
+  assert.match(accentCss, /\.app-nav > \[aria-current="page"\] \{[\s\S]*box-shadow:inset 3px/);
+  assert.doesNotMatch(accentCss, /:root|linear-gradient|dashboard-card:nth-child/);
   assert.doesNotMatch(accentCss, /content:\s*attr\(data-section-label\)/);
   assert.match(dashboardCss, /\.app-nav > \.app-nav-section-toggle/);
   assert.match(dashboardCss, /\.app-nav-section-title/);

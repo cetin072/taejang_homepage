@@ -45,6 +45,12 @@ try {
     const setFail = value=>page.evaluate(value=>{window.fail=value;},value);
     const file = ()=>page.locator('.employee-photo-actions input[type=file]').first().setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:image});
     await load(); await count(49); await fits();
+    await page.locator('[data-employee-id="fixture-2"]').evaluate(node=>window.originalEmployeeTrigger=node);
+    await open(2);
+    const record=page.locator('dialog.erp-employee-review[open]');await record.waitFor();
+    const bounds=await record.boundingBox();assert.ok(bounds&&bounds.x+bounds.width>=width-1&&(width<=700?bounds.x<1:bounds.x>0),device+' employee record bounds');
+    await page.keyboard.press('Escape');await record.waitFor({state:'hidden'});
+    assert.equal(await page.evaluate(()=>document.activeElement===originalEmployeeTrigger),true,device+' same list row restored');
     const initialPhoto=page.locator('[data-employee-id="fixture-2"]');
     await initialPhoto.scrollIntoViewIfNeeded();
     await initialPhoto.locator('img').waitFor();
@@ -196,8 +202,8 @@ try {
     await fits();
 
 
-    assert.equal(await page.getByText('일괄 작업',{exact:true}).count(),0);
-    assert.equal(await page.locator('.employee-sensitive-bulk').count(),0);
+    assert.equal(await record.getByText('일괄 작업',{exact:true}).count(),0);
+    assert.equal(await record.locator('.employee-sensitive-bulk').count(),0);
     assert.equal(await page.locator('[data-employee-edit-form]').count(),0);
     const standardSections=page.locator('.employee-profile-section:not(.employee-disability-section):not(.employee-welfare-section):not(.employee-section-work)');
     assert.equal(await standardSections.count(),5);

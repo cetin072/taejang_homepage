@@ -1,200 +1,107 @@
-:root {
-  --app-accent-gold: #b48632;
-  --app-accent-gold-soft: #f6efe1;
-  --app-accent-blue: #4f7080;
-  --app-accent-blue-soft: #edf3f6;
-  --app-accent-coral: #a86857;
-  --app-accent-coral-soft: #f7eeeb;
-  --app-accent-mint: #dfeee5;
-}
-
-.desktop-app-shell {
-  background:
-    linear-gradient(135deg, rgba(180, 134, 50, .035), transparent 30%),
-    var(--app-background);
-}
-
-.app-sidebar {
-  background:
-    linear-gradient(180deg, rgba(255,255,255,.025), transparent 24%),
-    var(--sidebar-bg);
-}
-
-.app-logo {
-  position: relative;
-  padding-bottom: 15px;
-}
-.app-logo::after {
-  content: '';
-  position: absolute;
-  left: 8px;
-  bottom: 4px;
-  width: 44px;
-  height: 3px;
-  border-radius: 99px;
-  background: var(--app-accent-gold);
-}
-
-.app-topbar {
-  background: linear-gradient(90deg, #fff 0%, #fbfcfb 72%, #f8f4eb 100%);
-  border-bottom-color: #d6ddd8;
-  box-shadow: 0 1px 0 rgba(180, 134, 50, .08);
-}
-
-.dashboard-intro {
-  position: relative;
-  padding: 22px 24px;
-  border: 1px solid #d9e2dc;
-  border-left: 5px solid var(--app-brand);
-  border-radius: 16px;
-  background: linear-gradient(120deg, #ffffff 0%, #f7faf8 64%, var(--app-accent-gold-soft) 100%);
-  box-shadow: 0 8px 24px rgba(22, 53, 38, .045);
-}
-.dashboard-intro .eyebrow {
-  color: var(--app-accent-gold);
-  font-weight: 900;
-}
-
-.dashboard-card {
-  --card-accent: var(--app-brand);
-  position: relative;
-  overflow: hidden;
-  border-color: #d6dfd9;
-  background: linear-gradient(145deg, #fff 0%, #fbfdfc 100%);
-  box-shadow: 0 8px 22px rgba(22, 53, 38, .055);
-  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
-}
-.dashboard-card::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 4px;
-  background: var(--card-accent);
-}
-.dashboard-card:nth-child(4n + 1) {
-  --card-accent: var(--app-brand);
-  background: linear-gradient(145deg, #fff 0%, #f1f8f4 100%);
-}
-.dashboard-card:nth-child(4n + 2) {
-  --card-accent: var(--app-accent-gold);
-  background: linear-gradient(145deg, #fff 0%, var(--app-accent-gold-soft) 100%);
-}
-.dashboard-card:nth-child(4n + 3) {
-  --card-accent: var(--app-accent-blue);
-  background: linear-gradient(145deg, #fff 0%, var(--app-accent-blue-soft) 100%);
-}
-.dashboard-card:nth-child(4n) {
-  --card-accent: var(--app-accent-coral);
-  background: linear-gradient(145deg, #fff 0%, var(--app-accent-coral-soft) 100%);
-}
-.dashboard-card:hover {
-  transform: translateY(-1px);
-  border-color: #c8d5cd;
-  box-shadow: 0 12px 28px rgba(22, 53, 38, .075);
-}
-.dashboard-card .status-label {
-  background: rgba(255,255,255,.82);
-  border: 1px solid rgba(35, 101, 69, .12);
-  box-shadow: 0 2px 7px rgba(22, 53, 38, .03);
-}
-.dashboard-card h3 {
-  color: #173d2d;
-}
-.dashboard-card .dashboard-value {
-  color: var(--card-accent);
-}
-
-.app-nav > [data-section-key="official_channels"],
-.app-nav > [data-nav-section="official_channels"] {
-  --nav-section-accent: #b48632;
-}
-
-.app-nav > a.app-nav-official-channel {
-  position: relative;
-  background: transparent;
-}
-.app-nav > a.app-nav-official-channel::before {
-  width: 7px;
-  height: 7px;
-  flex-basis: 7px;
-  background: #b48632;
-  box-shadow: 0 0 0 2px rgba(255,255,255,.06);
-}
-.app-nav > a.app-nav-official-channel[data-channel="blog"]::before {
-  background: #32c45d;
-}
-.app-nav > a.app-nav-official-channel[data-channel="youtube"]::before {
-  background: #e25555;
-}
-.app-nav > a.app-nav-official-channel::after {
-  content: '↗';
-  margin-left: auto;
-  padding-left: 8px;
-  color: #d9e5dd;
-  font-size: .78rem;
-  font-weight: 800;
-  opacity: .76;
-}
-.app-nav > a.app-nav-official-channel:hover::after,
-.app-nav > a.app-nav-official-channel:focus-visible::after {
-  color: #fff;
-  opacity: 1;
-}
-
-.app-nav > .app-nav-checking-first {
-  margin-top: 32px;
-}
-.app-nav > .app-nav-checking-first::before {
-  content: '점검중';
-  position: absolute;
-  left: 10px;
-  right: 4px;
-  top: -26px;
-  height: auto;
-  padding-top: 7px;
-  border-top: 1px solid rgba(255,255,255,.17);
-  background: none;
-  color: #c9d7cf;
-  font-size: .69rem;
-  font-weight: 900;
-  letter-spacing: .07em;
-  line-height: 1;
-}
-
-/* Restrained category accents: color hierarchy without changing layout geometry. */
-.app-nav > [data-section-key="employee-account"],
-.app-nav > [data-nav-section="employee-account"] { --nav-section-accent:#c39748; }
-.app-nav > [data-section-key="promotion"],
-.app-nav > [data-nav-section="promotion"] { --nav-section-accent:#b86f5f; }
-.app-nav > [data-section-key="homepage"],
-.app-nav > [data-nav-section="homepage"] { --nav-section-accent:#4f8b7a; }
-.app-nav > [data-section-key="operations"],
-.app-nav > [data-nav-section="operations"] { --nav-section-accent:#5d7890; }
-.app-nav > [data-section-key="payroll"],
-.app-nav > [data-nav-section="payroll"] { --nav-section-accent:#4f8a62; }
-.app-nav > [data-section-key="support"],
-.app-nav > [data-nav-section="support"] { --nav-section-accent:#7c6f9b; }
-
-.app-nav > .app-nav-section-toggle {
-  box-shadow: inset 3px 0 0 var(--nav-section-accent, rgba(255,255,255,.18));
-}
-.app-nav > [data-nav-section]:not(.app-nav-section-toggle)::before {
-  background: var(--nav-section-accent, rgba(216,235,222,.72));
-}
-.app-nav > button[aria-current="page"],
-.app-nav > a[aria-current="page"] {
-  box-shadow: inset 4px 0 0 var(--nav-section-accent, var(--app-accent-gold));
-}
-
-@media (max-width: 900px) {
-  .dashboard-intro {
-    padding: 18px 18px;
+/* Internal ERP only. Reuse the existing theme asset and leave printed documents
+   and employee/public surfaces on their own styling contracts. */
+@media screen {
+  #desktop-app-shell {
+    --app-background:#f3f5f8;
+    --app-text:#192437;
+    --app-muted:#526175;
+    --app-border:#d8e0ea;
+    --app-brand:#285494;
+    --app-info:#31578a;
+    --app-shadow:none;
+    --app-radius:6px;
+    --erp-control-radius:4px;
+    --erp-accent-soft:#e9f0fb;
+    --erp-surface-soft:#f5f7fa;
+    --erp-control-border:#aebdce;
+    --sidebar-bg:#222f42;
+    --sidebar-text:#e8edf5;
+    --sidebar-muted:#b8c6d9;
+    --sidebar-hover-bg:#303f54;
+    --sidebar-active-bg:#e9f0fb;
+    --sidebar-active-text:#1f4780;
+    --ink:var(--app-text);
+    --muted:var(--app-muted);
+    --soft:var(--erp-surface-soft);
+    --line:var(--app-border);
+    --brand:var(--app-brand);
+    --brand-dark:#1f437a;
+    --focus:#3266b2;
+    --authoring-radius:var(--erp-control-radius);
+    --authoring-stroke:var(--erp-control-border);
+    --authoring-accent:#4c5f78;
+    background:var(--app-background);
+    color:var(--app-text);
+    border-radius:var(--app-radius);
   }
-  .dashboard-card:hover {
-    transform: none;
-  }
-}
+  #desktop-app-shell .app-sidebar { border-inline-end:1px solid #39485d; }
+  #desktop-app-shell .app-logo { letter-spacing:-.025em; }
+  #desktop-app-shell .app-logo span { color:var(--sidebar-muted);opacity:1; }
+  #desktop-app-shell .app-topbar { gap:14px;background:var(--app-card); }
+  #desktop-app-shell .app-topbar h1 { line-height:1.24; }
+  #desktop-app-shell .app-topbar .eyebrow { color:var(--app-muted);letter-spacing:.025em; }
 
-@media (prefers-reduced-motion: reduce) {
-  .dashboard-card { transition: none; }
+  #desktop-app-shell .app-nav > :is(a,button) { border-radius:0;box-shadow:none;font-weight:650; }
+  #desktop-app-shell .app-nav > .app-nav-section-toggle { border-block-start-color:#44546b; }
+  #desktop-app-shell .app-nav-section-title { font-size:.86rem;color:var(--sidebar-text);font-weight:750; }
+  #desktop-app-shell .app-nav-section-chevron { color:var(--sidebar-muted); }
+  #desktop-app-shell .app-nav > [data-nav-section]:not(.app-nav-section-toggle)::before {
+    background:var(--sidebar-muted);width:3px;height:3px;flex-basis:3px;
+  }
+  #desktop-app-shell .app-nav > [aria-current="page"] {
+    color:var(--sidebar-active-text);background:var(--sidebar-active-bg);
+    box-shadow:inset 3px 0 0 #5981bc;font-weight:800;
+  }
+  #desktop-app-shell .app-nav > [aria-current="page"][data-nav-section]::before { background:var(--brand); }
+  #desktop-app-shell .app-nav > :is(a,button):focus-visible { outline:2px solid #b9d0f3;outline-offset:-2px; }
+  #desktop-app-shell .app-nav > [data-section-key="official_channels"] { border-block-start-color:#55657b; }
+  #desktop-app-shell .app-nav > a.app-nav-official-channel[data-channel="blog"]::before { background:#59c68b; }
+  #desktop-app-shell .app-nav > a.app-nav-official-channel[data-channel="youtube"]::before { background:#f38d92; }
+  #desktop-app-shell .app-nav > a.app-nav-official-channel::after { content:'↗';margin-inline-start:auto;color:var(--sidebar-muted);font-size:.8rem; }
+  #desktop-app-shell .app-nav > .app-nav-checking-first { margin-block-start:32px; }
+  #desktop-app-shell .app-nav > .app-nav-checking-first::before {
+    content:'점검 중';top:-23px;height:auto;padding-top:6px;background:none;
+    border-block-start:1px solid #44546b;color:var(--sidebar-muted);font-size:.72rem;
+  }
+
+  #desktop-app-shell :is(.dashboard-intro,.dashboard-card) {
+    background:var(--app-card);border:1px solid var(--app-border);box-shadow:none;
+  }
+  #desktop-app-shell .dashboard-intro { padding:16px 18px;border-inline-start:3px solid var(--app-brand);border-radius:var(--app-radius); }
+  #desktop-app-shell .dashboard-card h3 { color:var(--app-text); }
+  #desktop-app-shell .dashboard-card :is(.dashboard-value,.dashboard-metric) { font-variant-numeric:tabular-nums; }
+  #desktop-app-shell .status-label { border-radius:var(--erp-control-radius); }
+  #desktop-app-shell :is(.button,.icon-button,.payroll-button,.lg-btn,.gq-add-item) { border-radius:var(--erp-control-radius); }
+  #desktop-app-shell :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea) {
+    border-color:var(--erp-control-border);border-radius:var(--erp-control-radius);
+  }
+  #desktop-app-shell :is(input[type=checkbox],input[type=radio]) { accent-color:var(--brand); }
+  #desktop-app-shell :is(.button-quiet,.button-secondary,.secondary).button:not(.button-danger):not([aria-selected=true]):not([aria-pressed=true]):not([aria-current]) {
+    color:var(--brand-dark);background:#fff;border:1px solid var(--erp-control-border);
+  }
+  #desktop-app-shell .dashboard-main :where(button,a,input,select,textarea,summary):focus-visible {
+    outline:2px solid var(--focus);outline-offset:2px;
+  }
+
+  /* Local modules keep their renderers and interaction states. Share their
+     surfaces and active controls without affecting exported/printed templates. */
+  #desktop-app-shell :is(.employee-management,.payroll-month-end,.erp-sales,.lg,.monthly-client-documents,.support-radar-shell) {
+    color:var(--app-text);
+  }
+  #desktop-app-shell :is(.erp-body,.erp-tabs,.employee-form,.employee-list-panel,.attendance-admin-panel,.pme-heading,.pme-body,.pme-steps,.pme-table-box,.lg-panel,.mcd-panel,.support-radar-stat,.support-radar-section,.support-radar-row) {
+    border-color:var(--app-border);border-radius:var(--app-radius);
+  }
+  #desktop-app-shell :is(.pme-steps,.erp-sale-workflow) { background:var(--erp-surface-soft);border-radius:var(--app-radius); }
+  #desktop-app-shell .pme-steps > .button[aria-current] { color:var(--brand-dark);background:var(--erp-accent-soft);box-shadow:none; }
+  #desktop-app-shell .lg { --lg-navy:#263950;--lg-teal:var(--brand);--lg-line:var(--app-border); }
+  #desktop-app-shell .payroll-month-end { --pme-green:var(--brand);--pme-border:var(--app-border); }
+  #desktop-app-shell .erp-sales .erp-review-list > .app-authoring { background:var(--erp-surface-soft);border-color:var(--app-border); }
+  #desktop-app-shell .erp-sales .erp-review-results tbody tr:is(:hover,:focus-within) { background:var(--erp-accent-soft); }
+  #desktop-app-shell .erp-sales .erp-sale-review :is(.erp-sale-workflow,.erp-actions) .button:not(.primary),
+  #desktop-app-shell .erp-sales .erp-review-list .button:not(.primary) {
+    color:var(--brand-dark);background:#fff;border-color:var(--erp-control-border);
+  }
+  #desktop-app-shell .erp-sales .erp-sale-review::backdrop { background:rgb(28 40 58 / 18%); }
+  #desktop-app-shell :is(.erp-table-wrap,.pme-table-box,.attendance-table-wrap,.lg-table-wrap) :is(th,td) { font-variant-numeric:tabular-nums; }
+  #desktop-app-shell :is(.erp-table-wrap,.pme-table-box,.attendance-table-wrap) th { background:var(--erp-surface-soft);color:var(--app-muted); }
 }

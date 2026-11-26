@@ -21,13 +21,18 @@ window.TaejangApp={getAccessContext:()=>({id:'synthetic-actor',account_status:'a
  if(name!=='get_logistics_workspace'){mutations++;throw Error('Printing must never write');}
  readCalls++;if(readFailure)throw Error('Synthetic read failure');
  return {settings:{data:C.copy(C.DEFAULTS),revision:1},customers:[{id:'synthetic-customer',name:'검수용 고객',balance:window.balance,latest_debit:{amount:12900,created_at:'2026-11-16T03:00:00Z'}}],entries:[],quoteCount:1,entryCount:0,
- quotes:[{id:'synthetic-quote',number:'L-20261115-0001',customer_id:'synthetic-customer',snapshot:C.copy(fixture),total:C.calculate(fixture).total,actor:'검수 담당자',charged:window.charged}]};
+ quotes:[{id:'synthetic-quote',number:'L-20261115-0001',customer_id:'synthetic-customer',snapshot:{...C.copy(fixture),calculation:C.calculate(fixture)},total:C.calculate(fixture).total,actor:'검수 담당자',charged:window.charged}]};
 }};
 await import('/app/assets/logistics.js');await window.TaejangLogistics.open();
 </script></html>`;
 async function openQuote(p){
- await p.getByRole('tab',{name:'거래 내역',exact:true}).click();
+ const review=p.getByRole('dialog',{name:'물류 견적서',exact:true});
+ if(await review.isVisible())await p.keyboard.press('Escape');
+ const history=p.getByRole('tab',{name:'거래 내역',exact:true});
+ if(await history.getAttribute('aria-selected')!=='true')await history.click();
+ else await p.getByRole('button',{name:'새로고침',exact:true}).click();
  await p.getByRole('button',{name:/견적 보기/}).click();
+ await review.waitFor();
  await p.evaluate(()=>document.fonts.ready);
 }
 async function startPrint(p){
@@ -60,14 +65,14 @@ try{
    const u=new URL(route.request().url());
    if(u.origin!=='https://fixture.test')return route.abort();
    if(u.pathname==='/')return route.fulfill({contentType:'text/html',body:html});
-   if(!['/app/assets/logistics.js','/app/assets/logistics-core.js','/app/assets/erp-pdf.mjs','/app/assets/logistics.css','/staff/assets/staff.css','/app/assets/dashboard-shell.css','/app/assets/dashboard-accent-theme.css'].includes(u.pathname))return route.abort();
+   if(!['/app/assets/logistics.js','/app/assets/logistics-core.js','/app/assets/erp-pdf.mjs','/app/assets/logistics.css','/staff/assets/staff.css','/app/assets/dashboard-shell.css','/app/assets/admin-authoring.css','/app/assets/dashboard-accent-theme.css'].includes(u.pathname))return route.abort();
    return route.fulfill({contentType:u.pathname.endsWith('.css')?'text/css':'text/javascript',body:await readFile(new URL('..'+u.pathname,import.meta.url),'utf8')});
   });
   await p.goto('https://fixture.test/');await openQuote(p);
-  const metrics=await p.locator('.lg label').first().evaluate(el=>({font:getComputedStyle(el).fontSize,margin:getComputedStyle(el).marginTop}));
+  const metrics=await p.locator('[data-quote-sheet] label').first().evaluate(el=>({font:getComputedStyle(el).fontSize,margin:getComputedStyle(el).marginTop}));
   assert.equal(metrics.margin,'0px','screen labels must not inherit the staff 16px margins');
   assert.ok(parseFloat(metrics.font)>=14,'screen labels use ERP reading scale');
-  assert.ok(await p.locator('.lg input:not([type=checkbox])').first().evaluate(el=>parseFloat(getComputedStyle(el).fontSize)>=16),'screen inputs remain readable');
+  assert.ok(await p.locator('[data-quote-sheet] input:not([type=checkbox])').first().evaluate(el=>parseFloat(getComputedStyle(el).fontSize)>=16),'screen inputs remain readable');
   assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'table overflow remains inside its wrapper');
   await p.screenshot({path:`${output}/screen-${width}.png`,fullPage:true});
   const original=await p.evaluate(()=>JSON.stringify(fixture));

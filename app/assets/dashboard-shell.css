@@ -626,3 +626,21 @@
 .employee-calendar .worklog-day-event button { margin:6px 6px 0 0; }
 .calendar-description { white-space:pre-wrap;overflow-wrap:anywhere; }
 .employee-calendar[aria-busy] .worklog-controls button { pointer-events:none;opacity:.6; }
+
+/* Internal employee/quote record review. A native modal keeps the list inert
+   while retaining its DOM, controls and scroll position. */
+@media screen {
+  dialog.erp-record-review {
+    box-sizing:border-box;position:fixed;inset:0 0 0 auto;margin:0;
+    width:min(100%,var(--erp-review-width,720px));max-width:none;
+    height:100dvh;max-height:none;overflow:auto;overscroll-behavior:contain;
+    background:var(--app-card,#fff);color:var(--app-text,#192437);
+    border:0;border-inline-start:1px solid var(--app-border,#d8e0ea);
+    border-radius:0;padding:18px clamp(12px,3vw,28px);box-shadow:-10px 0 28px #19243725;
+  }
+  dialog.erp-record-review::backdrop { background:#1c283a30; }
+  dialog.erp-quote-review { --erp-review-width:900px; }
+  @media(max-width:700px) {
+    dialog.erp-record-review { width:100%;border:0; }
+  }
+}
