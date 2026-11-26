@@ -167,6 +167,20 @@
       .attendance-holiday-work-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 12px; border-radius:10px; background:#fff; }
       .attendance-holiday-work-row strong { display:block; }
       .attendance-holiday-work-row span { color:#60746a; font-size:13px; }
+      .attendance-field-work-row { flex-wrap:wrap; padding:12px 14px; }
+      .attendance-field-work-copy { display:grid; flex:1 1 220px; gap:4px; min-width:0; overflow-wrap:anywhere; }
+      .attendance-field-work-row strong { font-size:18px; line-height:1.35; }
+      .attendance-field-work-row span { font-size:15px; line-height:1.45; }
+      .attendance-field-work-row .attendance-field-work-times { color:var(--app-text,#173d30); font-weight:700; }
+      .attendance-field-work-row .attendance-field-work-state { min-height:32px; display:inline-flex; align-items:center; padding:2px 10px; color:#21583e; background:#eaf2ec; border-radius:8px; font-weight:750; }
+      .attendance-field-work-row .attendance-field-work-state[data-waiting] { color:#654717; background:#fbf1da; }
+      .attendance-field-work-row .attendance-field-work-select { display:inline-flex; align-items:center; gap:8px; min-height:44px; padding:4px 10px; margin:0; border-radius:8px; background:#eaf2ec; font-size:16px; font-weight:750; cursor:pointer; }
+      .attendance-field-work-select input[type="checkbox"] { width:20px; height:20px; min-width:20px; min-height:20px; margin:0; padding:0; accent-color:#276247; }
+      .attendance-field-work-select:has(input:focus-visible) { outline:2px solid #276247; outline-offset:3px; }
+      .attendance-field-work-help, .attendance-field-work-message { margin:8px 0 12px; font-size:15px; line-height:1.5; }
+      .attendance-field-work-message:empty { margin:0; }
+      .attendance-field-work-submit { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin-bottom:10px; }
+
       .attendance-sync-required { margin:14px 0; padding:14px; border:1px solid #e2c68d; border-radius:14px; background:#fff8e9; line-height:1.5; }
       .attendance-sync-required h3,.attendance-sync-required p { margin:0; }
       .attendance-sync-required p { margin-top:7px; }
@@ -917,67 +931,112 @@
       dateStyle: 'full', timeZone: 'Asia/Seoul'
     }).format(new Date(workDate));
     panel.append(el('h3', dateLabel));
-    const message = el('p', '', 'attendance-evidence-help');
+
+    const message = el('p', '', 'attendance-field-work-message');
     message.setAttribute('role', 'status');
-    const names = new Map(rows.map(row => [String(row.employee_uuid), row.display_name]));
+    const roster = new Map(rows.map(row => [String(row.employee_uuid), row]));
     const controls = [];
+    const selection = [];
+    const review = el('button', '선택한 출퇴근 확인', 'button');
+    review.type = 'button';
+    const count = el('span', '0명 선택');
+    count.setAttribute('aria-live', 'polite');
     let busy = false;
+
+    function updateControls() {
+      const selected = selection.filter(input => input.checked).length;
+      count.textContent = selected + '명 선택';
+      review.disabled = busy || selected === 0;
+      controls.forEach(control => { control.disabled = busy; });
+    }
+
     async function change(action, employeeIds) {
-      if (busy) return;
-      if (!employeeIds.length) { message.textContent = '직원을 한 명 이상 선택해주세요.'; return; }
+      if (busy || !employeeIds.length) return;
       busy = true;
-      controls.forEach(button => { button.disabled = true; });
+      updateControls();
       message.textContent = '처리 중입니다.';
       try {
         await app().rpc('manage_attendance_field_work', {
           p_work_date: workDate, p_employee_uuids: employeeIds, p_action: action
         });
+        message.textContent = action === 'review' ? '출퇴근을 확인했습니다.' : '현장근무 지정을 해제했습니다.';
+        await openAttendance(workDate);
+        const updatedPanel = main()?.querySelector('[data-field-work-panel]');
+        if (updatedPanel) {
+          updatedPanel.open = true;
+          const updatedMessage = updatedPanel.querySelector('.attendance-field-work-message');
+          if (updatedMessage) updatedMessage.textContent = message.textContent;
+        }
       } catch (error) {
         message.textContent = FIELD_WORK_ERRORS[error?.message] || '처리하지 못했습니다. 입력과 권한을 확인해주세요.';
-        return;
       } finally {
         busy = false;
-        controls.forEach(button => { button.disabled = false; });
+        updateControls();
       }
-      message.textContent = '처리했습니다.';
-      await openAttendance(workDate);
-      main()?.querySelector('[data-field-work-panel]')?.setAttribute('open', '');
     }
-    panel.append(message);
+
     const list = el('div', null, 'attendance-holiday-work-list');
-    const reviewSelection = [];
     for (const assignment of assignments) {
-      const line = el('div', null, 'attendance-holiday-work-row');
-      const copy = el('div');
-      const recorded = assignment.clock_in || assignment.clock_out;
-      const state = assignment.reviewed_at ? '확인 완료'
-        : recorded ? '확인 필요' : scheduled ? '근무 예정' : '기록 대기';
-      copy.append(el('strong', names.get(String(assignment.employee_uuid)) || '직원'),
-        el('span', assignment.site + ' · ' + assignment.starts_at.slice(0,5) + '–' + assignment.ends_at.slice(0,5)
-          + ' · ' + (assignment.field_clock_in ? '현장 출퇴근' : '현장 퇴근') + ' · ' + state),
-        el('span', '현장 출근 ' + time(assignment.clock_in) + (assignment.late ? ' (지각)' : '')
-          + ' · 현장 퇴근 ' + time(assignment.clock_out) + (assignment.early_leave ? ' (조퇴 확인)' : '')));
+      const line = el('div', null, 'attendance-holiday-work-row attendance-field-work-row');
+      const copy = el('div', null, 'attendance-field-work-copy');
+      const employee = roster.get(String(assignment.employee_uuid));
+      const name = employee?.display_name || '직원';
+      const recorded = Boolean(assignment.clock_in || assignment.clock_out);
+      const effectiveClockOut = employee ? employee.clock_out?.event_at : assignment.clock_out;
+      const clockIn = recorded ? employee?.clock_in?.event_at || assignment.clock_in : null;
+      const clockOut = recorded ? effectiveClockOut : null;
+      const waitingForCheckout = Boolean(employee && !effectiveClockOut);
+      const needsReview = recorded && !assignment.reviewed_at && !waitingForCheckout;
+      const clockInNote = employee?.clock_in?.status === 'corrected' ? ' (보정)' : assignment.late ? ' (지각)' : '';
+      const clockOutNote = employee?.clock_out?.status === 'corrected' ? ' (보정)' : assignment.early_leave && clockOut ? ' (조퇴 확인)' : '';
+      copy.append(
+        el('strong', name),
+        el('span', assignment.site + ' · ' + assignment.starts_at.slice(0, 5) + '–' + assignment.ends_at.slice(0, 5)
+          + ' · ' + (assignment.field_clock_in ? '현장 출퇴근' : '현장 퇴근')),
+        el('span', '출근 ' + (clockIn ? time(clockIn) + clockInNote : '미기록')
+          + '  /  퇴근 ' + (clockOut ? time(clockOut) + clockOutNote : '미기록'), 'attendance-field-work-times')
+      );
       line.append(copy);
-      if (!confirmed && recorded && !assignment.reviewed_at) {
-        const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.value = assignment.employee_uuid;
-        const label = el('label', '대조 확인 대상');
-        label.append(checkbox);
-        reviewSelection.push(checkbox); line.append(label);
-      } else if (!confirmed && !recorded) {
-        const remove = el('button', '지정 해제', 'button button-quiet'); remove.type = 'button';
-        controls.push(remove);
-        remove.addEventListener('click', () => void change('remove', [assignment.employee_uuid]));
-        line.append(remove);
+      if (!confirmed && needsReview) {
+        const checkbox = el('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = assignment.employee_uuid;
+        checkbox.setAttribute('aria-label', name + ' 확인할 기록 선택');
+        const label = el('label', null, 'attendance-field-work-select');
+        label.append(checkbox, '확인할 기록 선택');
+        checkbox.addEventListener('change', updateControls);
+        controls.push(checkbox);
+        selection.push(checkbox);
+        line.append(label);
+      } else {
+        let state = '확인 완료';
+        if (!assignment.reviewed_at) {
+          state = recorded ? (waitingForCheckout ? '퇴근 기록 필요' : '확인 필요')
+            : scheduled ? '근무 예정' : '기록 대기';
+        }
+        const status = el('span', state, 'attendance-field-work-state');
+        if (recorded && !assignment.reviewed_at) status.dataset.waiting = '';
+        line.append(status);
+        if (!confirmed && !recorded && !assignment.reviewed_at) {
+          const remove = el('button', '지정 해제', 'button button-quiet');
+          remove.type = 'button';
+          controls.push(remove);
+          remove.addEventListener('click', () => void change('remove', [assignment.employee_uuid]));
+          line.append(remove);
+        }
       }
       list.append(line);
     }
-    if (!assignments.length) list.append(el('p', '등록된 현장근무가 없습니다.', 'empty'));
-    if (reviewSelection.length) {
-      const review = el('button', '선택한 기록 대조 확인', 'button button-quiet'); review.type = 'button';
-      controls.push(review);
-      review.addEventListener('click', () => void change('review', reviewSelection.filter(item => item.checked).map(item => item.value)));
-      list.append(review);
+    if (selection.length) {
+      panel.append(el('p', '출퇴근 시간을 살펴보고 확인할 직원을 선택해 주세요.', 'attendance-field-work-help'));
+      const actions = el('div', null, 'attendance-field-work-submit');
+      review.addEventListener('click', () => void change('review', selection.filter(input => input.checked).map(input => input.value)));
+      actions.append(review, count);
+      panel.append(actions);
+      updateControls();
     }
+    if (!assignments.length) list.append(el('p', '등록된 현장근무가 없습니다.', 'empty'));
+    panel.append(message);
     panel.append(list);
     const wrapper = folded(FIELD_WORK_LABEL, panel);
     wrapper.dataset.fieldWorkPanel = '1';
