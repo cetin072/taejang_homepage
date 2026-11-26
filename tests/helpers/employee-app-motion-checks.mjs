@@ -9,7 +9,7 @@ async function setReducedMotion(page, reduced) {
   await page.waitForFunction(expected => {
     const controls = [...document.querySelectorAll('.employee-app-motion-controls')];
     return matchMedia('(prefers-reduced-motion: reduce)').matches === expected
-      && controls.length === 3 && controls.every(el => {
+      && controls.length === 2 && controls.every(el => {
         const style = getComputedStyle(el);
         return el.hidden === expected && (expected
           ? style.display === 'none'
@@ -19,32 +19,13 @@ async function setReducedMotion(page, reduced) {
   assert.equal(await page.locator('.is-flipping').count(), 0, 'preference change leaves cards static');
   if (reduced) assert.equal(await page.evaluate(() => document.getAnimations().length), 0);
   assert.equal(await page.locator('.employee-app-flip-inner').evaluateAll(els => els.reduce((n, el) => n + el.getAnimations().length, 0)), 0, 'preference change leaves no card animation');
-  assert.equal(await page.locator('[data-hero-motion]').getAttribute('data-state'), 'ended');
-  assert.equal(await page.locator('[data-hero-motion]').getAttribute('data-time'), '5200');
   // Cross rendering frames after the handler: a restored control must not
-  // quietly schedule a new SVG/card playback without an explicit user action.
+  // quietly schedule a card playback without an explicit user action.
   await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-  assert.equal(await page.locator('[data-hero-motion]').getAttribute('data-state'), 'ended', 'preference change does not replay HERO');
   assert.equal(await page.locator('.is-flipping').count(), 0, 'preference change does not replay cards');
 }
 
 export async function exerciseMotion(page, output, assertLayout) {
-  const hero = page.locator('[data-hero-motion]');
-  const replay = hero.locator('[data-hero-replay]');
-  await replay.focus(); await page.keyboard.press('Enter');
-  await page.waitForFunction(() => document.querySelector('[data-hero-motion]').dataset.state === 'playing');
-  await page.waitForTimeout(900);
-  await hero.locator('[data-hero-pause]').click();
-  const paused = await hero.getAttribute('data-time');
-  await page.waitForTimeout(200);
-  assert.equal(await hero.getAttribute('data-time'), paused, 'pause freezes the actual SVG');
-  await hero.locator('[data-hero-pause]').click();
-  await page.waitForFunction(() => document.querySelector('[data-hero-motion]').dataset.state === 'ended');
-  assert.equal(await hero.getAttribute('data-time'), '5200');
-  assert.equal(await page.locator('#hero-record-line').getAttribute('d'), 'M253.000 190.000 L269.000 205.000 L300.000 169.000');
-  await assertLayout(page, 'hero-ended');
-  await page.screenshot({ path: path.join(output, 'hero-v21-ended.png') });
-
   for (const card of await page.locator('[data-comparison]').all()) {
     const id = await card.evaluate(el => el.closest('article').id);
     await card.scrollIntoViewIfNeeded();
@@ -83,14 +64,6 @@ export async function exerciseMotion(page, output, assertLayout) {
   assert.equal(await page.evaluate(() => document.getAnimations().length), 0);
   await setReducedMotion(page, false);
   assert.equal(await page.locator('.is-flipping').count(), 0, 'preference change does not replay');
-  await hero.scrollIntoViewIfNeeded();
-  await replay.click();
-  await page.waitForTimeout(250);
-  await setReducedMotion(page, true);
-  await page.waitForFunction(() => document.querySelector('[data-hero-motion]').dataset.time === '5200', undefined, { timeout: 1000 });
-  assert.equal(await hero.getAttribute('data-time'), '5200', 'live reduce interrupts SVG to its final frame');
-  await setReducedMotion(page, false);
-  assert.equal(await hero.getAttribute('data-state'), 'ended');
   const firstCard = page.locator('[data-comparison]').first();
   await firstCard.scrollIntoViewIfNeeded();
   await firstCard.locator('[data-card-replay]').click();

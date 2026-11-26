@@ -16,6 +16,7 @@ const missing={...good,employee_uuid:'fixture-missing',employee_id:'V002',displa
 const ledger={period_fingerprint:'fixture-only',rows:dates.map(d=>({employee_uuid:good.employee_uuid,employee_id_at_confirmation:good.employee_id,display_name_at_confirmation:good.display_name,work_date:d,clock_in_at:d+'T09:00:00+09:00',clock_out_at:d+'T18:00:00+09:00',record_snapshot:{attendance_status:'work'},revision_no:1,record_fingerprint:'fixture-'+d}))};
 const deleted={...good,employee_uuid:'fixture-deleted',employee_id:'V003',display_name:'가상 삭제 계정',account_active:false};
 const scheduledEmployee={...good,employee_uuid:'fixture-scheduled',employee_id:'V004',display_name:'가상 예정일 직원'};
+const corrected={...good,employee_uuid:'fixture-corrected',employee_id:'V005',display_name:'가상 보정 직원',clock_out:{event_at:'2026-11-26T13:00:00+09:00',status:'corrected'}};
 const largeRosterDate='2026-12-01';
 const largeRoster=Array.from({length:28},(_,index)=>{
  const number=String(index+1).padStart(2,'0');
@@ -26,6 +27,18 @@ const rows=${JSON.stringify([good,missing,deleted])};const ledger=${JSON.stringi
 const scheduledEmployee=${JSON.stringify(scheduledEmployee)}, scheduledDate=${JSON.stringify(scheduledDate)};
 const largeRoster=${JSON.stringify(largeRoster)}, largeRosterDate=${JSON.stringify(largeRosterDate)};
 window.fail=false;window.calls=[];const fieldWorkByDate=new Map();
+const corrected=${JSON.stringify(corrected)};
+window.seedFieldReview=()=>{
+ window.fieldReviewSeeded=true;
+ const assignment={site:'가상 환경미화',starts_at:'09:00',ends_at:'13:00',field_clock_in:true};
+ const clock_in='2026-11-26T09:00:00+09:00';
+ fieldWorkByDate.set('${today}',[
+  {...assignment,employee_uuid:rows[0].employee_uuid,clock_in,clock_out:rows[0].clock_out.event_at},
+  {...assignment,employee_uuid:rows[1].employee_uuid,clock_in},
+  {...assignment,employee_uuid:rows[2].employee_uuid},
+  {...assignment,employee_uuid:corrected.employee_uuid,clock_in}
+ ]);
+};
 window.TaejangApp={getRoute:()=> 'operations_manager',hasCapabilityContract:()=>true,can:()=>true,rpc:async(name,p)=>{
  calls.push({name,p});if(window.fail)throw Error('fixture network failure');
  if(name==='get_attendance_admin_today'){
@@ -34,7 +47,7 @@ window.TaejangApp={getRoute:()=> 'operations_manager',hasCapabilityContract:()=>
    if(window.failRoster)throw Error('fixture roster read failure');
    return {work_date:p.p_work_date,rows:[...rows,scheduledEmployee]};
   }
-  return {work_date:p.p_work_date,rows};
+  return {work_date:p.p_work_date,rows:window.fieldReviewSeeded&&p.p_work_date==='${today}'?[...rows,corrected]:rows};
  }
  if(name==='get_attendance_external_evidence')return {rows:[]};
  if(name==='get_attendance_confirmation_status')return {is_confirmed:false,blockers:[]};
@@ -43,6 +56,12 @@ window.TaejangApp={getRoute:()=> 'operations_manager',hasCapabilityContract:()=>
  if(name==='get_attendance_field_work'){if(window.failField)throw Error('fixture field read failure');return fieldWorkByDate.get(p.p_work_date) || [];}
  if(name==='manage_attendance_field_work'){
   if(window.failSave)throw Error('FIELD_WORK_INELIGIBLE');
+  if(p.p_action==='review'){
+   if(window.failReview)throw Error('FIELD_WORK_INCOMPLETE');
+   const items=fieldWorkByDate.get(p.p_work_date);
+   for(const item of items)if(p.p_employee_uuids.includes(item.employee_uuid))item.reviewed_at='2026-11-26T14:00:00+09:00';
+   return null;
+  }
   fieldWorkByDate.set(p.p_work_date,p.p_employee_uuids.map(employee_uuid=>({employee_uuid,site:p.p_site,starts_at:p.p_starts_at,ends_at:p.p_ends_at,field_clock_in:p.p_field_clock_in})));
   return null;
  }
@@ -193,7 +212,7 @@ try{
   await page.getByText('현장근무를 등록했습니다.',{exact:true}).waitFor();
   await page.getByRole('heading',{name:scheduledDate+' 출근부',exact:true}).waitFor();
   assert.equal(await field.evaluate(panel=>panel.open),true);
-  const scheduledRows=field.getByText(/가상 환경미화.*현장 퇴근.*근무 예정/);
+  const scheduledRows=field.getByText('근무 예정',{exact:true});
   await scheduledRows.first().waitFor();
   assert.equal(await scheduledRows.count(),2);
   const saved=await page.evaluate(()=>calls.findLast(c=>c.name==='manage_attendance_field_work').p);
@@ -209,6 +228,45 @@ try{
   await page.getByRole('heading',{name:today+' 출근부',exact:true}).waitFor();
   await field.getByText('현장근무 내역·확인',{exact:true}).click();
   await field.getByText('등록된 현장근무가 없습니다.',{exact:true}).waitFor();
+  await page.evaluate(async()=>{
+    window.seedFieldReview();
+    await TaejangAttendanceAdmin.openAttendance();
+  });
+  await field.getByText('현장근무 내역·확인',{exact:true}).click();
+  const fieldRow=name=>field.locator('.attendance-field-work-row').filter({has:page.getByText(name,{exact:true})});
+  const pending=fieldRow(missing.display_name);
+  const correctedRow=fieldRow(corrected.display_name);
+  await pending.getByText('퇴근 기록 필요',{exact:true}).waitFor();
+  assert.equal(await pending.getByRole('checkbox').count(),0);
+  assert.equal(await fieldRow(deleted.display_name).getByRole('button',{name:'지정 해제'}).count(),1);
+  await correctedRow.getByText(/퇴근 13:00 \(보정\)/).waitFor();
+  const checkbox=correctedRow.getByRole('checkbox',{name:corrected.display_name+' 확인할 기록 선택'});
+  const box=await checkbox.boundingBox();
+  assert.deepEqual([box.width,box.height],[20,20]);
+  const label=correctedRow.locator('label');
+  assert.ok((await label.boundingBox()).height>=44);
+  const review=field.getByRole('button',{name:'선택한 출퇴근 확인',exact:true});
+  assert.equal(await review.isDisabled(),true);
+  await label.click();
+  assert.equal(await checkbox.isChecked(),true);
+  await field.getByText('1명 선택',{exact:true}).waitFor();
+  assert.equal(await review.isEnabled(),true);
+  await label.click();
+  assert.equal(await review.isDisabled(),true);
+  await checkbox.check();
+  await page.evaluate(()=>window.failReview=true);
+  await review.click();
+  await field.getByText('현장 퇴근 기록 또는 보정 여부를 확인해주세요.',{exact:true}).waitFor();
+  assert.equal(await checkbox.isChecked(),true);
+  assert.equal(await review.isEnabled(),true);
+  await page.evaluate(()=>window.failReview=false);
+  await review.click();
+  await correctedRow.getByText('확인 완료',{exact:true}).waitFor();
+  await field.getByText('출퇴근을 확인했습니다.',{exact:true}).waitFor();
+  assert.deepEqual(await page.evaluate(()=>calls.findLast(call=>call.p?.p_action==='review').p.p_employee_uuids),[corrected.employee_uuid]);
+  const fieldWidth=await field.evaluate(el=>({rendered:el.clientWidth,content:el.scrollWidth}));
+  assert.ok(fieldWidth.content<=fieldWidth.rendered+1,device+': field review panel must fit the viewport');
+  await field.screenshot({path:path.join(output,device+'-field-work-review.png')});
   await page.evaluate(()=>{
     TaejangApp.can=capability=>capability==='attendance.admin_view';
     window.calls=[];

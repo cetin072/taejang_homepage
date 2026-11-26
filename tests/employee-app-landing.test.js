@@ -40,10 +40,10 @@ test('landing is static, reachable, and retains shared public navigation', () =>
 });
 
 test('content shows working features and feedback records without unreleased claims', () => {
-  for (const title of ['출근 기록', '공지 확인', '퇴근 기록']) {
+  for (const title of ['출퇴근 기록', '연차 신청', '공지 확인']) {
     assert.ok(page.includes('<h3>' + title + '</h3>'), title + ' feature card is missing');
   }
-  for (const label of ['화면 읽기', '글자 확대', '직원의 의견', '개선 포인트', '중요한 기준']) {
+  for (const label of ['글자를 키우거나 화면을 읽는 환경', '직원의 의견', '개선 포인트', '중요한 기준']) {
     assert.ok(page.includes(label), 'accessibility or status content is missing: ' + label);
   }
   assert.match(page, /datetime="2026-10-14"[\s\S]*?출퇴근 버튼을 더 쉽게/);
@@ -68,17 +68,15 @@ test('metadata and layout support sharing and mobile/reduced-motion friendly rea
   assert.match(page, /aria-labelledby="developer-notes-title"/);
   assert.match(css, /@media \(max-width: 760px\)/);
   assert.doesNotMatch(main, /업무 플랫폼/);
-  assert.match(page, /실제 앱 화면과는 다릅니다/);
+  assert.match(page, /<figcaption>직원앱 홈 화면 예시<\/figcaption>/);
+  assert.equal((page.match(/class="employee-app-screen-preview /g) || []).length, 3);
+  assert.match(page, /class="btn employee-app-hero-link page-link" href="#app-features"/);
+  assert.doesNotMatch(page, /개발자 노트|data-hero-motion/);
   assert.equal((page.match(/class="employee-app-note-flow"/g) || []).length, 2);
   assert.doesNotMatch(page, /이 기록 링크|employee-app-note-link/, 'no misleading self-link on notes');
   assert.doesNotMatch(css, /\.employee-app-note-link\b/, 'remove now unused self-link style');
-  assert.match(page, /<svg viewBox="0 0 48 48" aria-hidden="true" focusable="false"><rect x="6"/,
-    'diverse environments icon is a phone, not a human silhouette');
-  assert.match(page, /<text x="19\.5" y="28"[^>]*>Aa<\/text>/, 'icon shows scalable readable text');
-  assert.match(page, /data-hero-motion/);
   assert.match(page, /data-card-replay/);
   assert.match(page, /employee-app-face-label">개선안/);
-  assert.match(read('assets/js/employee-app-motion.js'), /const duration = 5200/);
   assert.match(read('assets/css/styles.css'), /@media \(prefers-reduced-motion:reduce\)/);
 
   assert.match(css, /prefers-reduced-motion: reduce/);

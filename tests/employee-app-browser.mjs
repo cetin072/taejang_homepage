@@ -130,7 +130,8 @@ try {
       return {
         features: columns('.employee-app-feature-grid'), flow: columns('.employee-app-note-flow'),
         heroCopy: box('.employee-app-hero-copy').bottom, heroArt: box('.employee-app-hero-art').top,
-        heroArtBottom: box('.employee-app-hero-art').bottom, heroButton: box('.employee-app-hero-link').top,
+        titleSize: parseFloat(getComputedStyle(document.querySelector('#employee-app-title')).fontSize),
+        screenCount: document.querySelectorAll('.employee-app-screen-preview').length,
         motion: getComputedStyle(document.documentElement).scrollBehavior,
         animations: document.getAnimations().length
       };
@@ -138,8 +139,10 @@ try {
     assert.equal(visual.features, width <= 760 ? 1 : 3);
     assert.equal(visual.flow, 1, 'static semantic comparison container');
     if (width <= 760) {
-      assert.ok(visual.heroCopy <= visual.heroArt && visual.heroArtBottom <= visual.heroButton, name + ': mobile title → description → illustration → button');
+      assert.ok(visual.heroCopy <= visual.heroArt, name + ': mobile title and link precede the app mockup');
     }
+    assert.ok(visual.titleSize >= (width <= 760 ? 36 : 45), name + ': landing title is prominent');
+    assert.equal(visual.screenCount, 3, name + ': three feature screen previews');
     assert.equal(visual.motion, 'auto');
     assert.equal(visual.animations, 0, name + ': reduced motion disables all landing motion');
     assert.equal(await page.locator('.employee-app-face').count(), 4);
@@ -161,8 +164,8 @@ try {
     assert.equal(await page.locator('.employee-app-hero-link').evaluate(el => getComputedStyle(el).outlineStyle), 'solid');
     assert.ok((await page.locator('.employee-app-hero-link').boundingBox()).height >= 44);
     await page.keyboard.press('Enter');
-    await page.waitForURL(url => url.hash === '#developer-notes');
-    assert.equal(new URL(page.url()).hash, '#developer-notes');
+    await page.waitForURL(url => url.hash === '#app-features');
+    assert.equal(new URL(page.url()).hash, '#app-features');
     if (width < 1000) {
       const menu = page.locator('[data-menu-button]');
       await menu.focus();
@@ -290,7 +293,7 @@ try {
   const staticPage = await noJS.newPage();
   await staticPage.goto(base + '/employee-app.html');
   assert.equal(await staticPage.locator('#mobile-nav').isVisible(), true);
-  for (const selector of ['#employee-app-title', '.employee-app-hero-copy .lead', '.employee-app-note-flow', '.employee-app-feature']) {
+  for (const selector of ['#employee-app-title', '.employee-app-hero-copy .lead', '.employee-app-note-flow', '.employee-app-screen-preview']) {
     assert.equal(await staticPage.locator(selector).first().isVisible(), true);
   }
   await assertLayout(staticPage, 'no-JS');
@@ -298,7 +301,7 @@ try {
   assert.equal(await staticPage.locator('.employee-app-motion-controls:visible').count(), 0);
   await staticPage.screenshot({ path: path.join(output, 'employee-app-no-js.png'), fullPage: true });
   await noJS.close();
-  const motion = { hero: 'approved V2.1 5200ms', card: '2000ms reading + 1000ms single half-turn, card in-view trigger and viewport pause/resume' };
+  const motion = { card: '2000ms reading + 1000ms single half-turn, card in-view trigger and viewport pause/resume' };
   for (const width of [1440, 390, 320]) {
   const normal = await newPhotoSafeContext(browser, { viewport: { width, height: 900 }, reducedMotion: 'no-preference' });
   const motionPage = await normal.newPage();
