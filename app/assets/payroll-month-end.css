@@ -10,8 +10,10 @@
 .pme-steps { padding:4px; border:1px solid var(--pme-border); background:#f1f6f2; border-radius:12px; }
 .pme-steps>.button { flex:1 1 145px; text-align:center; justify-content:center; background:transparent; padding:10px; }
 .pme-steps>.button[aria-current] { background:#fff; color:#16482f; box-shadow:0 1px 4px #173a2924; font-weight:750; }
-.pme-field { display:grid; gap:5px; font-weight:650; }
+.pme-field { display:grid; gap:5px; margin:0; min-width:0; font-weight:650; }
 .payroll-month-end input:not([type=checkbox]) { min-height:40px; border:1px solid #b9cabe; border-radius:7px; padding:6px 9px; min-width:0; color:#18382c; background:#fff; }
+.payroll-month-end .pme-period-actions :is(input[type=date],input[type=month],.button) { box-sizing:border-box; min-height:48px; }
+.pme-period-actions > .button { padding-block:8px; }
 .payroll-month-end input[type=checkbox] { width:18px; height:18px; accent-color:var(--pme-green); }
 .pme-body { display:grid; gap:15px; }
 .pme-body>* { margin-block:0; }
