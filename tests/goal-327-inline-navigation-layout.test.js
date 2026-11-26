@@ -37,7 +37,7 @@ test('Goal 327 keeps regular navigation and cards non-draggable until Settings e
 
 test('Issue 463 master notice-first sidebar and connected drag/drop', () => {
   assert.doesNotMatch(registry, /task\.manage/);
-  assert.match(priority, /label: '업무 운영', items: \['공지 관리'\]/);
+  assert.match(priority, /label: '공지', items: \['공지 관리'\]/);
   assert.doesNotMatch(shell, /업무 배정/);
   assert.match(settings,/state\.editingSidebar=true;\s*bindSidebarDropTargets\(\);\s*decorateEditableSidebar\(\)/);
 });
@@ -109,7 +109,7 @@ test('Goal 327 uses stable dashboard keys and keeps payroll and support in-platf
   assert.match(dashboardPriority, /mergeSavedOrder/);
   assert.match(dashboardPriority, /CustomEvent\('taejang-open-payroll'\)/);
   assert.match(supportRadar, /dashboardCardKey = 'support\.radar'/);
-  assert.match(supportRadar, /button\('레이더 열기', \(\) => open\('dashboard'\)\)/);
+  assert.match(supportRadar, /button\('지원사업 찾기', \(\) => open\('dashboard'\)\)/);
   assert.match(supportRadar, /button\('기업 프로필', renderProfile, true\)/);
   assert.doesNotMatch(supportRadar, /window\.open\('index\.html\?support=/);
   assert.match(attendance, /dashboardCardKey = 'attendance\.today'/);

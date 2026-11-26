@@ -85,7 +85,7 @@ const appAutomation = `<script>
         () => document.querySelector('#app-nav a[data-menu-key="payroll.manage"]'),
         'payroll sidebar entry'
       );
-      if ((link.textContent || '').trim() !== '근태·급여관리') throw new Error('PAYROLL_NAV_LABEL_MISMATCH');
+      if ((link.textContent || '').trim() !== '급여 관리') throw new Error('PAYROLL_NAV_LABEL_MISMATCH');
       if (new URL(link.href).searchParams.get('view') !== 'payroll.manage') throw new Error('PAYROLL_NAV_HREF_MISMATCH');
       if (link.target === '_blank') throw new Error('PAYROLL_NAV_UNEXPECTED_NEW_TAB');
       await waitFor(

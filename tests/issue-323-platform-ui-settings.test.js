@@ -25,7 +25,7 @@ test('Issue 323 gives every canonical menu a stable unique key', () => {
   assert.ok(keys.length >= 25, 'canonical registry contains the full desktop menu set');
   assert.equal(new Set(keys).size, keys.length, 'canonical menu keys are unique');
   assert.match(registry, /key:'platform\.settings', label:'설정'/);
-  assert.match(registry, /key:'support\.radar', label:'지원사업 레이더'/);
+  assert.match(registry, /key:'support\.radar', label:'지원사업 찾기'/);
   assert.match(registry, /key:'support\.profile', label:'기업 프로필'/);
 });
 

@@ -70,7 +70,7 @@
     nav.addEventListener('click', event => {
       const target = event.target?.closest?.('button, a');
       if (!target || !nav.contains(target)) return;
-      if (target.dataset?.navSectionToggle === '1') return;
+      if (target.dataset?.navSectionToggle === '1' || target.dataset?.dashboardView === '1') return;
       if (target.tagName === 'A' && target.target === '_blank') return;
       // Every in-app sidebar destination starts from one canonical surface state.
       // The destination handler may immediately open another legacy panel again.

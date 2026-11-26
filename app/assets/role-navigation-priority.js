@@ -3,26 +3,28 @@
 
   const MASTER_ORDER = Object.freeze([
     '대시보드',
-    '직원 관리', '신규 직원 등록', '가입 승인',
-    '홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토', '홍보 승인 검토',
-    '발행 관리', '발행 현황', '공개 홍보글 관리',
-    '홈페이지 내용 관리', '홈페이지 직접 수정',
+    '매출·정산', '공용 견적서',
+    '물류 견적·거래',
+    '용역 계약·월 매출', '월간 용역 서류',
+    '직원 관리', '신규 직원 등록', '직원앱 가입 승인',
+    '출근부', '근태 기록 보정', '연차 관리', '급여 관리', '급여명세서',
     '공지 관리',
-    '기준정보·매출 관리', '계약·월 매출', '용역 서류',
-    '출근부', '근태 보정', '근태·급여관리', '급여명세서',
-    '기업 프로필', '지원사업 레이더', '내 지원사업',
+    '홍보 글 작성', '승인 검토', '보완 요청받은 글', '보낸 글', '발행 관리', '발행 현황', '공개 글 관리',
+    '내용 수정 요청', '직접 편집',
+    '지원사업 찾기', '내 지원사업', '기업 프로필',
     '신규 사업 기획'
   ]);
 
   const MASTER_SECTIONS = Object.freeze([
-    { key: 'employee-account', label: '직원·계정', items: ['직원 관리', '신규 직원 등록', '가입 승인'] },
-    { key: 'promotion', label: '홍보', items: ['홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토', '발행 관리', '공개 홍보글 관리'] },
-    { key: 'homepage', label: '홈페이지', items: ['홈페이지 내용 관리', '홈페이지 직접 수정'] },
-    { key: 'operations', label: '업무 운영', items: ['공지 관리'] },
-    { key: 'sales', label: '영업·매출', items: ['기준정보·매출 관리'] },
-    { key: 'services', label: '용역 관리', items: ['계약·월 매출', '용역 서류'] },
-    { key: 'payroll', label: '근태·급여', items: ['출근부', '근태 보정', '근태·급여관리', '급여명세서'] },
-    { key: 'support', label: '지원사업', items: ['기업 프로필', '지원사업 레이더', '내 지원사업'] },
+    { key: 'sales', label: '영업·매출', items: ['매출·정산', '공용 견적서'] },
+    { key: 'logistics', label: '물류', items: ['물류 견적·거래'] },
+    { key: 'services', label: '용역', items: ['용역 계약·월 매출', '월간 용역 서류'] },
+    { key: 'employee-account', label: '직원·계정', items: ['직원 관리', '신규 직원 등록', '직원앱 가입 승인'] },
+    { key: 'payroll', label: '근태·급여', items: ['출근부', '근태 기록 보정', '연차 관리', '급여 관리', '급여명세서'] },
+    { key: 'operations', label: '공지', items: ['공지 관리'] },
+    { key: 'promotion', label: '홍보', items: ['홍보 글 작성', '승인 검토', '보완 요청받은 글', '보낸 글', '발행 관리', '공개 글 관리'] },
+    { key: 'homepage', label: '홈페이지', items: ['내용 수정 요청', '직접 편집'] },
+    { key: 'support', label: '지원사업', items: ['지원사업 찾기', '내 지원사업', '기업 프로필'] },
     { key: 'official_channels', label: '공식 채널', items: ['홈페이지', '공식 블로그', '공식 유튜브'] }
   ]);
 
@@ -104,8 +106,11 @@
     const renamed = LABEL_RENAMES.get(current);
     if (renamed) node.textContent = renamed;
     const registry = window.TaejangPlatformNavigationRegistry;
-    const item = registry?.itemForLabel?.(cleanLabel(node));
-    if (item?.key) node.dataset.menuKey = item.key;
+    const item = registry?.itemForNode?.(node) || registry?.itemForLabel?.(cleanLabel(node));
+    if (!item?.key) return;
+    node.dataset.menuKey = item.key;
+    const canonicalLabel = item.roleLabels?.[route()] || item.label;
+    if (!item.public && cleanLabel(node) !== canonicalLabel) node.textContent = canonicalLabel;
   }
 
   function ensureIssue207RoleContract(nav) {

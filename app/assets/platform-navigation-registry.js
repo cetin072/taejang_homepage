@@ -2,14 +2,14 @@
   'use strict';
 
   const SECTIONS = Object.freeze([
+    { key:'sales', label:'영업·매출' },
+    { key:'logistics', label:'물류' },
+    { key:'services', label:'용역' },
     { key:'employee-account', label:'직원·계정' },
+    { key:'payroll', label:'근태·급여' },
+    { key:'operations', label:'공지' },
     { key:'promotion', label:'홍보' },
     { key:'homepage', label:'홈페이지' },
-    { key:'operations', label:'업무 운영' },
-    { key:'sales', label:'영업·매출' },
-    { key:'services', label:'용역 관리' },
-    { key:'logistics', label:'물류' },
-    { key:'payroll', label:'근태·급여' },
     { key:'support', label:'지원사업' },
     { key:'official_channels', label:'공식 채널' }
   ]);
@@ -17,33 +17,39 @@
   const ITEMS = Object.freeze([
     { key:'dashboard', label:'대시보드', section:null, locked:true },
 
+    { key:'erp_sales.manage', label:'매출·정산', section:'영업·매출', capabilities:['erp_sales.read'], visibleRoles:['operations_manager'] },
+    { key:'erp_sales.quotation', label:'공용 견적서', section:'영업·매출', capabilities:['erp_sales.read'], visibleRoles:['operations_manager'] },
+
+    { key:'logistics.manage', label:'물류 견적·거래', section:'물류', capabilities:[], visibleRoles:['department_lead','promotion_lead','operations_manager','ceo'] },
+
+    { key:'erp_sales.contracts', label:'용역 계약·월 매출', section:'용역', capabilities:['erp_sales.read'], visibleRoles:['operations_manager'] },
+    { key:'monthly_client_documents.manage', label:'월간 용역 서류', section:'용역', capabilities:['monthly_client_documents.manage'], visibleRoles:['operations_manager'] },
+
     { key:'employee.manage', label:'직원 관리', section:'직원·계정', capabilities:['employee.view_all','employee.view_scoped'] },
     { key:'employee.new', label:'신규 직원 등록', section:'직원·계정', capabilities:['employee.create','employee.request_change'] },
-    { key:'account.approval', label:'가입 승인', section:'직원·계정', capabilities:['employee.onboard','account.approve','account.reject'] },
-    { key:'promotion.write', label:'홍보 글 작성', section:'홍보', capabilities:['promotion.write','promotion.edit_any_unpublished'], visibleRoles:['promotion_staff','promotion_lead','operations_manager'] },
-    { key:'promotion.revision', label:'보완 요청받은 글', section:'홍보', capabilities:['promotion.edit_own','promotion.edit_any_unpublished'], visibleRoles:['promotion_staff'] },
-    { key:'promotion.sent', label:'보낸 글', section:'홍보', capabilities:['promotion.write'], visibleRoles:['promotion_staff','promotion_lead','operations_manager'] },
-    { key:'promotion.review', label:'홍보 검토', roleLabels:{ operations_manager:'홍보 승인 검토' }, section:'홍보', capabilities:['promotion.review_lead','promotion.review_operations','promotion.review_ceo'], visibleRoles:['promotion_lead','operations_manager','ceo'] },
-    { key:'promotion.publication', label:'발행 관리', roleLabels:{ operations_manager:'발행 현황' }, section:'홍보', capabilities:[], visibleRoles:['promotion_lead','operations_manager'] },
-    { key:'promotion.existing', label:'공개 홍보글 관리', section:'홍보', capabilities:['promotion.manage_recent_public','promotion.archive','promotion.restore'], visibleRoles:['promotion_lead','operations_manager'] },
-    { key:'homepage.content', label:'홈페이지 내용 관리', section:'홈페이지', capabilities:['homepage.draft','homepage.review','homepage.approve_apply'] },
-    { key:'homepage.direct', label:'홈페이지 직접 수정', section:'홈페이지', capabilities:['homepage.direct_edit'] },
+    { key:'account.approval', label:'직원앱 가입 승인', section:'직원·계정', capabilities:['employee.onboard','account.approve','account.reject'] },
 
-    { key:'notice.manage', label:'공지 관리', section:'업무 운영', capabilities:['notice.manage'] },
-    { key:'logistics.manage', label:'물류 관리', section:'물류', capabilities:[], visibleRoles:['department_lead','promotion_lead','operations_manager','ceo'] },
-    { key:'erp_sales.manage', label:'기준정보·매출 관리', section:'영업·매출', capabilities:['erp_sales.read'], visibleRoles:['operations_manager'] },
-    { key:'erp_sales.quotation', label:'공용 견적서', section:'영업·매출', capabilities:['erp_sales.read'], visibleRoles:['operations_manager'] },
-    { key:'erp_sales.contracts', label:'계약·월 매출', section:'용역 관리', capabilities:['erp_sales.read'], visibleRoles:['operations_manager'] },
-    { key:'monthly_client_documents.manage', label:'용역 서류', section:'용역 관리', capabilities:['monthly_client_documents.manage'], visibleRoles:['operations_manager'] },
-    { key:'leave.manage', label:'연차 관리', section:'근태·급여', capabilities:['leave.manage'], visibleRoles:['operations_manager','promotion_lead'] },
     { key:'attendance.view', label:'출근부', section:'근태·급여', capabilities:['attendance.admin_view'] },
-    { key:'attendance.correct', label:'근태 보정', section:'근태·급여', capabilities:['attendance.correct'] },
-    { key:'payroll.manage', label:'근태·급여관리', section:'근태·급여', capabilities:['payroll.manage'], visibleRoles:['operations_manager'] },
+    { key:'attendance.correct', label:'근태 기록 보정', section:'근태·급여', capabilities:['attendance.correct'] },
+    { key:'leave.manage', label:'연차 관리', section:'근태·급여', capabilities:['leave.manage'], visibleRoles:['operations_manager','promotion_lead'] },
+    { key:'payroll.manage', label:'급여 관리', section:'근태·급여', capabilities:['payroll.manage'], visibleRoles:['operations_manager'] },
     { key:'payslip.issue', label:'급여명세서', section:'근태·급여', capabilities:['payslip.issue'], visibleRoles:['promotion_lead'] },
 
-    { key:'support.profile', label:'기업 프로필', section:'지원사업', capabilities:['support_radar.management_view','support_radar.management_edit'] },
-    { key:'support.radar', label:'지원사업 레이더', section:'지원사업', capabilities:['support_radar.management_view'] },
+    { key:'notice.manage', label:'공지 관리', section:'공지', capabilities:['notice.manage'] },
+
+    { key:'promotion.write', label:'홍보 글 작성', section:'홍보', capabilities:['promotion.write','promotion.edit_any_unpublished'], visibleRoles:['promotion_staff','promotion_lead','operations_manager'] },
+    { key:'promotion.review', label:'승인 검토', section:'홍보', capabilities:['promotion.review_lead','promotion.review_operations','promotion.review_ceo'], visibleRoles:['promotion_lead','operations_manager','ceo'] },
+    { key:'promotion.revision', label:'보완 요청받은 글', section:'홍보', capabilities:['promotion.edit_own','promotion.edit_any_unpublished'], visibleRoles:['promotion_staff'] },
+    { key:'promotion.sent', label:'보낸 글', section:'홍보', capabilities:['promotion.write'], visibleRoles:['promotion_staff','promotion_lead','operations_manager'] },
+    { key:'promotion.publication', label:'발행 관리', roleLabels:{ operations_manager:'발행 현황' }, section:'홍보', capabilities:[], visibleRoles:['promotion_lead','operations_manager'] },
+    { key:'promotion.existing', label:'공개 글 관리', section:'홍보', capabilities:['promotion.manage_recent_public','promotion.archive','promotion.restore'], visibleRoles:['promotion_lead','operations_manager'] },
+
+    { key:'homepage.content', label:'내용 수정 요청', section:'홈페이지', capabilities:['homepage.draft','homepage.review','homepage.approve_apply'] },
+    { key:'homepage.direct', label:'직접 편집', section:'홈페이지', capabilities:['homepage.direct_edit'] },
+
+    { key:'support.radar', label:'지원사업 찾기', section:'지원사업', capabilities:['support_radar.management_view'] },
     { key:'support.mywork', label:'내 지원사업', section:'지원사업', capabilities:['support_radar.assigned_work'] },
+    { key:'support.profile', label:'기업 프로필', section:'지원사업', capabilities:['support_radar.management_view','support_radar.management_edit'] },
 
     { key:'platform.settings', label:'설정', section:null, capabilities:['platform.navigation.manage'], locked:true },
 
@@ -53,6 +59,18 @@
   ]);
 
   const ALIASES = Object.freeze({
+    '기준정보·매출 관리':'erp_sales.manage',
+    '물류 관리':'logistics.manage',
+    '계약·월 매출':'erp_sales.contracts',
+    '용역 서류':'monthly_client_documents.manage',
+    '가입 승인':'account.approval',
+    '근태 보정':'attendance.correct',
+    '근태·급여관리':'payroll.manage',
+    '홍보 검토':'promotion.review',
+    '공개 홍보글 관리':'promotion.existing',
+    '홈페이지 내용 관리':'homepage.content',
+    '홈페이지 직접 수정':'homepage.direct',
+    '지원사업 레이더':'support.radar',
     '팀 직원 관리':'employee.manage',
     '신규 직원 등록 요청':'employee.new',
     '계정 승인':'account.approval',

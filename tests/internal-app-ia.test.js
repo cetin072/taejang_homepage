@@ -72,8 +72,8 @@ test('promotion staff and lead use the same master sidebar order with capability
   const master = nav.slice(nav.indexOf('const MASTER_ORDER'), nav.indexOf('const MASTER_SECTIONS'));
   const sections = nav.slice(nav.indexOf('const MASTER_SECTIONS'), nav.indexOf('const DESKTOP_ROLES'));
 
-  assert.match(master, /'홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토'/);
-  assert.match(master, /공지 관리/);
+  assert.match(master, /'홍보 글 작성', '승인 검토', '보완 요청받은 글', '보낸 글'/);
+  assert.match(master, /공지/);
   assert.match(sections, /label: '홍보'/);
   assert.doesNotMatch(sections, /공지·안내/);
   assert.match(nav, /DESKTOP_ROLES\.map\(role => \[role, MASTER_ORDER\]\)/);
@@ -84,10 +84,10 @@ test('promotion staff and lead use the same master sidebar order with capability
 
 test('operations master sidebar is grouped by the shared final work categories', () => {
   const sections = nav.slice(nav.indexOf('const MASTER_SECTIONS'), nav.indexOf('const DESKTOP_ROLES'));
-  assert.match(sections, /label: '직원·계정', items: \['직원 관리', '신규 직원 등록', '가입 승인'\]/);
+  assert.match(sections, /label: '직원·계정', items: \['직원 관리', '신규 직원 등록', '직원앱 가입 승인'\]/);
   assert.match(sections, /label: '홍보'/);
   assert.match(sections, /label: '홈페이지'/);
-  assert.match(sections, /label: '업무 운영'/);
+  assert.match(sections, /label: '공지'/);
   assert.doesNotMatch(sections, /공지·안내/);
   assert.match(sections, /label: '근태·급여'/);
   assert.doesNotMatch(nav, /작업 매뉴얼/);

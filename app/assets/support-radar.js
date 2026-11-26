@@ -248,7 +248,7 @@
       const root = document.createElement('div');
       root.className = 'support-radar-shell';
       root.append(header('기업 프로필', '지원사업 판정에 사용하는 태장의 기준정보입니다. 언제든 수정할 수 있고 과거 버전은 그대로 보존됩니다.', [
-        button('지원사업 레이더', () => open('dashboard'), true)
+        button('지원사업 찾기', () => open('dashboard'), true)
       ]));
       renderProfileSummary(root, data);
       main.replaceChildren(root);
@@ -504,14 +504,14 @@
     if (!canUse()) return;
     state.active = true;
     closeSidebar();
-    setPageTitle('지원사업 레이더');
+    setPageTitle('지원사업 찾기');
     const main = el('dashboard-main');
     main.replaceChildren(text('p', '지원사업 정보를 준비하고 있습니다.', 'message'));
     try {
       const data = await loadProfile();
       const root = document.createElement('div'); root.className = 'support-radar-shell';
       const profile = data.profile;
-      root.append(header('지원사업 레이더', '', [button(profile ? '기업 프로필' : '기업 프로필 등록', renderProfile)]));
+      root.append(header('지원사업 찾기', '', [button(profile ? '기업 프로필' : '기업 프로필 등록', renderProfile)]));
       const summary = document.createElement('div'); summary.className = 'support-radar-summary';
       summary.append(
         stat('기업 프로필', profile ? `v${profile.version}` : '미등록', profile ? `${profileCompleteness(data)}% 완성` : '먼저 등록 필요'),
@@ -548,7 +548,7 @@
     const group = document.createElement('section');
     group.className = 'support-radar-nav-group';
     group.dataset.supportRadarNavGroup = '1';
-    group.append(text('p', '지원사업', 'support-radar-nav-label'), navButton('지원사업 레이더', 'dashboard'), navButton('기업 프로필', 'profile'));
+    group.append(text('p', '지원사업', 'support-radar-nav-label'), navButton('지원사업 찾기', 'dashboard'), navButton('기업 프로필', 'profile'));
     if (marker) nav.insertBefore(group, marker); else nav.append(group);
   }
 
@@ -561,10 +561,10 @@
     card.className = 'dashboard-card support-radar-dashboard-shortcut';
     card.dataset.supportRadarShortcut = '1';
     card.dataset.dashboardCardKey = 'support.radar';
-    card.append(text('span', '지원사업', 'status-label'), text('h3', '지원사업 레이더'), text('p', '기업 프로필을 기준으로 지원사업을 찾고 검토합니다.'));
+    card.append(text('span', '지원사업', 'status-label'), text('h3', '지원사업 찾기'), text('p', '지원사업 검토에 사용할 기업 정보를 확인합니다.'));
     const actions = document.createElement('div'); actions.className = 'support-radar-actions';
     actions.append(
-      button('레이더 열기', () => open('dashboard')),
+      button('지원사업 찾기', () => open('dashboard')),
       button('기업 프로필', renderProfile, true)
     );
     card.append(actions);
