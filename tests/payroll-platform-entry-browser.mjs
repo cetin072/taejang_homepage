@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import { existsSync, readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -7,6 +8,7 @@ const DIST_ROOT = join(process.cwd(), 'dist');
 const APP_HTML = join(DIST_ROOT, 'app/index.html');
 const SESSION_KEY = 'taejang-staff-session-v1';
 const STAGE_KEY = 'payroll-platform-entry-stage';
+let attendanceRequests = 0;
 const uiPreferences = {
   role_code: 'operations_manager',
   sidebar_collapsed: false,
@@ -327,7 +329,19 @@ const server = createServer(async (request, response) => {
       return json(response, 200, { tasks: [], information: [] });
     }
     if (request.method === 'POST' && url.pathname === '/rest/v1/rpc/payroll_month_end') {
-      return json(response, 200, { latest:null, publication:null });
+      const payload = await requestJson(request);
+      if (payload.p_action === 'read') return json(response, 200, { latest:null, publication:null });
+      if (payload.p_action !== 'attendance' || payload.p_month !== '2026-11-01' || payload.p_data?.cutoff !== '2026-11-26') {
+        return json(response, 400, { message:'PAYROLL_FIXTURE_REQUEST_MISMATCH' });
+      }
+      attendanceRequests++;
+      if (attendanceRequests === 1) {
+        return json(response, 500, { code:'57014', message:'canceling statement due to statement timeout' });
+      }
+      return json(response, 200, { rows:[{
+        employee_id:'TJ-SYNTHETIC', name:'가상 직원', staff:true, gross:null, deduction:null, basis:'',
+        days:[{date:'2026-11-26',label:'근무 기록',minutes:240},{date:'2026-11-27',label:'예정 근무',minutes:240}],
+      }] });
     }
     if (request.method === 'POST' && url.pathname.startsWith('/rest/v1/rpc/')) {
       return json(response, 200, []);
@@ -404,9 +418,40 @@ try {
     }));
     throw new Error(`PAYROLL_PLATFORM_ENTRY_FAILED:${result.status}:${result.message}\n${JSON.stringify(state)}\n${errors.join('\n')}`);
   }
+  const payroll = page.locator('.payroll-month-end');
+  const month = payroll.getByLabel('급여월');
+  const cutoff = payroll.getByLabel('근태 기준일');
+  const loadAttendance = payroll.getByRole('button', {name:'출근부 불러오기', exact:true});
+  const notice = payroll.getByRole('status');
+  await month.fill('2026-11');
+  await payroll.getByRole('button', {name:'조회', exact:true}).click();
+  await cutoff.fill('2026-11-26');
+  assert.equal(await payroll.getByText('근태 기준일이 바뀌었습니다. 출근부를 다시 불러와 주세요.').isVisible(), false);
+
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({width, height:900});
+    const pairs = await payroll.locator('.pme-period-actions').evaluateAll(groups => groups.map(group => {
+      const picker = group.querySelector('input').getBoundingClientRect();
+      const button = group.querySelector('button').getBoundingClientRect();
+      return {picker:picker.toJSON(), button:button.toJSON()};
+    }));
+    for (const {picker, button} of pairs) {
+      assert.ok(Math.abs(picker.top - button.top) <= 1, width + ': date and button tops align');
+      assert.ok(Math.abs(picker.bottom - button.bottom) <= 1, width + ': date and button bottoms align');
+      assert.ok(button.height >= 44 && button.right <= width, width + ': action fits the viewport');
+    }
+  }
+
+  await loadAttendance.click();
+  await notice.getByText('요청 시간이 초과됐습니다. 잠시 후 다시 시도해 주세요.').waitFor();
+  assert.equal(await cutoff.inputValue(), '2026-11-26');
+  await loadAttendance.click();
+  await payroll.getByRole('cell', {name:'가상 직원 TJ-SYNTHETIC', exact:true}).waitFor();
+  await notice.getByText(/1명 근태를 불러왔습니다/).waitFor();
+  assert.equal(attendanceRequests, 2);
   if (errors.length) throw new Error('PAYROLL_PLATFORM_ENTRY_PAGE_ERRORS:'+errors.join('\n'));
 } finally {
   await browser.close();
   await new Promise(resolve=>server.close(resolve));
 }
-console.log('Payroll platform entry PASS: operations-manager desktop shell -> inline month-end payroll workspace.');
+console.log('Payroll platform entry PASS: operations-manager desktop shell -> inline month-end payroll workspace, aligned controls, attendance timeout and retry.');

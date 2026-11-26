@@ -117,6 +117,7 @@
   }
 
   function friendly(error) {
+    if (error?.code === '57014') return '요청 시간이 초과됐습니다. 잠시 후 다시 시도해 주세요.';
     const code = String(error?.message || error);
     const messages = {
       PAYROLL_MONTH_END_FORBIDDEN:'현재 계정의 급여 업무 권한을 확인해 주세요.',
@@ -153,7 +154,7 @@
     heading.append(build('h1',manage ? '급여 관리' : '급여명세서'),
       build('p',manage ? '월별 초안을 만들고 세무 회신을 대조한 뒤 직원 명세서를 확정합니다.' : '확정된 직원 명세서를 열고 인쇄해 교부합니다.'));
     const monthInput = input('month', month);
-    const controls = build('div', null, 'pme-actions pme-month');
+    const controls = build('div', null, 'pme-actions pme-period-actions pme-month');
     controls.append(field('급여월',monthInput), button('조회', () => load(monthInput.value), true));
     heading.append(controls);
     const nav = build('nav', null, 'pme-steps');
@@ -259,7 +260,7 @@
     function renderDraft() {
       const saved = data.latest;
       body.append(build('h2','세무사무실에 보낼 급여대장'));
-      const tools = build('div', null, 'pme-actions');
+      const tools = build('div', null, 'pme-actions pme-period-actions');
       const picker = input('date',cutoff);
       picker.min = month + '-01';
       picker.max = core.monthEnd(month);
@@ -270,11 +271,12 @@
         change();
         const stale = loadedCutoff !== cutoff;
         controlsDraft.forEach(node => { node.disabled = stale; });
-        cutoffHint.textContent = stale ? '근태 기준일이 바뀌었습니다. 출근부를 다시 불러와 주세요.' : '';
-        cutoffHint.hidden = !stale;
+        cutoffHint.hidden = !loadedCutoff || !stale;
+        cutoffHint.textContent = cutoffHint.hidden ? '' : '근태 기준일이 바뀌었습니다. 출근부를 다시 불러와 주세요.';
       });
       tools.append(field('근태 기준일',picker), button('출근부 불러오기', () => update(async () => {
         monthChanged();
+        if (!cutoff) throw new Error('근태 기준일을 선택해 주세요.');
         const response = await request('attendance',{cutoff});
         loadedCutoff = cutoff;
         const previous = new Map(draftRows.map(row => [row.employee_id,row]));
