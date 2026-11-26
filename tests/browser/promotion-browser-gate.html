@@ -188,15 +188,17 @@
         assert(!staffLabels.includes('수정·보완 요청'), '구형 반환 메뉴명이 남아 있음');
         assert(document.querySelectorAll('[data-phase-c-v2-nav="revision"]').length === 1, '반환 글 메뉴가 중복 생성됨');
 
+        const returnedCard = [...document.querySelectorAll('.dashboard-card')]
+          .find(card => card.querySelector('h3')?.textContent.trim() === '보완 요청받은 글');
+        assert(returnedCard, '대시보드 반환 글 카드 누락');
+        assert(returnedCard.textContent.includes('1건'), '반환 글 건수 누락');
+
         const returned = document.querySelector('[data-promotion-returned-nav]');
         assert(returned, '반환 글 메뉴 식별자 누락');
         returned.click(); await wait(30);
         assert(openedPromotionMode === 'revision', '반환 글 메뉴가 revision 화면을 열지 않음');
 
-        const returnedCard = [...document.querySelectorAll('.dashboard-card')]
-          .find(card => card.querySelector('h3')?.textContent.trim() === '보완 요청받은 글');
-        assert(returnedCard, '대시보드 반환 글 카드 누락');
-        assert(returnedCard.textContent.includes('1건'), '반환 글 건수 누락');
+        assert(!returnedCard.isConnected, '새 화면에 이전 대시보드 카드가 남아 있음');
 
         document.querySelector('[data-menu-key="promotion.sent"]').click();
         await wait(30);
