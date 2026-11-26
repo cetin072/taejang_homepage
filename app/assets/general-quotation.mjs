@@ -74,6 +74,105 @@ async function downloadExcel(quote){
   setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 
+function mountPartyProfiles(parent,kind,label,fields,nameField,refresh,builtIn=null){
+  const actor=window.TaejangApp?.getSession?.()?.user?.id;
+  const key='taejang.quotation.parties.v1:'+actor+':'+kind;
+  const active=()=>Boolean(actor && allowed() && window.TaejangApp?.getSession?.()?.user?.id===actor);
+  const empty=()=>({records:[],recent:null});
+  function read(){
+    if(!active())return empty();
+    try{
+      const data=JSON.parse(localStorage.getItem(key));
+      const valid=record=>typeof record?.id==='string' && typeof record.values?.[nameField]==='string';
+      return {
+        records:Array.isArray(data?.records)?data.records.filter(valid):[],
+        recent:valid(data?.recent)?data.recent:null
+      };
+    }catch{return empty();}
+  }
+  function write(data){
+    if(!active())return false;
+    try{localStorage.setItem(key,JSON.stringify(data));return true;}
+    catch{return false;}
+  }
+  const controls=el('div','','gq-party-picker gq-full');
+  const picker=field(controls,'등록 '+label,kind+'Profile',{options:{'':'직접 입력'}});
+  picker.setAttribute('aria-label','등록 '+label);
+  picker.removeAttribute('name');
+  const save=button(label+' 등록',saveProfile);
+  const status=el('p','','gq-party-status');
+  status.setAttribute('role','status');
+  status.hidden=true;
+  controls.append(save,status);
+  parent.prepend(controls);
+  function report(message){
+    status.textContent=message;
+    status.hidden=!message;
+  }
+  function savedRecord(data,id){
+    return data.records.find(record=>record.id===id);
+  }
+  function draw(data,id){
+    picker.replaceChildren(new Option('직접 입력',''));
+    if(builtIn)picker.append(new Option('태장 기본 정보','default'));
+    for(const record of data.records){
+      const number=record.values.businessNumber||record.values.customerBusinessNumber;
+      const name=record.values[nameField];
+      picker.append(new Option(number?name+' ('+number+')':name,record.id));
+    }
+    picker.value=savedRecord(data,id)||(builtIn&&id==='default')?id:'';
+    updateButton(data);
+  }
+  function updateButton(data){
+    save.textContent=label+(savedRecord(data,picker.value)?' 수정 저장':' 등록');
+  }
+  function values(){
+    return Object.fromEntries(Object.entries(fields).map(([name,control])=>[name,control.value.trim()]));
+  }
+  function fill(data){
+    for(const [name,control] of Object.entries(fields)){
+      control.value=typeof data?.[name]==='string'?data[name].slice(0,control.maxLength):'';
+    }
+  }
+  function remember(){
+    const current=values();
+    if(!current[nameField])return;
+    const data=read();
+    data.recent={id:picker.value,values:current};
+    write(data);
+  }
+  function saveProfile(){
+    const current=values();
+    if(!current[nameField]){
+      report(label+' 이름을 입력해 주세요.');
+      fields[nameField].focus();
+      return;
+    }
+    const data=read();
+    const existing=savedRecord(data,picker.value);
+    const record={id:existing?.id??crypto.randomUUID(),values:current};
+    if(existing)data.records=data.records.map(old=>old.id===record.id?record:old);
+    else data.records.push(record);
+    data.recent=record;
+    if(!write(data)){report('이 브라우저에 저장할 수 없습니다. 입력은 유지했습니다.');return;}
+    draw(data,record.id);
+    report(existing?'등록 정보를 수정했습니다.':'등록했습니다.');
+  }
+  picker.addEventListener('change',()=>{
+    if(!active())return;
+    const data=read();
+    fill(picker.value==='default'?builtIn:savedRecord(data,picker.value)?.values);
+    updateButton(data);
+    remember();
+    report('');
+    refresh();
+  });
+  for(const control of Object.values(fields))control.addEventListener('input',()=>{remember();report('');});
+  const data=read();
+  draw(data,data.recent?.id??(builtIn?'default':''));
+  fill(data.recent?.values??builtIn);
+}
+
 export function mountGeneralQuotation(host){
   if(!allowed())throw new Error('GENERAL_QUOTATION_FORBIDDEN');
   style();
@@ -81,11 +180,24 @@ export function mountGeneralQuotation(host){
   const heading=el('h2','공용 견적서');
   const meta=card('견적 정보',form);
   const customer=field(meta,'거래처','customer',{required:true});
+  const customerDetails=el('details','','gq-full');
+  customerDetails.append(el('summary','거래처 상세 정보'));
+  const customerFields=el('div','','gq-fields');
+  const customerParty={
+    customer,
+    customerBusinessNumber:field(customerFields,'거래처 사업자등록번호','customerBusinessNumber'),
+    customerContact:field(customerFields,'거래처 담당자·연락처','customerContact'),
+    customerAddress:field(customerFields,'거래처 주소','customerAddress',{maxLength:200})
+  };
+  customerDetails.append(customerFields);
   field(meta,'건명','subject');
   field(meta,'견적일','date',{type:'date',value:dayInSeoul(),required:true});
   field(meta,'유효기간','validity',{value:'견적일로부터 30일'});
   field(meta,'결제 조건','payment');
   field(meta,'부가세 기준','taxMode',{options:TAX_MODES,value:'included'});
+  meta.append(customerDetails);
+  mountPartyProfiles(meta,'customer','거래처',customerParty,'customer',refresh);
+  meta.prepend(el('p','등록 정보는 로그인 계정별로 이 브라우저에 저장됩니다.','gq-party-note gq-full'));
   const itemCard=el('section','','platform-settings-card gq-card');
   const items=el('div','','gq-items');
   const add=button('+ 품목 추가',()=>addItem(true));
@@ -95,12 +207,15 @@ export function mountGeneralQuotation(host){
   const details=el('details','','platform-settings-card gq-card');
   details.append(el('summary','공급자 정보 · 배송·입금 안내'));
   const supplierFields=el('div','','gq-fields');
-  field(supplierFields,'공급자 상호','supplier',{value:defaultSupplier.supplier,required:true});
-  field(supplierFields,'사업자등록번호','businessNumber',{value:defaultSupplier.businessNumber});
-  field(supplierFields,'대표자','representative',{value:defaultSupplier.representative});
-  field(supplierFields,'담당자·연락처','contact');
-  field(supplierFields,'주소','address',{value:defaultSupplier.address,maxLength:200});
-  field(supplierFields,'입금 계좌','bank',{maxLength:180});
+  const supplierParty={
+    supplier:field(supplierFields,'공급자 상호','supplier',{required:true}),
+    businessNumber:field(supplierFields,'사업자등록번호','businessNumber'),
+    representative:field(supplierFields,'대표자','representative'),
+    contact:field(supplierFields,'담당자·연락처','contact'),
+    address:field(supplierFields,'주소','address',{maxLength:200}),
+    bank:field(supplierFields,'입금 계좌','bank',{maxLength:180})
+  };
+  mountPartyProfiles(supplierFields,'supplier','공급자',supplierParty,'supplier',refresh,defaultSupplier);
   field(supplierFields,'배송·기타사항','notes',{type:'textarea',maxLength:500}).parentElement.classList.add('gq-full');
   details.append(supplierFields);form.append(details);
   const amountFields=card('견적 금액',form);
@@ -210,7 +325,7 @@ export function mountGeneralQuotation(host){
   const actions=el('div','','gq-actions');
   const download=button('엑셀 다운로드',()=>exportFromForm(quote=>excel(quote,download)));
   actions.append(button('견적서 미리보기',()=>exportFromForm(preview),true),download,
-    button('새 견적서',()=>{if(window.confirm('현재 입력을 비우고 새 견적서를 작성할까요?'))mountGeneralQuotation(host);}));
+    button('새 견적서',()=>{if(window.confirm('품목과 견적 조건을 비우고 새 견적서를 작성할까요?'))mountGeneralQuotation(host);}));
   form.append(status,actions);
   form.addEventListener('input',refresh);
   form.addEventListener('submit',event=>{event.preventDefault();exportFromForm(preview);});

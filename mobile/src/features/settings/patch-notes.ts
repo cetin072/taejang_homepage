@@ -12,6 +12,12 @@ export type PatchNoteEntry = {
 // mobile/src/features/settings/patch-notes.ts. No runtime dependency on that app.
 export const MOBILE_PATCH_NOTES: readonly PatchNoteEntry[] = [
   {
+    id: '2026-11-26-erp-quotation-parties', date: '2026-11-26',
+    title: '공용 견적서 업체 정보 불러오기',
+    summary: '최근 입력한 거래처와 공급자 정보가 새 견적서에 채워집니다.',
+    items: ['등록한 업체 정보를 같은 브라우저에서 불러오거나 수정할 수 있습니다.', 'PDF와 엑셀 파일명은 수신업체명과 견적일을 사용합니다.'],
+  },
+  {
     id: '2026-11-25-erp-general-quotation', date: '2026-11-25',
     title: 'ERP 공용 견적서',
     summary: '웹 ERP의 영업·매출에서 거래처와 품목을 입력해 견적서를 만들 수 있습니다.',

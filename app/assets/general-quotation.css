@@ -5,6 +5,9 @@
 .general-quotation details[open] > summary { margin-bottom: 12px; }
 .general-quotation .gq-fields { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
 .general-quotation .gq-full { grid-column: 1/-1; }
+.general-quotation .gq-party-picker { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: end; gap: 8px; }
+.general-quotation :is(.gq-party-note,.gq-party-status) { margin: 0; color: #415d51; font-size: 13px; }
+.general-quotation .gq-party-status { grid-column: 1/-1; }
 .general-quotation .gq-field { display: grid; gap: 5px; align-content: start; min-width: 0; margin: 0; font-size: 14px; font-weight: 650; }
 .general-quotation :is(input,select,textarea) { width: 100%; min-width: 0; margin: 0; font-size: 16px; }
 .general-quotation .gq-items { display: grid; gap: 10px; margin-bottom: 12px; }
