@@ -94,7 +94,7 @@ try {
     assert.equal(await page.locator('.employee-app-note').count(), 2);
     assert.equal(await page.locator('.employee-app-note-flow dt').count(), 6);
     assert.equal(await page.locator('a.employee-app-note-link').count(), 0);
-    assert.equal(await page.locator('.employee-app-principle-list svg rect').count(), 1, 'use a phone-style icon instead of the old person glyph');
+    assert.equal(await page.locator('.employee-app-state-example .employee-app-phone-action').count(), 2, 'show a button and its completed state');
     assert.equal(await page.locator('header .desktop-nav .resources-nav').count(), 1);
     assert.equal(await page.locator('header .mobile-nav .resources-nav').count(), 1);
     const currentLink = page.locator('header .desktop-nav .resources-nav');
@@ -131,6 +131,7 @@ try {
         features: columns('.employee-app-feature-grid'), flow: columns('.employee-app-note-flow'),
         heroCopy: box('.employee-app-hero-copy').bottom, heroArt: box('.employee-app-hero-art').top,
         titleSize: parseFloat(getComputedStyle(document.querySelector('#employee-app-title')).fontSize),
+        featureTitleTops: [...document.querySelectorAll('.employee-app-feature h3')].map(el => el.getBoundingClientRect().top),
         screenCount: document.querySelectorAll('.employee-app-screen-preview').length,
         motion: getComputedStyle(document.documentElement).scrollBehavior,
         animations: document.getAnimations().length
@@ -140,8 +141,10 @@ try {
     assert.equal(visual.flow, 1, 'static semantic comparison container');
     if (width <= 760) {
       assert.ok(visual.heroCopy <= visual.heroArt, name + ': mobile title and link precede the app mockup');
+    } else {
+      assert.ok(Math.max(...visual.featureTitleTops) - Math.min(...visual.featureTitleTops) <= 1, name + ': feature titles align');
     }
-    assert.ok(visual.titleSize >= (width <= 760 ? 36 : 45), name + ': landing title is prominent');
+    assert.ok(visual.titleSize >= (width <= 760 ? 38 : 45), name + ': landing title is prominent');
     assert.equal(visual.screenCount, 3, name + ': three feature screen previews');
     assert.equal(visual.motion, 'auto');
     assert.equal(visual.animations, 0, name + ': reduced motion disables all landing motion');

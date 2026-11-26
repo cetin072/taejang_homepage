@@ -1,7 +1,7 @@
 /* Employee app introduction */
 .employee-app-page main { overflow-wrap: anywhere; }
 .employee-app-page .title { text-wrap: balance; }
-.employee-app-hero {
+.page-hero.employee-app-hero {
   padding: clamp(32px, 5vw, 72px) 0;
   background: var(--beige);
 }
@@ -11,13 +11,13 @@
   align-items: center;
   gap: clamp(24px, 6vw, 90px);
 }
-.employee-app-hero .title {
+.employee-app-hero .employee-app-hero-copy .title {
   margin: 0 0 16px;
   color: var(--green-deep);
   font: 800 clamp(38px, 6vw, 76px)/1.17 var(--gothic);
   letter-spacing: -.045em;
 }
-.employee-app-hero .lead {
+.employee-app-hero .employee-app-hero-copy .lead {
   margin: 0 0 24px;
   color: var(--ink-soft);
   font-size: clamp(17px, 2.4vw, 23px);
@@ -83,7 +83,7 @@
 .employee-app-phone-tabs .is-current { border-radius: 6px; background: #dce9e0; font-weight: 800; }
 .employee-app-features, .employee-app-notes { scroll-margin-top: 110px; }
 .employee-app-feature-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(16px, 2.6vw, 36px); }
-.employee-app-feature { min-width: 0; }
+.employee-app-feature { display: grid; grid-row: span 2; grid-template-rows: subgrid; row-gap: 0; min-width: 0; }
 .employee-app-screen-preview {
   display: grid;
   place-items: center;
@@ -152,7 +152,7 @@
   .employee-app-hero-layout, .employee-app-principle-layout, .employee-app-feature-grid { grid-template-columns: 1fr; }
   .employee-app-hero-layout, .employee-app-principle-layout { gap: 24px; }
   .employee-app-hero-art { width: 100%; }
-  .employee-app-feature { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .employee-app-feature { display: block; grid-row: auto; }
   .employee-app-flip-inner { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .employee-app-face { padding: 22px 20px; }
   .employee-app-note { padding-left: 18px; }
