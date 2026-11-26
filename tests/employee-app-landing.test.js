@@ -77,7 +77,7 @@ test('metadata and layout support sharing and mobile/reduced-motion friendly rea
   assert.match(page, /<text x="19\.5" y="28"[^>]*>Aa<\/text>/, 'icon shows scalable readable text');
   assert.match(page, /data-hero-motion/);
   assert.match(page, /data-card-replay/);
-  assert.match(page, /AFTER · 개선 방향/);
+  assert.match(page, /employee-app-face-label">개선안/);
   assert.match(read('assets/js/employee-app-motion.js'), /const duration = 5200/);
   assert.match(read('assets/css/styles.css'), /@media \(prefers-reduced-motion:reduce\)/);
 

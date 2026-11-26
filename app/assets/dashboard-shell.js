@@ -10,13 +10,13 @@
   const text = (tag, value, className) => { const node = document.createElement(tag); node.textContent = value; if (className) node.className = className; return node; };
   const array = value => Array.isArray(value) ? value : [];
   const routeCopy = {
-    super_admin: ['대시보드', '계정 승인과 현재 운영 정보를 안전하게 확인하세요.'],
-    ceo: ['대시보드', '중요 홍보 상신 안건과 핵심 운영 정보를 간결하게 확인하세요.'],
-    operations_manager: ['대시보드', '승인과 오늘 처리할 핵심 항목부터 확인하세요.'],
-    department_lead: ['대시보드', '우리 부서의 직원·업무 현황과 필요한 관리 기능을 확인하세요.'],
-    field_lead: ['대시보드', '오늘 필요한 현장 업무 정보를 확인하세요.'],
-    promotion_lead: ['대시보드', '출근부·홍보 검토·홍보 작성 등 오늘의 우선 업무부터 확인하세요.'],
-    promotion_staff: ['대시보드', '보완 요청받은 글과 태장 소식 작성·승인 요청을 한 화면에서 처리하세요.']
+    super_admin: ['대시보드', '계정 승인과 운영 현황'],
+    ceo: ['대시보드', '홍보 승인과 주요 현황'],
+    operations_manager: ['대시보드', '오늘 처리할 업무'],
+    department_lead: ['대시보드', '부서 직원과 업무 현황'],
+    field_lead: ['대시보드', '오늘의 현장 업무'],
+    promotion_lead: ['대시보드', '출근부와 홍보 업무'],
+    promotion_staff: ['대시보드', '홍보 글 작성과 보완 요청']
   };
   const topbarCopy = {
     super_admin: '시스템 관리',
@@ -545,14 +545,14 @@
     if (route === 'promotion_lead') {
       if (promotion.status === 'success') {
         const reviewCount = array(promotion.value?.review_items).length;
-        grid.append(card('홍보 검토 대기', reviewCount ? '직원이 올린 검토 안건이 있습니다. 운영팀장의 우선 업무입니다.' : '현재 검토 대기 안건이 없습니다.', {
+        grid.append(card('홍보 검토 대기', reviewCount ? '새로 올라온 글이 있습니다.' : '현재 검토 대기 안건이 없습니다.', {
           value: reviewCount ? `${reviewCount}건` : undefined,
           action: { label: '홍보 검토 열기', run: () => openPromotion('review') }
         }));
       } else {
         grid.append(card('홍보 검토 대기', failureCopy(promotion.status, '홍보 검토 정보'), { state: promotion.status, action: { label: '다시 불러오기', run: goDashboard } }));
       }
-      grid.append(card('홍보자료 작성', '필요하면 운영팀장도 직접 홍보자료를 작성할 수 있습니다.', { action: { label: '홍보 작성 열기', run: () => openPromotion('write') } }));
+      grid.append(card('홍보자료 작성', '홍보 글을 작성합니다.', { action: { label: '홍보 작성 열기', run: () => openPromotion('write') } }));
     }
     if (route === 'promotion_staff') {
       if (promotion.status === 'success') {
@@ -572,7 +572,7 @@
       grid.append(card('홍보자료 작성', '태장 소식을 작성해 운영팀장에게 승인 요청합니다.', { action: { label: '새 태장 소식 작성', run: () => openPromotion('write') } }));
     }
     if (route === 'operations_manager') grid.append(card('중요 홍보 승인', '중요 콘텐츠와 대표이사 상신이 필요한 안건을 우선 확인합니다.', { action: { label: '홍보 검토 열기', run: () => openPromotion('review') } }));
-    if (route === 'ceo') grid.append(card('홍보 상신 검토', '운영총괄이 실제로 상신한 중요 콘텐츠를 확인합니다.', { action: { label: '홍보 검토 열기', run: () => openPromotion('review') } }));
+    if (route === 'ceo') grid.append(card('홍보 상신 검토', '운영총괄이 올린 승인 요청을 확인합니다.', { action: { label: '홍보 검토 열기', run: () => openPromotion('review') } }));
     if (route === 'super_admin') {
       if (pending.status === 'success') {
         grid.append(card('계정 승인 확인', pending.value.length ? '보호된 계정 승인 화면에서 확인하세요.' : '현재 승인 대기 항목이 없습니다.', { value: pending.value.length ? `${pending.value.length}건` : undefined, action: { label: '계정 승인 열기', run: () => { window.location.href = '../staff/?admin=1'; } } }));

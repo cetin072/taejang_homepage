@@ -75,7 +75,7 @@
     const heading = document.createElement('h2');
     heading.textContent = '직원 화면 체험';
     const copy = document.createElement('p');
-    copy.textContent = '실제 로그인 가능한 활성 직원은 직원 이름과 현재 역할로 표시합니다. 운영환경에서는 직원 계정에 로그인하지 않고 그 역할의 안전한 화면 기준으로 체험합니다.';
+    copy.textContent = '운영 화면에서는 선택한 직원의 직책을 기준으로 미리봅니다.';
     const select = document.createElement('select');
     select.dataset.issue221PersonaSelect = '1';
     select.setAttribute('aria-label', '체험할 직원 또는 역할');

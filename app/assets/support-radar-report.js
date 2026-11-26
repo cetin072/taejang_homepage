@@ -34,7 +34,7 @@
         stat('현재 열린 공고',`${data.open_count||0}건`),stat('7일 내 마감',`${data.deadline_7_count||0}건`),stat('미평가',`${data.unreviewed_count||0}건`),stat('신청 진행',`${data.application_count||0}건`)
       );root.append(current);
 
-      const kpiSection=section('누적 운영 KPI','지원사업 레이더가 실제로 놓치지 않고 신청·선정까지 이어지는지 확인합니다.');
+      const kpiSection=section('누적 신청·선정 실적');
       const kpis=document.createElement('div');kpis.className='support-radar-summary';
       const reviewHours=kpi.average_hours_discovery_to_first_review===null||kpi.average_hours_discovery_to_first_review===undefined?'아직 없음':`${kpi.average_hours_discovery_to_first_review}시간`;
       kpis.append(
@@ -48,9 +48,9 @@
         stat('발견→첫 검토',reviewHours,'평균')
       );kpiSection.append(kpis);root.append(kpiSection);
 
-      const top=section('이번 주 우선 검토 TOP 5','운영총괄이 먼저 판단할 공고입니다.');
+      const top=section('이번 주 우선 검토 공고');
       const items=array(data.top_items);if(!items.length)top.append(text('p','평가된 우선 공고가 아직 없습니다.','support-radar-empty'));
-      items.forEach((item,index)=>{const card=document.createElement('article');card.className='support-radar-row';card.append(text('p',`TOP ${index+1} · ${item.score??'미평가'}점`,'eyebrow'),text('h3',item.title),text('p',`${item.organization||'기관 미확인'} · 마감 ${formatDate(item.deadline)}`));if(item.recommendation)card.append(text('p',item.recommendation));if(window.TaejangSupportRadarNotices?.renderDetail)card.append(button('상세 보기',()=>window.TaejangSupportRadarNotices.renderDetail(item.notice_id),true));top.append(card);});root.append(top);
+      items.forEach((item,index)=>{const card=document.createElement('article');card.className='support-radar-row';card.append(text('p',`${index+1}순위 · ${item.score??'미평가'}점`,'eyebrow'),text('h3',item.title),text('p',`${item.organization||'기관 미확인'} · 마감 ${formatDate(item.deadline)}`));if(item.recommendation)card.append(text('p',item.recommendation));if(window.TaejangSupportRadarNotices?.renderDetail)card.append(button('상세 보기',()=>window.TaejangSupportRadarNotices.renderDetail(item.notice_id),true));top.append(card);});root.append(top);
       main.replaceChildren(root);main.focus();
     }catch(error){main.replaceChildren(text('p',window.TaejangApp.friendlyError(error),'message error'));}
   }

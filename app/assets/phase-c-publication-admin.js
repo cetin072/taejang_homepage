@@ -481,7 +481,7 @@
         p_comment: comment
       });
       if (result?.requires_code_apply) {
-        window.alert('승인했습니다. 이 항목은 정적/외부 원본이므로 코드 또는 원본 소스 반영 단계가 필요합니다. 요청 기록은 보존됩니다.');
+        window.alert('수정안을 승인했습니다. 원본 사이트에 반영해야 공개됩니다.');
       }
       await openPublicationAdmin();
     } catch (error) {

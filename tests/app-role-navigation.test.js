@@ -150,7 +150,7 @@ test('accent theme keeps restrained colors while real accordion headings own sid
 });
 
 test('dashboard hierarchy shows brand in sidebar, role in topbar and dashboard once in body', async () => {
-  assert.match(source, /promotion_lead:\s*\['대시보드', '출근부·홍보 검토·홍보 작성/);
+  assert.match(source, /promotion_lead:\s*\['대시보드', '출근부와 홍보 업무/);
   assert.match(source, /label\.textContent = ''; label\.hidden = true/);
   const qa = await makeDashboard('promotion_lead');
   findMenu(qa.nav, '대시보드').click(); await nextTurn(); await nextTurn();

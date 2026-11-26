@@ -362,13 +362,13 @@
 
   async function previewSelectedFile(file, previewNode) {
     if (!previewNode || !file) return;
-    previewNode.textContent = 'Excel 구조를 읽고 있습니다…';
+    previewNode.textContent = '엑셀 파일을 읽는 중입니다.';
     previewNode.dataset.state = 'loading';
     try {
       const workbook = await parseXlsxFile(file);
       const best = workbook.best;
       if (!best || !best.analysis.ok) {
-        previewNode.textContent = '근태 헤더를 자동으로 찾지 못했습니다. 월요일 실제 파일에서 헤더 위치만 확인하면 됩니다. DB에는 등록하지 않았습니다.';
+        previewNode.textContent = '엑셀에서 근태 항목을 찾지 못했습니다. 파일의 열 제목을 확인해 주세요.';
         previewNode.dataset.state = 'review';
         return;
       }
@@ -390,7 +390,7 @@
     input.addEventListener('change', event => {
       const file = event.target.files?.[0] || null;
       if (!file) {
-        preview.textContent = '선택한 출근부의 시트·헤더·행 수를 여기서 자동 확인합니다.';
+        preview.textContent = '엑셀 출근부를 선택하세요.';
         preview.dataset.state = 'idle';
         return;
       }

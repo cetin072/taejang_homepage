@@ -35,7 +35,7 @@ test('attendance admin exposes explicit day status editing with reopen protectio
   assert.match(attendance, /유급휴가·월차/);
   assert.match(attendance, /무급 결근/);
   assert.match(attendance, /유급공휴일/);
-  assert.match(attendance, /확정 재개방/);
+  assert.match(attendance, /확정 풀기/);
   assert.match(attendance, /DAY_CONFIRMED_REOPEN_REQUIRED/);
 });
 

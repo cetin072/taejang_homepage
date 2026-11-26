@@ -33,9 +33,9 @@
   }
   const sourceLabels = {
     homepage: '홈페이지',
-    'naver-blog': 'NAVER BLOG',
+    'naver-blog': '네이버 블로그',
     instagram: 'INSTAGRAM',
-    youtube: 'YOUTUBE',
+    youtube: '유튜브',
     x: 'X',
     press: '언론보도'
   };

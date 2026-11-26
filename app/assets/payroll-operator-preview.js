@@ -22,7 +22,7 @@
       status: 'locked',
       lockedAt: '2026-09-30T07:00:00.000Z',
       approvedBy: 'anonymous-operator',
-      approvalNote: '익명 Preview',
+      approvalNote: '개인정보를 가린 미리보기',
     },
     payrollAmounts: {
       baseGrossPay: 18240000,

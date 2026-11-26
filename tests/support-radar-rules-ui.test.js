@@ -40,7 +40,7 @@ function expectContains(source, fragment, label = fragment) {
 [
   '전체 공고',
   '공고 직접 등록',
-  'Rule Engine v1 평가 실행',
+  '적합도 평가',
   '운영총괄 결정',
   '신청 진행',
   'support_get_dashboard',
