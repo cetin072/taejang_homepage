@@ -45,49 +45,12 @@ export function escapeDocumentText(value) {
   return String(value ?? '').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[char]));
 }
 
-export const QUOTE_WIDTHS = [5,17,28,7,9,14,18,16];
-
-function recipientDetails(quote) {
+export function recipientDetails(quote) {
   return [
     ['사업자등록번호',quote.customerBusinessNumber],
     ['담당자·연락처',quote.customerContact],
     ['주소',quote.customerAddress]
   ].filter(([,value])=>value);
-}
-
-export function quotationRows(quote) {
-  const rows=[];
-  const cell=(value,tone='',span=1,formula)=>({value,tone,span,formula});
-  const subtotalRow=9+quote.items.length;
-  const discountRow=subtotalRow+1;
-  const supplyRow=subtotalRow+2;
-  const vatRow=subtotalRow+3;
-  const totalRow=subtotalRow+4;
-  const pair=(left,value,right,other)=>[cell(left,'key',2),cell(value,'',2),cell(right,'key',2),cell(other,'',2)];
-  const recipient=[quote.customer+' 귀하',...recipientDetails(quote).map(([label,value])=>label+' '+value)].join('\n');
-  rows.push([cell('견 적 서','title',8)],
-    pair('수신',recipient,'공급자',quote.supplier),
-    pair('견적일',quote.date,'사업자등록번호',quote.businessNumber),
-    pair('유효기간',quote.validity,'대표자',quote.representative),
-    pair('결제 조건',quote.payment,'담당자·연락처',quote.contact),
-    pair('건명',quote.subject,'주소',quote.address),
-    [cell('합계금액','total',3),cell(quote.total,'grand',3,'G'+totalRow),cell(TAX_MODES[quote.taxMode],'total',2)],
-    ['No.','품명','규격·모델','단위','수량','단가 (원)','금액 (원)','비고'].map(label=>cell(label,'column')));
-  quote.items.forEach((item,index)=>{
-    const row=index+9;
-    rows.push([cell(index+1,'center'),cell(item.name),cell(item.spec),cell(item.unit,'center'),cell(item.quantity,'quantity'),
-      cell(item.unitPrice,'money'),cell(item.amount,'money',1,'ROUND(ROUND(E'+row+'*1000,0)*F'+row+'/1000,0)'),cell(item.memo)]);
-  });
-  const summary=(name,value,tone='money',formula)=>[cell(name,'key',6),cell(value,tone,2,formula)];
-  const net='(G'+subtotalRow+'-G'+discountRow+')';
-  rows.push(summary('품목 합계',quote.subtotal,'money','SUM(G9:G'+(subtotalRow-1)+')'),
-    summary('할인·절사',quote.discount),
-    summary('공급가액',quote.supply,'money',quote.taxMode==='included'?'ROUND('+net+'/1.1,0)':net),
-    summary('부가세',quote.vat,'money',quote.taxMode==='included'?net+'-G'+supplyRow:quote.taxMode==='separate'?'ROUND(G'+supplyRow+'/10,0)':'0'),
-    summary('합계금액',quote.total,'grand','SUM(G'+supplyRow+':G'+vatRow+')'));
-  if (quote.notes) rows.push([cell('배송·기타사항','key',2),cell(quote.notes,'',6)]);
-  if (quote.bank) rows.push([cell('입금 계좌','key',2),cell(quote.bank,'',6)]);
-  return rows;
 }
 
 const PRINT_STYLE = `

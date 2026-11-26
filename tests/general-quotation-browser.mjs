@@ -87,7 +87,13 @@ try{
     assert.equal(download.suggestedFilename(),'가상-거래처_2026-11-25.xlsx');
     const workbook=await JSZip.loadAsync(await readFile(await download.path()));
     const sheet=await workbook.file('xl/worksheets/sheet1.xml').async('string');
-    assert.match(sheet,/<f>SUM\(G13:G14\)<\/f><v>2350000<\/v>/);
+    assert.match(sheet,/<mergeCell ref="B2:I2"\/>/);
+    assert.match(sheet,/<mergeCell ref="E16:I16"\/>/);
+    assert.match(sheet,/<col min="4" max="4" width="35"/);
+    assert.match(sheet,/<f>ROUND\(ROUND\(F10\*1000,0\)\*G10\/1000,0\)<\/f><v>1350000<\/v>/);
+    assert.match(sheet,/<f>SUM\(E14:E15\)<\/f><v>2350000<\/v>/);
+    const workbookXml=await workbook.file('xl/workbook.xml').async('string');
+    assert.match(workbookXml,/'견적서'!\$2:\$9/);
     if(width===1440){
       await download.saveAs(output+'/synthetic.xlsx');
       const content=await frame.content();
