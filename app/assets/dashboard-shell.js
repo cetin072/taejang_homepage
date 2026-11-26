@@ -334,8 +334,8 @@
       {
         key: 'monthly_client_documents.manage',
         label: '용역 서류',
-        run: () => {
-          const params = new URLSearchParams(location.search);
+        run: address => {
+          const params = new URL(address, location.origin).searchParams;
           return window.TaejangMonthlyClientDocumentsLoader?.({
             companyId: params.get('serviceCompany'), month: params.get('serviceMonth')
           });
@@ -387,7 +387,7 @@
     ];
   }
 
-  let activeView = null, openingView = false, pendingHistoryView = null, viewDirty = false, dashboardRender = null;
+  let activeView = null, openingView = false, pendingView = null, activeViewAddress = null, viewDirty = false, dashboardRender = null;
   function syncSettingsActionAvailability() {
     const action = document.querySelector('[data-platform-settings-action]');
     if (action) action.disabled = openingView;
@@ -415,48 +415,87 @@
   function mayLeaveView() {
     return !currentViewDirty() || window.confirm('저장하지 않은 입력이 있을 수 있습니다. 현재 화면을 떠날까요?');
   }
+  function selectView(key, title) {
+    document.querySelectorAll('#app-nav [data-menu-key]').forEach(node => {
+      if (node.dataset.menuKey === key) node.setAttribute('aria-current', 'page');
+      else node.removeAttribute('aria-current');
+    });
+    if (el('desktop-page-title')) el('desktop-page-title').textContent = title;
+  }
+  function currentAddress() { return location.pathname + location.search + location.hash; }
   async function openView(key, historyMode = 'none', serviceDocument) {
     if (!window.TaejangApp?.getRoute?.()) return;
+    const address = historyMode === 'push' ? viewUrl(key, serviceDocument) : currentAddress();
     if (openingView) {
-      if (historyMode === 'pop') pendingHistoryView = key;
+      // The most recent click or history move wins. Do not start overlapping
+      // feature renders, since they share the same workspace surface.
+      pendingView = { key, historyMode, serviceDocument, address };
       return;
     }
-    if (key === activeView) return;
-    if (!mayLeaveView()) { if (historyMode === 'pop') history.pushState({taejangMenuView:true}, '', viewUrl(activeView || 'dashboard')); return; }
+    await navigateView({ key, historyMode, serviceDocument, address });
+  }
+  async function navigateView({ key, historyMode, serviceDocument, address }) {
+    if (key === activeView && (!serviceDocument && historyMode !== 'pop' || address === activeViewAddress)) {
+      if (historyMode === 'push' && activeViewAddress && currentAddress() !== activeViewAddress) {
+        history.pushState({taejangMenuView:true}, '', activeViewAddress);
+      }
+      return;
+    }
+    if (!mayLeaveView()) {
+      if (activeViewAddress && currentAddress() !== activeViewAddress) {
+        history.pushState({taejangMenuView:true}, '', activeViewAddress);
+      }
+      return;
+    }
     const item = masterMenuItems().find(candidate => candidate.key === key && candidate.run);
     const registryItem = window.TaejangPlatformNavigationRegistry?.byKey(key);
     const role = window.TaejangApp.getRoute();
     const legacyAllowed = item && window.TaejangPlatformNavigationRegistry?.visibleForRole(registryItem || item, role) !== false
       && (!item.capabilities?.length || (window.TaejangApp.hasCapabilityContract?.() && item.capabilities.some(code => window.TaejangApp.can?.(code) === true)));
+    let committed = false;
     openingView = true;
     syncSettingsActionAvailability();
     try {
       const allowed = item && (window.TaejangMenuAuthority
         ? await window.TaejangMenuAuthority.beforeOpen(viewMenuKey(key), legacyAllowed) : legacyAllowed);
-      if (pendingHistoryView) return;
-      closeSidebar();
-      if (historyMode === 'push') history.pushState({taejangMenuView:true}, '', viewUrl(key, serviceDocument));
+      if (pendingView || role !== window.TaejangApp.getRoute()) return;
+      if (historyMode === 'push' && currentAddress() !== address) history.pushState({taejangMenuView:true}, '', address);
       if (activeView === 'payroll.manage' || activeView === 'payslip.issue') window.TaejangMonthEndPayroll?.close();
-      viewDirty = false; activeView = key;
+      closeSidebar();
+      const main = el('dashboard-main');
+      // Retire the previous view before showing/selecting the next. In
+      // particular, an ignored/cancelled click must never reset this surface.
+      main.replaceChildren();
       window.TaejangAppWorkspaceSurface?.showDashboard?.();
+      viewDirty = false;
+      activeView = key;
+      activeViewAddress = address;
+      committed = true;
+      const title = allowed ? (registryItem?.roleLabels?.[role] || registryItem?.label || item.label) : '업무 접근 안내';
+      selectView(key, title);
       if (!allowed) {
         const notice = text('section', '', 'dashboard-section');
         notice.append(text('h2', item ? '이 화면에 접근할 권한이 없습니다.' : '찾을 수 없는 업무 주소입니다.'), button('대시보드로', () => openView('dashboard', 'push')));
-        el('dashboard-main').replaceChildren(notice);
-      } else { await item.run(); }
-      document.querySelectorAll('#app-nav [data-menu-key]').forEach(node => {
-        if (node.dataset.menuKey === key) node.setAttribute('aria-current', 'page'); else node.removeAttribute('aria-current');
-      });
-      if (el('desktop-page-title')) el('desktop-page-title').textContent = allowed ? (registryItem?.roleLabels?.[role] || item.label) : '업무 접근 안내';
-    } catch (error) {
-      activeView = null;
-      el('dashboard-main').replaceChildren(text('p', '권한을 확인하지 못했습니다. 다시 열어 주세요.', 'message error'));
+        main.replaceChildren(notice);
+      } else {
+        await item.run(address);
+        if (activeView === key) selectView(key, title);
+      }
+    } catch {
+      if (!pendingView || committed) {
+        activeView = null;
+        activeViewAddress = null;
+        viewDirty = false;
+        window.TaejangAppWorkspaceSurface?.showDashboard?.();
+        selectView(null, '업무 접근 안내');
+        el('dashboard-main').replaceChildren(text('p', committed ? '화면을 불러오지 못했습니다. 다시 열어 주세요.' : '권한을 확인하지 못했습니다. 다시 열어 주세요.', 'message error'));
+      }
     } finally {
       openingView = false;
       syncSettingsActionAvailability();
-      const next = pendingHistoryView;
-      pendingHistoryView = null;
-      if (next) void openView(next, 'pop');
+      const next = pendingView;
+      pendingView = null;
+      if (next) await navigateView(next);
     }
   }
   document.addEventListener('input', event => {
@@ -486,7 +525,7 @@
       const registry = window.TaejangPlatformNavigationRegistry;
       const registryItem = item.key ? registry?.byKey?.(item.key) : null;
       if (!delegated && registryItem && registry?.visibleForRole?.(registryItem, _route) === false) return;
-      const label = registryItem?.roleLabels?.[_route] || item.label;
+      const label = registryItem?.roleLabels?.[_route] || registryItem?.label || item.label;
       const node = document.createElement('a');
       if (item.href) {
         node.href = item.href;
@@ -497,6 +536,7 @@
         }
       } else {
         node.href = viewUrl(item.key);
+        node.dataset.dashboardView = '1';
         node.textContent = label;
         node.addEventListener('click', event => {
           if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
@@ -504,7 +544,7 @@
         });
       }
       markMenuNode(node, item);
-      if (item.current) node.setAttribute('aria-current', 'page');
+      if (item.key === (activeView || (openingView ? null : 'dashboard'))) node.setAttribute('aria-current', 'page');
       nav.append(node);
     });
 
@@ -615,6 +655,7 @@
       // Settings replaces the current surface outside openView. Invalidate its
       // cached view so returning to that same menu renders it again.
       activeView = null;
+      activeViewAddress = null;
       viewDirty = false;
       closeSidebar();
       document.dispatchEvent(new CustomEvent('taejang-open-platform-settings'));
@@ -647,7 +688,7 @@
       const toggle = el('sidebar-toggle'); toggle.addEventListener('click', () => { const open = shell.classList.toggle('sidebar-open'); toggle.setAttribute('aria-expanded', String(open)); toggle.setAttribute('aria-label', open ? '메뉴 닫기' : '메뉴 열기'); });
       el('desktop-logout-button').addEventListener('click', () => el('logout-button').click());
     }
-    activeView = null; viewDirty = false;
+    activeView = null; activeViewAddress = null; viewDirty = false;
     // Allow all feature ready handlers and their microtasks to finish before restoring a deep link.
     await new Promise(resolve => window.setTimeout(resolve, 0));
     await openView(new URL(location.href).searchParams.get('view') || 'dashboard');
@@ -659,6 +700,7 @@
     if (activeView && authority?.allowed(viewMenuKey(activeView), true) === false) {
       viewDirty = false;
       activeView = null;
+      activeViewAddress = null;
       el('dashboard-main')?.replaceChildren(text('p', '메뉴 권한이 회수되었거나 확인되지 않습니다.', 'message'));
     }
     if (route !== worker) menu(route);

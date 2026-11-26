@@ -47,9 +47,9 @@ test('checking-only navigation is removed without role-specific menu cleanup', (
 
 test('all desktop roles share the operations master sidebar categories', () => {
   const master = nav.slice(nav.indexOf('const MASTER_ORDER'), nav.indexOf('const MASTER_SECTIONS'));
-  assert.match(master, /'직원 관리', '신규 직원 등록', '가입 승인'/);
-  assert.match(master, /'홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토'/);
-  assert.match(master, /'출근부', '근태 보정', '근태·급여관리'/);
+  assert.match(master, /'직원 관리', '신규 직원 등록', '직원앱 가입 승인'/);
+  assert.match(master, /'홍보 글 작성', '승인 검토', '보완 요청받은 글', '보낸 글'/);
+  assert.match(master, /'출근부', '근태 기록 보정', '연차 관리', '급여 관리'/);
   assert.match(nav, /DESKTOP_ROLES\.map\(role => \[role, MASTER_ORDER\]\)/);
   assert.doesNotMatch(nav, /role === 'operations_manager'\) return 165/);
 });

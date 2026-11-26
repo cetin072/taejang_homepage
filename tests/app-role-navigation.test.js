@@ -179,23 +179,23 @@ test('promotion sidebar visibility follows role work while retaining capabilitie
     .sort();
   assert.deepEqual([...actualKeys].sort(), expectedKeys, 'every canonical business-navigation leaf has a live sidebar destination');
   for (const label of ['홍보 글 작성', '보완 요청받은 글', '보낸 글']) assert.ok(visible(promotion).has(label));
-  for (const label of ['홍보 검토', '발행 관리', '공개 홍보글 관리']) assert.ok(!visible(promotion).has(label));
-  for (const label of ['홍보 글 작성', '보낸 글', '홍보 검토', '발행 관리', '공개 홍보글 관리']) assert.ok(visible(lead).has(label));
+  for (const label of ['승인 검토', '발행 관리', '공개 글 관리']) assert.ok(!visible(promotion).has(label));
+  for (const label of ['홍보 글 작성', '보낸 글', '승인 검토', '발행 관리', '공개 글 관리']) assert.ok(visible(lead).has(label));
   for (const label of ['보완 요청받은 글']) assert.ok(!visible(lead).has(label));
-  for (const label of ['홍보 글 작성', '보낸 글', '홍보 승인 검토', '발행 현황', '공개 홍보글 관리']) assert.ok(visible(operations).has(label));
+  for (const label of ['홍보 글 작성', '보낸 글', '승인 검토', '발행 현황', '공개 글 관리']) assert.ok(visible(operations).has(label));
   for (const label of ['보완 요청받은 글']) assert.ok(!visible(operations).has(label));
-  assert.ok(visible(ceo).has('홍보 검토'));
+  assert.ok(visible(ceo).has('승인 검토'));
   assert.ok(!visible(ceo).has('발행 관리'));
 
   assert.equal(menuLabels(promotion.nav).filter(label => label.startsWith('공지')).join(','), '공지 관리');
   assert.deepEqual(menuLabels(lead.nav).filter(label => /급여/.test(label)), ['급여명세서'], 'lead has only the issued payslip menu even with stale payroll.manage');
-  assert.ok(!findMenu(lead.nav, '근태·급여관리'));
+  assert.ok(!findMenu(lead.nav, '급여 관리'));
   assert.equal(menuLabels(operations.nav).filter(label => label.startsWith('외부 급여초안')).join(','), '');
 
   findMenu(promotion.nav, '홍보 글 작성').click(); await nextTurn();
   findMenu(promotion.nav, '보완 요청받은 글').click(); await nextTurn();
   assert.deepEqual(promotion.promotionModes, ['write', 'revision']);
-  findMenu(lead.nav, '홍보 검토').click(); await nextTurn();
+  findMenu(lead.nav, '승인 검토').click(); await nextTurn();
   findMenu(lead.nav, '발행 관리').click(); await nextTurn();
   assert.deepEqual(lead.promotionModes, ['review', 'publication']);
   findMenu(operations.nav, '홍보 글 작성').click(); await nextTurn();
@@ -244,7 +244,7 @@ test('operations mobile menu actions close the sidebar and dispatch one destinat
   assert.deepEqual(operations.employeeViews, ['existing', 'new']);
 
   operations.shell.classList.add('sidebar-open');
-  findMenu(operations.nav, '가입 승인').click(); await nextTurn();
+  findMenu(operations.nav, '직원앱 가입 승인').click(); await nextTurn();
   assert.equal(operations.shell.classList.values.has('sidebar-open'), false);
   assert.equal(operations.getApprovalOpens(), 1);
 });
@@ -255,15 +255,11 @@ test('central navigation uses one master order and section contract for every de
   const masterBlock = navPriority.slice(masterStart, masterEnd);
 
   assertOrdered(masterBlock, [
-    '대시보드',
-    '직원 관리', '신규 직원 등록', '가입 승인',
-    '홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토',
-    '발행 관리', '공개 홍보글 관리',
-    '홈페이지 내용 관리', '홈페이지 직접 수정',
-    '공지 관리',
-    '출근부', '근태 보정', '근태·급여관리',
-    '기업 프로필', '지원사업 레이더', '내 지원사업',
-    '신규 사업 기획'
+    '대시보드', '매출·정산', '공용 견적서', '물류 견적·거래',
+    '용역 계약·월 매출', '월간 용역 서류', '직원 관리', '신규 직원 등록', '직원앱 가입 승인',
+    '출근부', '근태 기록 보정', '연차 관리', '급여 관리', '급여명세서', '공지 관리',
+    '홍보 글 작성', '승인 검토', '보완 요청받은 글', '보낸 글', '발행 관리', '공개 글 관리',
+    '내용 수정 요청', '직접 편집', '지원사업 찾기', '내 지원사업', '기업 프로필'
   ]);
 
   assert.match(navPriority, /const MASTER_SECTIONS = Object\.freeze/);
@@ -271,7 +267,7 @@ test('central navigation uses one master order and section contract for every de
   assert.match(navPriority, /label:\s*'홍보'/);
   assert.doesNotMatch(masterBlock, /홍보글 관리·복구/);
   assert.match(navPriority, /label:\s*'홈페이지'/);
-  assert.match(navPriority, /label:\s*'업무 운영'/);
+  assert.match(navPriority, /label:\s*'공지'/);
   assert.doesNotMatch(navPriority.slice(masterStart, navPriority.indexOf('const DESKTOP_ROLES')), /label:\s*'공지·안내'/);
   assert.match(navPriority, /label:\s*'근태·급여'/);
   assert.match(navPriority, /DESKTOP_ROLES\.map\(role => \[role, MASTER_ORDER\]\)/);

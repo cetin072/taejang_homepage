@@ -224,7 +224,7 @@ try {
  await page.getByRole('button',{name:'예정일 저장',exact:true}).click();
  await page.getByText('수금 예정일 2099-02-01',{exact:true}).waitFor();
  await closePopup();
- await page.locator('#app-nav').getByRole('link',{name:'기준정보·매출 관리',exact:true}).click();
+ await page.locator('#app-nav').getByRole('link',{name:'매출·정산',exact:true}).click();
  await page.getByRole('tab',{name:'미수금',exact:true}).click();
  await page.getByText('미수 거래 1건 · 미수 합계 55,000원',{exact:true}).waitFor();
  await page.locator('[name=receivable_from]').fill('2099-03-01');
@@ -610,7 +610,7 @@ try {
  });
  await page.reload();
  await page.getByRole('button',{name:'용역 계약 등록',exact:true}).waitFor();
- await openSidebarView('기준정보·매출 관리');
+ await openSidebarView('매출·정산');
  await page.getByRole('tab',{name:'매출·판매',exact:true}).click();
  await page.getByRole('button',{name:'상품 판매 등록',exact:true}).waitFor();
  assert.equal(await page.getByRole('tab',{name:'미수금',exact:true}).count(),0);

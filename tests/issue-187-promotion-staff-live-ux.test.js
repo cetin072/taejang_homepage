@@ -98,8 +98,8 @@ test('promotion staff starts from the shared master sidebar and capability-scope
   assert.match(dashboard, /card\(\s*'보완 요청받은 글'/);
   assert.match(dashboard, /label: '보완 글 확인', run: \(\) => openPromotion\('revision'\)/);
   assert.match(roleNavigation, /const MASTER_ORDER = Object\.freeze/);
-  assert.match(roleNavigation, /'홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토'/);
-  assert.match(roleNavigation.slice(roleNavigation.indexOf('const MASTER_ORDER'), roleNavigation.indexOf('const MASTER_SECTIONS')), /공지 관리/);
+  assert.match(roleNavigation, /'홍보 글 작성', '승인 검토', '보완 요청받은 글', '보낸 글'/);
+  assert.match(roleNavigation.slice(roleNavigation.indexOf('const MASTER_ORDER'), roleNavigation.indexOf('const MASTER_SECTIONS')), /공지/);
   assert.doesNotMatch(roleNavigation, /promotion_staff:\s*\[/);
   assert.doesNotMatch(source, /ensurePromotionStaffNavigation/);
   assert.doesNotMatch(source, /makePromotionNavButton/);

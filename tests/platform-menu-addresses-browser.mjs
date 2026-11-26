@@ -10,7 +10,8 @@ window.TaejangApp={getRoute:()=>role,getContext:()=>({display_name:'합성 사�
 window.TaejangEmployeeManagement={openEmployeeManagement:v=>show('employee.'+v)};
 window.TaejangAccountApproval={openAccountApproval:()=>show('account.approval')};
 window.TaejangPromotionWorkspaceV2Api={openPromotion:v=>show('promotion.'+v)};
-window.TaejangMonthlyClientDocumentsLoader=()=>show('monthly_client_documents.manage');
+window.TaejangMonthlyClientDocumentsLoader=selection=>{window.serviceSelection=selection;show('monthly_client_documents.manage');};
+window.TaejangAppWorkspaceSurface={showDashboard:()=>{window.surfaceResets=(window.surfaceResets||0)+1;}};
 window.TaejangAttendanceAdmin={openAttendance:()=>show('attendance.view')};window.TaejangAttendanceIntegrity={openCorrectionScreen:()=>show('attendance.correct')};
 window.TaejangSupportRadar={open:v=>show('support.'+v)};
 window.TaejangIssue207Ux={openSent:()=>show('promotion.sent')};window.TaejangPublicationAdmin={openPublicationAdmin:()=>show('promotion.existing')};
@@ -32,6 +33,61 @@ await p.evaluate(()=>{allowed=false;});await p.locator('[data-menu-key="attendan
 await p.goto('http://fixture.test/?view=task.manage');await p.getByText('찾을 수 없는 업무 주소입니다.').waitFor();assert.equal(await p.locator('[data-menu-key="task.manage"]').count(),0);
 await p.goto('http://fixture.test/?view=bad-address');await p.getByText('찾을 수 없는 업무 주소입니다.').waitFor();
 await p.getByRole('button',{name:'대시보드로',exact:true}).click();await p.waitForFunction(()=>location.search.includes('dashboard'));
+// Slow access check: menu clicks go through the real sidebar event handler.
+await p.goto('http://fixture.test/?view=employee.manage');
+await p.getByRole('heading',{name:'employee.existing',exact:true}).waitFor();
+await p.evaluate(()=>{window.asked=[];let release;
+  const gate=new Promise(resolve=>{release=resolve;});window.releaseAuthority=release;
+  window.TaejangMenuAuthority={beforeOpen:async(key,allowed)=>{asked.push(key);if(key==='promotion.review')await gate;return allowed;}};
+});
+await p.locator('[data-menu-key="promotion.review"]').click();
+await p.locator('[data-menu-key="homepage.content"]').click();
+await p.locator('[data-menu-key="support.radar"]').click();
+assert.equal(await p.locator('main h2').innerText(),'employee.existing','in-flight access check does not retire the open view');
+await p.evaluate(()=>releaseAuthority());
+await p.getByRole('heading',{name:'support.dashboard',exact:true}).waitFor();
+assert.deepEqual(await p.evaluate(()=>asked),['promotion.review','support.radar'],'last click survives; superseded pages are not opened');
+assert.deepEqual(await p.evaluate(()=>opens),['employee.existing','support.dashboard']);
+assert.equal(new URL(p.url()).searchParams.get('view'),'support.radar');
+assert.equal(await p.locator('#desktop-page-title').innerText(),'지원사업 찾기');
+assert.equal(await p.locator('#app-nav [aria-current="page"]').getAttribute('data-menu-key'),'support.radar');
+await p.goBack();await p.getByRole('heading',{name:'employee.existing',exact:true}).waitFor();
+await p.goForward();await p.getByRole('heading',{name:'support.dashboard',exact:true}).waitFor();
+
+// A queued native Back keeps the browser-selected history entry, including
+// its query; no late click may insert its own stale history entry.
+await p.evaluate(()=>{let release;const gate=new Promise(resolve=>{release=resolve;});window.releaseHistoryAuthority=release;
+  window.TaejangMenuAuthority.beforeOpen=async(key,allowed)=>{if(key==='promotion.review')await gate;return allowed;};
+});
+await p.locator('[data-menu-key="promotion.review"]').click();
+await p.goBack();
+await p.evaluate(()=>releaseHistoryAuthority());
+await p.getByRole('heading',{name:'employee.existing',exact:true}).waitFor();
+assert.equal(new URL(p.url()).searchParams.get('view'),'employee.manage');
+assert.equal(await p.locator('#app-nav [aria-current="page"]').getAttribute('data-menu-key'),'employee.manage');
+await p.goForward();
+await p.getByRole('heading',{name:'support.dashboard',exact:true}).waitFor();
+
+// A committed view may still be fetching. Old content is retired, and a
+// later action cannot race a feature which is settling into the shared DOM.
+await p.evaluate(()=>{let release;const gate=new Promise(resolve=>{release=resolve;});window.releaseRender=release;
+  const original=TaejangIssue146.openHomepageSlots;
+  TaejangIssue146.openHomepageSlots=async()=>{await gate;original();};
+});
+await p.locator('[data-menu-key="homepage.content"]').click();
+await p.getByRole('heading',{name:'내용 수정 요청',exact:true}).waitFor();
+assert.equal(await p.locator('main h2').count(),0,'new title never sits above the old body');
+await p.evaluate(()=>document.dispatchEvent(new CustomEvent('taejang-open-service-documents',{detail:{companyId:'sample-42',month:'2026-11'}})));
+await p.evaluate(()=>releaseRender());
+await p.getByRole('heading',{name:'monthly_client_documents.manage',exact:true}).waitFor();
+assert.deepEqual(await p.evaluate(()=>serviceSelection),{companyId:'sample-42',month:'2026-11'});
+assert.equal(new URL(p.url()).searchParams.get('serviceCompany'),'sample-42');
+await p.getByLabel('합성 입력').fill('작성 중인 입력');
+p.once('dialog',d=>d.dismiss());
+await p.goBack();
+await p.waitForFunction(()=>location.search.includes('serviceCompany=sample-42'));
+assert.equal(await p.getByLabel('합성 입력').inputValue(),'작성 중인 입력');
+
 await p.goto('http://fixture.test/?view=employee.manage&login=1');assert.equal(await p.evaluate(()=>opens.length),0);await p.evaluate(()=>document.dispatchEvent(new CustomEvent('taejang-app-ready',{detail:{route:role,label:'합성 역할'}})));await p.waitForFunction(()=>opens.length===1);
 console.log(JSON.stringify({width,direct:true,reload:true,history:true,dirtyGuard:true,denied:true,invalid:true,loginDeferred:true}));await p.close();
 }

@@ -92,7 +92,7 @@ test('issue 216 navigation stability uses one canonical composer without feature
   assert.match(navigation, /LABEL_RENAMES/);
   assert.match(navigation, /function removeLegacySupportGroups/);
   assert.doesNotMatch(navigation, /supportGroupPriority/);
-  assert.match(navigation, /'출근부', '근태 보정', '근태·급여관리'/);
+  assert.match(navigation, /'출근부', '근태 기록 보정', '연차 관리', '급여 관리'/);
   assert.match(navigation, /navigationComposerObserver/);
   assert.match(navigation, /observe\(nav, \{ childList: true, subtree: false \}\)/);
   assert.match(navigationStability, /INITIAL_SETTLE_MS = 190/);

@@ -12,9 +12,9 @@ test('monthly document route belongs to the operations manager and existing side
   const registry = read('app/assets/platform-navigation-registry.js');
   const priority = read('app/assets/role-navigation-priority.js');
   assert.match(shell, /key: 'monthly_client_documents\.manage',[\s\S]*?label: '용역 서류',[\s\S]*?capabilities: \['monthly_client_documents\.manage'\]/);
-  assert.match(registry, /key:'monthly_client_documents\.manage',[^\n]*section:'용역 관리',[^\n]*capabilities:\['monthly_client_documents\.manage'\],[^\n]*visibleRoles:\['operations_manager'\]/);
-  assert.match(priority, /label: '용역 관리', items: \[[^\]]*'용역 서류'/);
-  assert.match(priority, /'계약·월 매출', '용역 서류'/);
+  assert.match(registry, /key:'monthly_client_documents\.manage',[^\n]*section:'용역',[^\n]*capabilities:\['monthly_client_documents\.manage'\],[^\n]*visibleRoles:\['operations_manager'\]/);
+  assert.match(priority, /label: '용역', items: \[[^\]]*'월간 용역 서류'/);
+  assert.match(priority, /'용역 계약·월 매출', '월간 용역 서류'/);
 });
 
 test('monthly document assets load locally before the feature and no CDN runtime dependency remains', () => {
