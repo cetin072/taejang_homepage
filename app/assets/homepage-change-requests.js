@@ -6,7 +6,7 @@
       label: '메인 페이지', href: '../index.html', sections: [
         ['hero', '첫 화면 소개', '.hero-content'],
         ['about', '태장 소개 요약', '#about'],
-        ['business', '지금 태장이 하는 일', '#business'],
+        ['business', '태장이 하는 일', '#business'],
         ['workplace', '태장의 일터', '#workplace'],
         ['recent_activities', '활동 기록', '#recent-activities, .recent-activities'],
         ['partnership', '협력 안내', '#partnership, .partnership-bridge'],
@@ -234,7 +234,7 @@
     const kindField = field('수정 종류', kindSelect);
     const currentField = field('현재 홈페이지 내용', current, '선택한 섹션의 실제 화면 문구를 자동으로 읽어옵니다. 수정할 수 없는 확인용입니다.');
     const textField = field('수정할 내용', proposedText);
-    const imageField = field('수정할 사진 URL', imageUrl, '직접 파일 업로드는 안전한 사진 저장소를 붙인 뒤 추가합니다.');
+    const imageField = field('수정할 사진 주소', imageUrl, '직접 파일 업로드는 안전한 사진 저장소를 붙인 뒤 추가합니다.');
     const altField = field('사진 설명', imageAlt);
     const reasonField = field('수정 이유', reason);
     const pageLinkSlot = document.createElement('div');
@@ -243,7 +243,7 @@
     const previewWrap = document.createElement('div');
     previewWrap.className = 'homepage-preview-wrap';
     previewWrap.append(text('strong', '화면 미리보기'));
-    const previewHelp = text('p', '선택한 영역을 초록색 테두리로 표시합니다. 화면이 로드된 뒤 현재 문구도 자동으로 채워집니다.', 'homepage-preview-help');
+    const previewHelp = text('p', '초록색 테두리로 수정할 부분을 표시합니다.', 'homepage-preview-help');
     const preview = document.createElement('iframe');
     preview.className = 'homepage-preview-frame';
     preview.title = '현재 홈페이지 화면 미리보기';

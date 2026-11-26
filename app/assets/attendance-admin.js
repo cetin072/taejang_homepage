@@ -62,8 +62,11 @@
     const style = document.createElement('style');
     style.dataset.attendanceAdmin = '1';
     style.textContent = `
-      .attendance-tabs{display:flex;gap:8px;margin:12px 0;flex-wrap:wrap}
+      .attendance-tabs{display:flex;align-items:center;gap:8px;margin:0 0 14px;flex-wrap:wrap}
+      .attendance-tabs .button,.attendance-toolbar :is(.button,input:not([type=checkbox]),select){box-sizing:border-box;min-height:44px}
+      .attendance-tabs .button,.attendance-toolbar .button{padding-block:8px;line-height:1.2}
       .attendance-tabs [aria-pressed="true"]{background:#2f6b57;color:white}
+      .attendance-heading{margin:0 0 8px;font-size:1.125rem}
       .attendance-compact{border-bottom:1px solid #d9e1dd;padding:8px 12px;background:white}
       .attendance-compact summary{cursor:pointer;display:flex;gap:12px;align-items:center;flex-wrap:wrap;min-height:40px}
       .attendance-compact summary strong{min-width:130px}
@@ -76,17 +79,23 @@
       .attendance-matrix thead th:first-child{z-index:3}
       .attendance-matrix td[data-review="true"]{background:#fff4dc}
       .attendance-matrix td span{display:block;white-space:nowrap}
+      .attendance-matrix tbody th span{display:block;margin-top:3px}
       .attendance-detail-tools{margin:12px 0;border:1px solid #c8d5cd;border-radius:10px;padding:10px}
       .attendance-detail-tools>summary{cursor:pointer;font-weight:800;min-height:32px}
-      .attendance-toolbar input:not([type=checkbox]),.attendance-toolbar select{min-height:40px;max-width:100%;font:inherit;padding:6px}
+      .attendance-toolbar input:not([type=checkbox]),.attendance-toolbar select{max-width:100%;font:inherit;padding:6px 10px;border:1px solid var(--app-border,#c8d5cd);border-radius:8px;background:#fff}
       .attendance-toolbar input[type=checkbox]{width:18px;min-height:18px;height:18px}
       .attendance-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:18px 0; }
       .attendance-summary article { padding:16px; border:1px solid var(--app-border); border-radius:14px; background:#fff; }
       .attendance-summary strong { display:block; margin-top:6px; font-size:28px; }
-      .attendance-toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:end; margin:16px 0; padding:14px; border:1px solid var(--app-border); border-radius:14px; background:#fff; }
-      .attendance-toolbar label { display:grid; gap:6px; font-weight:800; }
-      .attendance-toolbar > label:has(> input[type="date"]) { margin:0; }
-      .attendance-toolbar input[type="date"] { min-height:48px; padding:7px 10px; border:1px solid #ccc; border-radius:10px; font:inherit; }
+      .attendance-toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:end; margin:0 0 14px; padding:14px; border:1px solid var(--app-border); border-radius:12px; background:#fff; }
+      .attendance-toolbar label { display:grid; gap:6px; margin:0; min-width:0; font-weight:750; }
+      .attendance-toolbar .attendance-review-filter { display:flex; align-items:center; gap:8px; min-height:44px; }
+      .attendance-review-filter input { margin:0; }
+      .attendance-search-field { flex:1 1 200px; max-width:320px; }
+      .attendance-filter-options { flex-basis:100%; min-width:0; }
+      .attendance-filter-options summary { width:fit-content; padding:6px 0; color:var(--app-brand,#276247); cursor:pointer; font-weight:750; }
+      .attendance-filter-grid { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(min(100%,140px),1fr)); margin-top:8px; }
+      .attendance-filter-note { grid-column:1/-1; }
       .attendance-evidence-help { flex:1 1 260px; margin:0; color:#60746a; font-size:13px; line-height:1.5; }
       .attendance-list { display:grid; gap:10px; }
       .attendance-row { display:grid; grid-template-columns:minmax(120px,1.15fr) 1fr 1fr minmax(150px,.9fr); gap:12px; align-items:center; padding:14px; border:1px solid var(--app-border); border-radius:14px; background:#fff; }
@@ -125,6 +134,9 @@
       .attendance-ledger-row { padding:10px; border:1px solid var(--app-border); border-radius:10px; background:#fbfdfb; line-height:1.45; }
       .attendance-ledger-row[data-reopened="true"] { background:#fff8e9; border-color:#e2c68d; }
       .attendance-ledger-row strong { display:block; }
+      .attendance-person-day { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px 12px; }
+      .attendance-person-day .button { min-height:44px; padding-block:8px; }
+      .attendance-ledger .attendance-detail-tools p { overflow-wrap:anywhere; }
       .attendance-holiday-work { margin:14px 0; padding:16px; border:1px solid #e2c68d; border-radius:14px; background:#fff8e9; }
       .attendance-holiday-work h3 { margin:0; }
       .attendance-holiday-work p { margin:8px 0 12px; line-height:1.5; }
@@ -159,7 +171,13 @@
       .attendance-sync-required h3,.attendance-sync-required p { margin:0; }
       .attendance-sync-required p { margin-top:7px; }
       @media(max-width:900px){.attendance-row{grid-template-columns:1fr 1fr}.attendance-person{grid-column:1/-1}}
-      @media(max-width:720px){.attendance-summary{grid-template-columns:repeat(2,1fr)}.attendance-row{grid-template-columns:1fr}.attendance-cell,.attendance-compare{padding-top:8px;border-top:1px solid #eee}.attendance-toolbar{display:grid;grid-template-columns:1fr}}
+      @media(max-width:480px){
+        .attendance-search-field{max-width:none;flex-basis:100%}
+        .attendance-period-toolbar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+        .attendance-period-toolbar label{grid-column:1/-1}
+        .attendance-period-toolbar .button{align-self:stretch;padding-inline:8px}
+      }
+      @media(max-width:720px){.attendance-summary{grid-template-columns:repeat(2,1fr)}.attendance-row{grid-template-columns:1fr}.attendance-cell,.attendance-compare{padding-top:8px;border-top:1px solid #eee}}
     `;
     document.head.append(style);
   }
@@ -439,7 +457,7 @@
       const context = item.identity;
       const line = el('div', null, 'attendance-unmatched-row');
       line.append(el('span', (item.source_display_name || '이름 없음') + ' · ' + (item.source_employee_key || '외부번호 없음') + ' · 출근 ' + time(item.clock_in_at) + ' / 퇴근 ' + time(item.clock_out_at)));
-      if (!context) { line.append(el('span', '안전한 직원 연결 서버 동기화 필요')); list.append(line); return; }
+      if (!context) { line.append(el('span', '직원 명단을 불러오지 못했습니다.')); list.append(line); return; }
       if (context.name_reused || context.time_conflict) {
         line.append(el('strong', context.name_reused ? '연결 중지: 같은 외부 사용자번호의 과거 이름이 다릅니다.' : '연결 중지: 같은 날짜의 출퇴근 시각이 충돌합니다. 자동 확정 불가.'));
         list.append(line); return;
@@ -528,7 +546,7 @@
 
   async function confirmAttendanceDay(workDate) {
     if (!can('attendance.confirm')) return;
-    if (!window.confirm('이 날짜의 전체 출근부를 확정합니다. 확정된 v1은 변경되지 않으며, 이후 수정하려면 재개방 사유를 남겨야 합니다. 진행할까요?')) return;
+    if (!window.confirm('이 날짜의 출근부를 확정할까요? 나중에 수정하려면 확정을 풀고 사유를 남겨야 합니다.')) return;
     const result = await app().rpc('confirm_attendance_day', { p_work_date: workDate });
     if (!result?.ok) {
       if (result?.code === 'CONFIRMATION_BLOCKED') {
@@ -538,15 +556,15 @@
       }
       throw new Error(result?.code || 'CONFIRMATION_FAILED');
     }
-    window.alert(`일일 출근부를 v${result.revision_no}로 확정했습니다.`);
+    window.alert(`출근부를 ${result.revision_no}차 확정했습니다.`);
     await openAttendance(workDate);
   }
 
   async function reopenAttendanceDay(workDate) {
     if (!can('attendance.confirm')) return;
-    const reason = window.prompt('재개방 사유를 5자 이상 입력하세요. 이후 수정 후 새 revision으로 다시 확정해야 합니다.');
+    const reason = window.prompt('확정을 푸는 사유를 5자 이상 입력하세요.');
     if (!reason || reason.trim().length < 5) {
-      window.alert('재개방 사유를 5자 이상 입력해야 합니다.');
+      window.alert('사유를 5자 이상 입력하세요.');
       return;
     }
     const result = await app().rpc('reopen_attendance_confirmation', {
@@ -554,7 +572,7 @@
       p_reason: reason.trim(),
     });
     if (!result?.ok) throw new Error(result?.code || 'REOPEN_FAILED');
-    window.alert(`v${result.revision_no} 확정을 재개방했습니다. 수정 후 새 revision으로 다시 확정하세요.`);
+    window.alert(`${result.revision_no}차 확정을 풀었습니다. 수정한 뒤 다시 확정하세요.`);
     await openAttendance(workDate);
   }
 
@@ -567,14 +585,14 @@
     panel.dataset.blocked = String(!confirmed && pending.length > 0);
     const revision = status?.latest_revision;
     panel.append(
-      el('h3', confirmed ? `일일 근태 확정 v${revision?.revision_no || ''}` : '일일 근태 확정'),
+      el('h3', confirmed ? `일일 근태 확정 · ${revision?.revision_no || '-'}차` : '일일 근태 확정'),
       el('p', confirmed
         ? `확정 시각: ${revision?.confirmed_at ? new Date(revision.confirmed_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) : '-'}`
         : pending.length
-          ? `확정 전 해결할 항목이 ${pending.length}건 있습니다. 출근·퇴근 누락은 실제 시간을 입력하고, 판단이 필요한 예외만 확인 사유를 남긴 뒤 하루 전체를 확정합니다.`
-          : '모든 필수 확인 항목이 해소되었습니다. 이 날짜의 전체 출근부를 한 번에 확정할 수 있습니다.'),
+          ? `확정 전 확인할 항목이 ${pending.length}건 있습니다.`
+          : '이 날짜의 출근부를 확정할 수 있습니다.'),
     );
-    if (confirmed) panel.append(folded('확정 원장 근거', el('p', 'snapshot ' + (revision?.snapshot_fingerprint || '-'))));
+    if (confirmed) panel.append(folded('확정본 검증 정보', el('p', '확정본 식별값 ' + (revision?.snapshot_fingerprint || '-'))));
     if (blockers.length) {
       const list = el('ul', null, 'attendance-confirmation-blockers');
       blockers.forEach(blocker => {
@@ -600,9 +618,9 @@
     if (can('attendance.confirm')) {
       const actions = el('div', null, 'attendance-confirmation-actions');
       if (confirmed) {
-        const reopen = el('button', '확정 재개방', 'button button-quiet');
+        const reopen = el('button', '확정 풀기', 'button button-quiet');
         reopen.type = 'button';
-        reopen.addEventListener('click', () => reopenAttendanceDay(workDate).catch(() => window.alert('확정을 재개방하지 못했습니다.')));
+        reopen.addEventListener('click', () => reopenAttendanceDay(workDate).catch(() => window.alert('확정을 풀지 못했습니다.')));
         actions.append(reopen);
       } else {
         const confirm = el('button', '하루 전체 확정', 'button');
@@ -633,9 +651,9 @@
     const historyLabel = el('label');
     const history = document.createElement('input');
     history.type = 'checkbox';
-    historyLabel.append(history, document.createTextNode('재개방된 이전 revision도 포함'));
-    const results = el('div', '조회 전입니다. 현재 대장은 재개방되지 않은 일일 확정본만 사용합니다.', 'attendance-ledger-results');
-    const query = el('button', '확정 근태 대장 조회', 'button button-quiet');
+    historyLabel.append(history, document.createTextNode('이전 확정본 포함'));
+    const results = el('div', null, 'attendance-ledger-results');
+    const query = el('button', '확정 이력 조회', 'button button-quiet');
     query.type = 'button';
     query.addEventListener('click', async () => {
       if (!start.value || !end.value || start.value > end.value) {
@@ -643,7 +661,7 @@
         return;
       }
       query.disabled = true;
-      results.replaceChildren(el('p', 'immutable 근태 대장을 불러오고 있습니다.', 'message'));
+      results.replaceChildren(el('p', '확정 이력을 불러오는 중입니다.', 'message'));
       try {
         const result = await app().rpc('get_confirmed_attendance_period', {
           p_period_start: start.value,
@@ -652,7 +670,7 @@
           p_include_reopened: history.checked,
         });
         const rows = Array.isArray(result?.rows) ? result.rows : [];
-        const summary = el('p', `${result?.active_confirmed_day_count || 0}일 · ${result?.employee_count || 0}명 · ${result?.revision_count || 0} revision · fingerprint ${result?.period_fingerprint || '-'}`);
+        const summary = el('p', `확정 ${result?.active_confirmed_day_count || 0}일 · 직원 ${result?.employee_count || 0}명 · 확정본 ${result?.revision_count || 0}건`);
         const list = el('div', null, 'attendance-ledger-results');
         if (!rows.length) list.append(el('p', '선택한 기간에는 확정된 근태가 없습니다.', 'empty'));
         rows.forEach(row => {
@@ -660,13 +678,14 @@
           line.dataset.reopened = String(Boolean(row?.is_reopened));
           const ledgerStatus = row?.record_snapshot?.attendance_status || 'work';
           line.append(
-            el('strong', `${row?.work_date || '-'} · ${row?.display_name_at_confirmation || '직원'} · v${row?.revision_no || '-'}`),
-            el('span', `${dayStatusLabel(ledgerStatus)} · 출근 ${time(row?.clock_in_at)} / 퇴근 ${time(row?.clock_out_at)} · record ${row?.record_fingerprint || '-'}`),
-            el('span', row?.is_reopened ? `재개방됨 · ${row?.reopen_reason || '사유 기록됨'}` : `현재 확정본 · snapshot ${row?.revision_snapshot_fingerprint || '-'}`, 'attendance-evidence-line')
+            el('strong', `${row?.work_date || '-'} · ${row?.display_name_at_confirmation || '직원'} · ${row?.revision_no || '-'}차`),
+            el('span', `${dayStatusLabel(ledgerStatus)} · 출근 ${time(row?.clock_in_at)} / 퇴근 ${time(row?.clock_out_at)}`),
+            el('span', row?.is_reopened ? `확정 풀림 · ${row?.reopen_reason || '사유 기록됨'}` : '현재 확정본', 'attendance-evidence-line'),
+            folded('검증 정보', el('p', `기록 ${row?.record_fingerprint || '-'} · 확정본 ${row?.revision_snapshot_fingerprint || '-'}`))
           );
           list.append(line);
         });
-        results.replaceChildren(summary, list);
+        results.replaceChildren(summary, list, folded('기간 검증 정보', el('p', '기간 식별값 ' + (result?.period_fingerprint || '-'))));
       } catch {
         results.replaceChildren(el('p', '확정 근태 대장을 불러오지 못했습니다.', 'message error'));
       } finally {
@@ -676,8 +695,7 @@
     const controls = el('div', null, 'attendance-ledger-controls');
     controls.append(startLabel, endLabel, historyLabel, query);
     panel.append(
-      el('h3', '확정 근태 대장'),
-      el('p', '선택한 기간의 일일 확정본과 출퇴근 기록, 수기 보정 근거를 조회합니다.'),
+      el('h3', '일일 확정 이력'),
       controls,
       results
     );
@@ -995,8 +1013,8 @@
     const panel = el('section', null, 'attendance-sync-required');
     panel.dataset.serverSyncRequired = '1';
     panel.append(
-      el('h3', `${feature} 서버 동기화 필요`),
-      el('p', '직원 출근부는 계속 표시합니다. 이 보조 기능에 필요한 서버 RPC가 아직 배포되지 않았거나 일시적으로 응답하지 않았습니다. 서버 동기화 후 다시 시도해주세요.')
+      el('h3', `${feature} 조회 불가`),
+      el('p', '직원 출근부는 계속 표시합니다. 잠시 후 다시 조회해 주세요.')
     );
     return panel;
   }
@@ -1013,7 +1031,7 @@
     const bar = el('nav', null, 'attendance-tabs');
     bar.setAttribute('aria-label', '출근부 보기');
     const buttons = [];
-    [['daily', '일별'], ['monthly', '월별'], ['detail', '상세·보정 이력']].forEach(([key, label]) => {
+    [['daily', '일별'], ['monthly', '월별'], ['detail', '확정 이력·휴일근무']].forEach(([key, label]) => {
       const button = el('button', label, 'button button-quiet'); button.type = 'button';
       button.addEventListener('click', () => { activeTab = key; update(); if (key === 'monthly') panels.monthly.load(); });
       buttons.push([key, button]); bar.append(button);
@@ -1029,27 +1047,36 @@
 
   function searchToolbar(render, getRows = () => []) {
     const bar = el('section', null, 'attendance-toolbar');
-    const label = el('label', '이름·사번 검색'), search = document.createElement('input');
+    const label = el('label', '이름·사번 검색', 'attendance-search-field'), search = document.createElement('input');
     search.type = 'search'; search.value = filters.search;
     search.addEventListener('input', () => { filters.search = search.value; render(); });
     label.append(search);
-    const checkLabel = el('label'), check = document.createElement('input');
+    const checkLabel = el('label', null, 'attendance-review-filter'), check = document.createElement('input');
     check.type = 'checkbox'; check.checked = filters.reviewOnly;
     check.addEventListener('change', () => { filters.reviewOnly = check.checked; render(); });
     checkLabel.append(check, document.createTextNode('확인 필요만'));
 
-    bar.append(label, checkLabel);
+    const options = el('details', null, 'attendance-filter-options');
+    const summary = el('summary', '상세 필터');
+    const grid = el('div', null, 'attendance-filter-grid');
+    options.append(summary, grid);
+    bar.append(label, checkLabel, options);
     const controls = [];
-    [['department','부서'],['group','팀·작업반'],['leader','담당 팀장(배정 관계)'],['job','직무·직책(장애 여부 아님)'],['attendance','근태 대상'],['employment','재직상태'],['accounts','계정 표시']].forEach(([key,title])=>{
+    [['department','부서'],['group','팀·작업반'],['leader','담당 팀장'],['job','직무·직책'],['attendance','근태 대상'],['employment','재직 상태'],['accounts','계정 범위']].forEach(([key,title])=>{
       const field=el('label',title), select=document.createElement('select'); select.dataset.filterKey=key;
-      select.addEventListener('change',()=>{filters[key]=select.value;render();});field.append(select);bar.append(field);controls.push([key,select]);
+      select.addEventListener('change',()=>{filters[key]=select.value;updateFilterCount();render();});field.append(select);grid.append(field);controls.push([key,select]);
     });
-    bar.append(el('p','부서·직무·재직은 현재 직원정보, 작업반·팀장은 조회일(월별 말일)의 배정 기준입니다. 장애 여부: 보호 인사자료·별도 승인 필요. 테스트 여부는 명시적 표식만 사용하며 미확인 계정을 이름으로 추정하지 않습니다.','attendance-evidence-help'));
+    grid.append(el('p','팀·작업반과 담당 팀장은 조회한 날짜 기준입니다. 월별 화면은 해당 월 말일을 기준으로 표시합니다.','attendance-filter-note attendance-evidence-help'));
+    function updateFilterCount() {
+      const count = controls.filter(([key]) => key === 'accounts' ? filters[key] !== 'normal' : Boolean(filters[key])).length;
+      summary.textContent = count ? `상세 필터 (${count})` : '상세 필터';
+    }
     bar.refresh = () => {
       search.value=filters.search;check.checked=filters.reviewOnly;
+      updateFilterCount();
+      const rows=getRows();
       controls.forEach(([key,select])=>{
-        const rows=getRows();
-        const values= key==='accounts' ? [['normal','정상 명단(비활성·확인된 테스트 숨김)'],['all','전체 이력 포함']] : [['','전체'],...([...new Set(rows.flatMap(r=>key==='group' ? (r.groups?.length?r.groups:[r.groupState]) : key==='leader' ? (r.leaders?.length?r.leaders:[r.leaderState]) : [r[key]]).filter(Boolean))].sort().map(v=>[v,v]))];
+        const values= key==='accounts' ? [['normal','기본 명단'],['all','전체 계정 이력']] : [['','전체'],...([...new Set(rows.flatMap(r=>key==='group' ? (r.groups?.length?r.groups:[r.groupState]) : key==='leader' ? (r.leaders?.length?r.leaders:[r.leaderState]) : [r[key]]).filter(Boolean))].sort().map(v=>[v,v]))];
         select.replaceChildren(...values.map(([value,text])=>new Option(text,value,false,value===filters[key])));
         if(filters[key] && !values.some(([value])=>value===filters[key]))select.append(new Option(filters[key],filters[key],true,true));
       });
@@ -1097,10 +1124,10 @@
 
   function monthlyPanel(workDate) {
     const panel = el('section'); panel.dataset.attendanceMonthly = '1';
-    const toolbar = el('div', null, 'attendance-toolbar'), label = el('label', '확인 월');
+    const toolbar = el('div', null, 'attendance-toolbar attendance-period-toolbar'), label = el('label', '조회 월');
     const month = document.createElement('input'); month.type = 'month'; month.value = workDate.slice(0, 7); label.append(month);
-    const query = el('button', '월간 조회', 'button'); query.type = 'button';
-    const excel = el('button', '월간 출근부 Excel', 'button button-quiet'); excel.type = 'button'; excel.disabled = true;
+    const query = el('button', '월별 조회', 'button'); query.type = 'button';
+    const excel = el('button', '엑셀 다운로드', 'button button-quiet'); excel.type = 'button'; excel.disabled = true;
     const results = el('div'), detail = el('div'); detail.setAttribute('aria-live', 'polite');
     let model = null, loading = false, loaded = false;
     function visibleRows() { return (model?.rows || []).filter(r => matchesSearch(r) && (!filters.reviewOnly || r.reviewDays > 0)); }
@@ -1116,11 +1143,11 @@
     }
     function exportRows(rows, scope, personal=false) {
       if(!model || !loaded || loading || model.month!==month.value || model.failedDays.length) {
-        window.alert('현재 선택한 월을 다시 조회한 뒤 Excel을 내려받으세요.');
+        window.alert('선택한 월을 먼저 조회하세요.');
         return;
       }
       try { window.TaejangAttendanceMonthly.download(model, rows, window.TaejangAttendanceMonthlyXlsx, scope, personal); }
-      catch { window.alert('Excel을 만들지 못했습니다. 조회한 내용은 유지됩니다. 다시 시도하세요.'); }
+      catch { window.alert('엑셀 파일을 만들지 못했습니다. 다시 시도해 주세요.'); }
     }
     excel.addEventListener('click', () => {
       const rows=visibleRows();
@@ -1138,15 +1165,17 @@
         const line = el('tr'), person = el('th'); person.scope = 'row';
         const button = el('button', row.display_name || '미등록', 'button button-quiet'); button.type = 'button';
         button.addEventListener('click', () => {
-          const list = el('div');
-          const personal = el('button', '개인 월간 Excel', 'button'); personal.type = 'button'; personal.addEventListener('click', () => exportRows([row], '선택 직원', true));
+          const list = el('div', null, 'attendance-ledger-results');
+          const personal = el('button', '개인 엑셀 다운로드', 'button'); personal.type = 'button'; personal.addEventListener('click', () => exportRows([row], '선택 직원', true));
           list.append(el('h3', row.display_name || '직원'), personal);
           row.cells.forEach((cell, index) => {
-            const day = el('div', null, 'attendance-ledger-row');
-            const open = el('button', model.dates[index] + ' 일별 근거·보정', 'button button-quiet'); open.type = 'button';
+            const day = el('div', null, 'attendance-ledger-row attendance-person-day');
+            const copy = el('div');
+            const open = el('button', model.dates[index] + ' 출근부 보기', 'button button-quiet'); open.type = 'button';
             open.addEventListener('click', () => { activeTab = 'daily'; void openAttendance(model.dates[index]); });
-            day.append(el('strong', cell.label + ' ' + (cell.clockIn || '-') + '~' + (cell.clockOut || '-')), open);
-            if (cell.record) day.append(el('p', '확정 v' + cell.record.revision_no + ' · 원장 ' + cell.record.record_fingerprint));
+            copy.append(el('strong', cell.label + ' ' + (cell.clockIn || '-') + '~' + (cell.clockOut || '-')));
+            if (cell.record) copy.append(el('span', cell.record.revision_no + '차 확정', 'attendance-evidence-line'));
+            day.append(copy, open);
             list.append(day);
           });
           detail.replaceChildren(list); detail.scrollIntoView({block:'nearest'});
@@ -1158,7 +1187,7 @@
       });
       table.append(head, body);
       const wrap = el('div', null, 'attendance-table-wrap'); wrap.tabIndex = 0; wrap.setAttribute('aria-label', '월간 근태표 가로 스크롤'); wrap.append(table);
-      results.replaceChildren(el('p', rows.length + '명 · 출근 / 누락 / 결근 / 유급휴가 / 유급휴일 / 비대상 / 재직기간 밖 · 미확정은 급여 계산 전 확인 필요'), wrap);
+      results.replaceChildren(el('p', rows.length + '명 · 미확정 기록은 급여 계산 전에 확인하세요.'), wrap);
       if (!rows.length) results.append(el('p', '선택한 월·조건에 직원 기록이 없습니다.'));
       if (model.failedDays.length) results.prepend(el('p', '조회 실패: ' + model.failedDays.join(', ') + ' · 다시 조회하세요.', 'message error'));
     }
@@ -1268,18 +1297,8 @@
           const missing = dayStatusCode(row) === 'work' && (!good(row.clock_in) || !good(row.clock_out));
           return missing ? { label: '출퇴근 누락 · 확인', needsReview: true } : comparison;
         })
-        : rows.map(() => ({ label: '과거 외부 기록 서버 동기화 필요', needsReview: true }));
+        : rows.map(() => ({ label: '과거 외부 기록 조회 불가', needsReview: true }));
       const reviewCount = rows.filter((row,index)=>comparisons[index].needsReview || row.clock_in?.status==='exception_pending' || row.clock_out?.status==='exception_pending').length;
-
-      const intro = el('header', null, 'dashboard-intro');
-      const back = el('button', '대시보드로', 'button button-quiet'); back.type = 'button';
-      back.addEventListener('click', () => document.dispatchEvent(new CustomEvent('taejang-dashboard-refresh')));
-      intro.append(
-        el('p', '근태 관리', 'eyebrow'),
-        el('h2', `${currentWorkDate || '오늘'} 출근부`),
-        el('p', '앱 출퇴근 기록과 현장근무를 조회하고 누락이나 확인이 필요한 기록을 처리합니다.'),
-        back
-      );
 
       const summary = el('section', null, 'attendance-summary');
       summary.append(
@@ -1317,7 +1336,7 @@
       const canManageFieldWork = can('attendance.correct');
       const registration = canManageFieldWork ? fieldWorkRegistration(currentWorkDate, today, rows) : null;
       const tabs=tabBar({daily:dailyPanel,monthly,detail:detailPanel}, registration?.button);
-      const pieces=[intro,tabs];
+      const pieces=[tabs];
       const fieldPanel = canManageFieldWork
         ? (Array.isArray(fieldWorkResult.value)
           ? fieldWorkPanel(fieldWork, rows, currentWorkDate, today, dayConfirmed)
@@ -1328,17 +1347,14 @@
         notice.setAttribute('role', 'status');
         dailyPanel.append(notice);
       }
-      dailyPanel.append(makeToolbar(currentWorkDate));
+      dailyPanel.append(el('h2', `${currentWorkDate || '오늘'} 출근부`, 'attendance-heading'), makeToolbar(currentWorkDate));
       if (fieldPanel) dailyPanel.append(fieldPanel);
       dailyPanel.append(summary,searchToolbar(renderDaily,()=>rows));
       if(!evidenceAvailable)dailyPanel.append(syncRequiredPanel('과거 외부 기록'));
       if(!workdayAvailable||!holidayAssignmentsAvailable)detailPanel.append(syncRequiredPanel('휴일근무 지정'));
       else { const holidayPanel=holidayWorkPanel(dayStatus,holidayAssignments,rows,currentWorkDate);if(holidayPanel)detailPanel.append(folded('휴일근무 지정',holidayPanel)); }
       dailyPanel.append(confirmationAvailable?confirmationPanel(confirmation,currentWorkDate):syncRequiredPanel('일일 근태 확정'));
-      detailPanel.append(folded('확정 원장·이전 revision 조회',confirmedLedgerPanel(currentWorkDate)));
-      const correction=el('button','근태 시간 보정·보정 이력','button');correction.type='button';
-      correction.addEventListener('click',()=>window.TaejangAttendanceIntegrity?.openCorrectionScreen());
-      if(can('attendance.correct'))detailPanel.append(correction);
+      detailPanel.append(confirmedLedgerPanel(currentWorkDate));
       const unmatchedNode=unmatchedPanel(unmatched,rows,currentWorkDate,evidenceData);
       if(unmatchedNode)dailyPanel.append(folded('과거 외부 기록 · 미연결 '+unmatched.length+'건',unmatchedNode,true));
       dailyPanel.append(list);pieces.push(dailyPanel,monthly,detailPanel);

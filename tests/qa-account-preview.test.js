@@ -15,11 +15,11 @@ const stagingDeploy = fs.readFileSync(path.join(root, '.github', 'workflows', 'q
 
 test('employee screen experience unifies real accounts and role presets behind one launcher', () => {
   assert.match(roleUi, /직원 화면 체험/);
-  assert.match(roleUi, /👤 내 계정 ▾/);
+  assert.match(roleUi, /직원 화면 미리보기/);
   assert.match(roleUi, /으로 보는 중 ▾/);
   assert.match(roleUi, /체험 가능한 직원/);
   assert.match(roleUi, /역할 미리보기/);
-  assert.match(roleUi, /실제 로그인 가능한 직원은 그 직원이 실제로 보는 화면/);
+  assert.match(roleUi, /직원 또는 역할을 선택하세요/);
   assert.match(roleUi, /dataset\.personaLauncher/);
   assert.match(roleUi, /dataset\.personaKind/);
   assert.doesNotMatch(roleUi, /홍보직원 보기|운영팀장 보기|운영총괄 복귀|실제 계정 검수|권한 체험 중/);
@@ -46,7 +46,7 @@ test('actual employee account is preferred and role preset is only fallback when
 
 test('role preset banner is plain-language and offers a direct return to my account', () => {
   assert.match(roleUi, /역할 미리보기 중/);
-  assert.match(roleUi, /실제 직원 계정이 아닌 테스트용 역할 화면입니다/);
+  assert.match(roleUi, /현재 로그인 계정에서 직책만 바꿔 미리봅니다/);
   assert.match(roleUi, /내 계정으로 돌아가기/);
   assert.match(roleUi, /dataset\.personaReturn/);
 });

@@ -111,7 +111,8 @@
     const node = document.createElement('header');
     node.className = 'support-radar-header';
     const copyWrap = document.createElement('div');
-    copyWrap.append(text('p', '지원사업 찾기', 'eyebrow'), text('h2', title), text('p', copy));
+    copyWrap.append(text('h2', title));
+    if (copy) copyWrap.append(text('p', copy));
     const actionWrap = document.createElement('div');
     actionWrap.className = 'support-radar-actions';
     actions.forEach(action => actionWrap.append(action));
@@ -509,19 +510,14 @@
     try {
       const data = await loadProfile();
       const root = document.createElement('div'); root.className = 'support-radar-shell';
-      root.append(header('지원사업 찾기', '지원사업 검토에 사용할 기업 정보를 관리합니다.', [button('기업 프로필', renderProfile)]));
       const profile = data.profile;
+      root.append(header('지원사업 찾기', '', [button(profile ? '기업 프로필' : '기업 프로필 등록', renderProfile)]));
       const summary = document.createElement('div'); summary.className = 'support-radar-summary';
       summary.append(
         stat('기업 프로필', profile ? `v${profile.version}` : '미등록', profile ? `${profileCompleteness(data)}% 완성` : '먼저 등록 필요'),
-        stat('재평가 필요', `${Number(data.stale_evaluation_count || 0)}건`, '프로필 변경 영향'),
-        stat('자동 수집', '준비 중', '공고 자동 수집은 아직 지원하지 않습니다.')
+        stat('재평가 필요', `${Number(data.stale_evaluation_count || 0)}건`)
       );
       root.append(summary);
-      const next = section('바로 할 일');
-      next.append(text('p', profile ? '공고 등록·적합도 평가·신청 관리는 아직 지원하지 않습니다.' : '기업 프로필을 먼저 저장하면 지원사업 판정 기준이 준비됩니다.'));
-      next.append(button(profile ? '기업 프로필 확인·수정' : '기업 프로필 만들기', renderProfile));
-      root.append(next);
       main.replaceChildren(root);
       main.focus();
       emit('dashboard', { root });

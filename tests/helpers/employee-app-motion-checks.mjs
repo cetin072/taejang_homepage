@@ -59,7 +59,7 @@ export async function exerciseMotion(page, output, assertLayout) {
     const before = await bounds();
     assert.equal(await card.getAttribute('data-state'), 'playing');
     const tree = await card.ariaSnapshot();
-    assert.match(tree, /BEFORE/); assert.match(tree, /AFTER/);
+    assert.match(tree, /기존 화면/); assert.match(tree, /개선안/);
     assert.equal(await card.locator('dd').count(), 3, 'both faces and principle remain in DOM');
     await page.screenshot({ path: path.join(output, id + '-before.png') });
     await page.waitForTimeout(1650);

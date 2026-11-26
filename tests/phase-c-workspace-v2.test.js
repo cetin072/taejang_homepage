@@ -87,7 +87,7 @@ test('promotion lead keeps its stable permission code while displaying as 운영
   assert.match(routing, /\['promotion_staff', 'promotion', '홍보직원'\]/);
   assert.match(dashboard, /promotion_lead: \['대시보드'/);
   assert.match(dashboard, /promotion_lead: '운영팀장'/);
-  assert.match(dashboard, /운영팀장의 우선 업무입니다/);
+  assert.match(dashboard, /새로 올라온 글이 있습니다/);
   assert.match(rename, /where code = 'promotion_lead'/);
   assert.match(rename, /name = '운영팀장'/);
   assert.doesNotMatch(rename, /code\s*=\s*'operations_manager'/);
@@ -121,7 +121,7 @@ test('highest-authority role preset remains server-enforced inside employee scre
   assert.match(ui, /const PRESET_ROLES = \['promotion_staff', 'promotion_lead'\]/);
   assert.match(ui, /직원 화면 체험/);
   assert.match(ui, /역할 미리보기/);
-  assert.match(ui, /실제 직원 계정이 아닌 테스트용 역할 화면입니다/);
+  assert.match(ui, /현재 로그인 계정에서 직책만 바꿔 미리봅니다/);
   assert.match(ui, /set_role_simulation_mode/);
   assert.match(ui, /window\.location\.reload\(\)/);
   assert.doesNotMatch(ui, /set_profile_roles/);

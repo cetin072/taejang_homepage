@@ -51,7 +51,7 @@ test('attendance administration shows exception-first whole-day confirmation and
   assert.match(admin, /confirm_attendance_day/);
   assert.match(admin, /reopen_attendance_confirmation/);
   assert.match(admin, /하루 전체 확정/);
-  assert.match(admin, /확정 재개방/);
+  assert.match(admin, /확정 풀기/);
   assert.match(admin, /attendance\.confirm/);
   assert.doesNotMatch(admin, /payroll\.manage/);
 });
