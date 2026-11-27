@@ -160,6 +160,18 @@ try{
    assert.equal(await boxes.nth(1).locator('output').textContent(),'1,760원');
    await boxes.nth(2).getByRole('button',{name:'규격 행 삭제'}).click();
    assert.equal(await repack.inputValue(),'4');
+   const heightRow=p.locator('[data-row^="extra-"]');
+   assert.equal(await heightRow.count(),0);
+   await p.getByRole('button',{name:'+ 박스 높이 조절 재포장',exact:true}).click();
+   assert.equal(await heightRow.getByRole('textbox',{name:'항목명',exact:true}).inputValue(),'박스 높이 조절 재포장');
+   assert.equal(await heightRow.getByRole('spinbutton',{name:'수량',exact:true}).inputValue(),'1');
+   assert.equal(await heightRow.getByRole('spinbutton',{name:'단가',exact:true}).inputValue(),'2000');
+   await heightRow.getByRole('spinbutton',{name:'수량',exact:true}).fill('3');
+   assert.equal(await heightRow.locator('output').textContent(),'6,000원');
+   await p.getByRole('button',{name:'박스 높이 조절 재포장 항목으로 이동',exact:true}).click();
+   assert.equal(await heightRow.count(),1);
+   await heightRow.getByRole('button',{name:'삭제',exact:true}).click();
+   assert.equal(await heightRow.count(),0);
    await p.getByRole('button',{name:'+ 개별 촬영·계측 추가',exact:true}).click();
    assert.equal(await p.locator('[data-row="photo"]').count(),0);
    for(const key of ['arrivalPhoto','packedDimensions','packedWeight']){
