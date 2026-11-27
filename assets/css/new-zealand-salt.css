@@ -150,3 +150,19 @@
   .salt-inquiry-form :focus-visible{scroll-margin-bottom:80px}
 }
 
+
+/* Original manufacturer visuals are served as responsive local assets. */
+.salt-chapter-split .salt-feature--origin-cover img{aspect-ratio:942/988;object-fit:contain}
+.salt-facility-map{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center;gap:clamp(18px,5vw,62px);margin-top:clamp(32px,6vw,78px)}
+.salt-facility-map .salt-feature{margin:0}
+.salt-facility-map .salt-feature--map img{aspect-ratio:523/328;object-fit:contain;background:#fff}
+.salt-map-labels{margin:0}
+.salt-map-labels div{border-top:1px solid var(--salt-line);padding:14px 0}
+.salt-map-labels dt,.salt-certificate dd{font-weight:800}
+.salt-map-labels dd,.salt-certificate dd{margin:5px 0 0;overflow-wrap:anywhere}
+.salt-certificate{background:#edf2e9;border-left:4px solid var(--salt-ink);padding:clamp(16px,3.5vw,34px);margin:16px 0 24px;word-break:keep-all}
+.salt-certificate h4{font-size:clamp(1.2rem,2.6vw,1.85rem);line-height:1.35;margin:0 0 12px}
+.salt-certificate dl{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr);gap:14px;margin:17px 0}
+.salt-certificate dt,.salt-certificate .salt-certificate-note{color:var(--salt-muted);font-size:.88rem}
+.salt-certificate .salt-certificate-note{margin:0}
+@media(max-width:760px){.salt-facility-map,.salt-certificate dl{grid-template-columns:1fr}}
