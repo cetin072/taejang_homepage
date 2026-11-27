@@ -28,13 +28,15 @@ try {
     const gallery = page.locator('.salt-gallery');
     const photos = gallery.locator('.salt-gallery-grid');
     const galleryControl = gallery.locator('summary');
-    assert.equal(await photos.isVisible(),false);
+    assert.equal(await photos.isVisible(),true, 'production photos are shown without expanding');
     await galleryControl.focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await photos.isVisible(),false);
     await page.keyboard.press('Enter');
     assert.equal(await photos.isVisible(),true);
     assert.equal(await photos.locator('img[loading=lazy]').count(),4);
     assert.equal(await photos.locator('figcaption').count(),4);
-    assert.equal(await photos.evaluate(node => getComputedStyle(node).gridTemplateColumns.split(' ').length),width <= 480 ? 1 : 2);
+    assert.equal(await photos.evaluate(node => getComputedStyle(node).gridTemplateColumns.split(' ').length),width <= 760 ? 2 : 4);
     assert.match(await page.locator('.salt-photo-credit').innerText(),/Dominion Salt.*JTP©/);
 
     for (const selector of ['.salt-origin-visual img','.salt-process img','.salt-hero-packs img','.salt-gallery-grid img']) {
@@ -63,6 +65,10 @@ try {
     assert.ok(await galleryControl.evaluate((node, {x,y}) => node.contains(document.elementFromPoint(x,y)), {x,y}), 'the fixed site header does not intercept the close click');
     await page.mouse.click(x,y);
     assert.equal(await photos.isVisible(),false);
+    await galleryControl.click();
+    assert.equal(await photos.isVisible(),true);
+    const allPhotos = await page.locator('.salt-origin-visual img,.salt-process img,.salt-gallery-grid img,.salt-hero-packs img').evaluateAll(imgs => imgs.map(img=>img.getAttribute('src')));
+    assert.equal(new Set(allPhotos).size,10,'eight site photos and two pack photos, without duplicates');
     const proof = page.locator('#salt-proof details').first();
     await proof.locator('summary').click();
     assert.match(await proof.locator('p').innerText(),/실제 공급 제품 라벨/);
