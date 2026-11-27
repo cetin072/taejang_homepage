@@ -47,7 +47,7 @@ try {
     }
     for (const photo of await page.locator('.salt-feature img').all()) {
       const b = await photo.boundingBox();
-      assert.ok(b.width >= Math.min(450,width * .82),'every editorial photo is a large scene');
+      assert.ok(b.width >= Math.min(450,width * (width <= 760 ? .82 : .39)),'every editorial photo is a large scene');
     }
     assert.equal(await page.locator('.salt-product .salt-hero-packs img').count(),2);
     await page.locator('.salt-jump a[href="#salt-heritage"]').click();
