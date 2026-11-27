@@ -53,6 +53,8 @@ try {
     await page.locator('.salt-jump a[href="#salt-heritage"]').click();
     assert.equal(new URL(page.url()).hash,'#salt-heritage');
     const proof = page.locator('#salt-proof details').first();
+    // End the previous long-distance anchor scroll before measuring the next click target.
+    await proof.locator('summary').evaluate(node => node.scrollIntoView({block:'center',behavior:'instant'}));
     await proof.locator('summary').click();
     assert.match(await proof.locator('p').innerText(),/실제 공급 제품 라벨/);
     await proof.locator('summary').click();
