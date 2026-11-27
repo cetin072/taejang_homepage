@@ -10,7 +10,7 @@ const lead='10000000-0000-4000-8000-000000000033';
 const db=await createERPDatabase({amountAdjustments:false});
 const literal=v=>v===null?'null':typeof v==='boolean'||typeof v==='number'?String(v):"'"+(typeof v==='object'?JSON.stringify(v):v).replaceAll("'","''")+"'";
 const schema='supabase/migrations/20261127035308_daily_work_reports.sql';
-const importSchema='supabase/migrations/20261127060000_daily_work_report_schedule_import.sql';
+const importSchema='supabase/migrations/20261127043841_daily_work_report_schedule_import.sql';
 const saveArgs=['p_date','p_morning','p_afternoon','p_work','p_staff','p_other','p_revision'];
 const names={
  get_daily_work_report_access:[],
