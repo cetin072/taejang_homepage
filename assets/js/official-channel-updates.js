@@ -7,6 +7,38 @@
   const items = /* OFFICIAL_ITEMS_START */
 [
   {
+    "id": "youtube-4k2elux394w",
+    "type": "external",
+    "source": "youtube",
+    "publisher": "태장 공식 유튜브",
+    "category": "회사소식",
+    "title": "장애인 근로자의 따뜻한 손길, 어르신을 위한 주거환경개선 봉사활동 | 태장",
+    "summary": "태장 공식 유튜브에 게시된 「장애인 근로자의 따뜻한 손길, 어르신을 위한 주거환경개선 봉사활동 | 태장」 영상입니다.",
+    "thumbnail": "https://i.ytimg.com/vi/4k2elux394w/hqdefault.jpg",
+    "thumbnailAlt": "장애인 근로자의 따뜻한 손길, 어르신을 위한 주거환경개선 봉사활동 | 태장 영상 썸네일",
+    "publishedAt": "2026-11-26",
+    "featured": false,
+    "status": "published",
+    "externalUrl": "https://www.youtube.com/watch?v=4k2elux394w",
+    "externalLabel": "유튜브에서 보기"
+  },
+  {
+    "id": "youtube-RroJCP5UYLE",
+    "type": "external",
+    "source": "youtube",
+    "publisher": "태장 공식 유튜브",
+    "category": "회사소식",
+    "title": "장애인 근로자의 손으로 가꾸는 깨끗한 지역사회! 태장 환경정화활동",
+    "summary": "태장 공식 유튜브에 게시된 「장애인 근로자의 손으로 가꾸는 깨끗한 지역사회! 태장 환경정화활동」 영상입니다.",
+    "thumbnail": "https://i.ytimg.com/vi/RroJCP5UYLE/hqdefault.jpg",
+    "thumbnailAlt": "장애인 근로자의 손으로 가꾸는 깨끗한 지역사회! 태장 환경정화활동 영상 썸네일",
+    "publishedAt": "2026-11-26",
+    "featured": false,
+    "status": "published",
+    "externalUrl": "https://www.youtube.com/watch?v=RroJCP5UYLE",
+    "externalLabel": "유튜브에서 보기"
+  },
+  {
     "id": "naver-blog-224462019863",
     "type": "external",
     "source": "naver-blog",
