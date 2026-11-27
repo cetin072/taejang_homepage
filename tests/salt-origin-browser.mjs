@@ -34,10 +34,12 @@ try {
     assert.deepEqual(await page.locator('.salt-timeline time').allTextContents(),['1942','1948','1971']);
     assert.match(await page.locator('.salt-photo-credit').innerText(),/Dominion Salt.*JTP©/);
     const photos = page.locator('.salt-origin-visual img,.salt-feature img,.salt-hero-packs img');
+    assert.equal(await flow.locator('.salt-chapter--harvest img[src*="grassmere-stockpile"]').count(),1);
+    assert.equal(await page.locator('#salt-heritage img[src*="saltworks-1960s"]').count(),1);
     const allPhotos = await photos.evaluateAll(imgs => imgs.map(img=>img.getAttribute('src')));
-    assert.equal(allPhotos.length,10);
-    assert.equal(new Set(allPhotos).size,10);
-    assert.equal(await page.locator('.salt-feature img[loading="lazy"]').count(),7);
+    assert.equal(allPhotos.length,12);
+    assert.equal(new Set(allPhotos).size,12);
+    assert.equal(await page.locator('.salt-feature img[loading="lazy"]').count(),9);
     for (const photo of await photos.all()) {
       assert.ok(await photo.evaluate(async img=>{
         img.scrollIntoView({block:'center',behavior:'instant'});
@@ -67,5 +69,5 @@ try {
     assert.equal(await page.locator('form[name="taejang-salt-inquiry"]').count(),1);
     await page.close();
   }
-  console.log('PASS: ten large salt photos, full process, archive timeline, product packs and inquiry at 320/390/768/1440px with JavaScript on and off');
+  console.log('PASS: twelve salt photos, full process, archive timeline, product packs and inquiry at 320/390/768/1440px with JavaScript on and off');
 } finally {await browser.close(); server.close();}

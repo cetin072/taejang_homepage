@@ -55,7 +55,7 @@
 .salt-feature--crystal img{aspect-ratio:1.65;object-position:center 45%}
 .salt-chapter--harvest{background:#f7f5ed}
 .salt-chapter--harvest .salt-chapter-split{grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr)}
-.salt-chapter--harvest .salt-feature{grid-column:1;grid-row:1}
+.salt-chapter--harvest .salt-chapter-split .salt-feature{grid-column:1;grid-row:1}
 .salt-chapter--finish{background:#173e40;color:#fff}
 .salt-chapter--finish :is(.salt-index,.salt-refinery span){color:#f8e7b0}
 .salt-chapter--finish .salt-chapter-copy>p:not(.salt-index){color:#ecf0e9}
@@ -67,6 +67,10 @@
 .salt-refinery p{margin:0;color:#e6eee7;word-break:keep-all}
 .salt-facility{background:#e9eee7}
 .salt-heritage{background:#eee8d8}
+.salt-feature--stockpile img{aspect-ratio:auto;object-fit:contain}
+.salt-feature figcaption a{color:inherit;text-underline-offset:3px}
+.salt-archive-pair{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);align-items:start;gap:clamp(18px,3vw,48px);margin-top:clamp(32px,5vw,64px)}
+.salt-archive-pair .salt-feature{margin:0}
 .salt-feature--archive img{aspect-ratio:auto;object-fit:contain;background:transparent}
 .salt-timeline{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(14px,3vw,42px);margin-top:clamp(30px,6vw,66px)}
 .salt-timeline li{border-top:1px solid #8c8c7b;padding-top:14px}
@@ -84,9 +88,10 @@
 @media(max-width:760px){
   .salt-chapter{padding-block:72px}
   .salt-chapter-split,.salt-chapter--harvest .salt-chapter-split{grid-template-columns:1fr}
-  .salt-chapter--harvest .salt-feature{grid-column:auto;grid-row:auto}
+  .salt-chapter--harvest .salt-chapter-split .salt-feature{grid-column:auto;grid-row:auto}
   .salt-feature img,.salt-chapter-split .salt-feature img,.salt-chapter--concentrate .container > .salt-feature img{aspect-ratio:4/3}
-  .salt-feature--archive img{aspect-ratio:auto}
+  .salt-feature--archive img,.salt-feature--stockpile img{aspect-ratio:auto}
+  .salt-archive-pair{grid-template-columns:1fr}
   .salt-refinery,.salt-timeline{grid-template-columns:1fr;gap:12px}
   .salt-refinery li{display:grid;grid-template-columns:2rem minmax(0,1fr);gap:3px 7px}
   .salt-refinery strong{margin:0}
