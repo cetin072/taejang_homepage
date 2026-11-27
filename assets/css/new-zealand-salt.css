@@ -34,6 +34,8 @@
 .salt-process figcaption{margin-top:12px;font-size:clamp(1.13rem,2vw,1.65rem);font-weight:800;line-height:1.4;letter-spacing:-.035em;word-break:keep-all}
 .salt-gallery{margin-top:clamp(24px,5vw,48px);border-top:1px solid var(--salt-line);border-bottom:1px solid var(--salt-line)}
 .salt-page summary{min-height:48px;padding-block:12px;font-size:1rem;font-weight:800;line-height:1.5;cursor:pointer}
+.salt-gallery[open]>summary{position:sticky;top:81px;z-index:1;background:var(--salt-paper);border-bottom:1px solid var(--salt-line)}
+@media(max-width:1000px){.salt-document:not(.js-nav-ready) .site-header{position:static}.salt-document:not(.js-nav-ready) .salt-gallery[open]>summary{top:0}}
 .salt-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr));padding:6px 0 22px}
 .salt-gallery-grid figcaption{margin-top:7px;font-size:.9rem;line-height:1.5}
 .salt-photo-credit,.salt-photo-note{color:var(--salt-muted);font-size:.83rem}

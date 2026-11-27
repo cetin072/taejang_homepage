@@ -53,7 +53,11 @@ try {
     }
     assert.equal(await page.locator('.salt-process figcaption').count(),3);
     assert.equal(await page.locator('.salt-product .salt-hero-packs img').count(),2);
-    await galleryControl.click();
+    const closePoint = await galleryControl.boundingBox();
+    assert.ok(closePoint, 'the open gallery control has a hit target');
+    const {x,y} = {x:closePoint.x + closePoint.width / 2, y:closePoint.y + closePoint.height / 2};
+    assert.ok(await galleryControl.evaluate((node, {x,y}) => node.contains(document.elementFromPoint(x,y)), {x,y}), 'the fixed site header does not intercept the close click');
+    await page.mouse.click(x,y);
     assert.equal(await photos.isVisible(),false);
     const proof = page.locator('#salt-proof details').first();
     await proof.locator('summary').click();
