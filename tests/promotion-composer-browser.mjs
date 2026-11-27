@@ -32,6 +32,10 @@ try{
     if(name==='get_my_promotion_workspace')return {role:testRole,my_items:testItems,review_items:[],publication_items:[]};
     if(name==='save_promotion_draft'||name==='save_operations_promotion_draft'){if(testFailSave)throw Error('SYNTHETIC_SAVE_FAILED');return original('save_promotion_draft',args);}
     if(name==='submit_promotion_revision'){if(testFailSubmit)throw Error('SYNTHETIC_SUBMIT_FAILED');}
+    if(name==='publish_official_blog_link'){
+     if(window.testFailBlogPublication)throw Error('PROMOTION_BLOG_DUPLICATE');
+     return {ok:true,lifecycle:'published'};
+    }
     return original(name,args);
    };state.externalUnauthorizedOnce=false;state.uploadFailureStatus=null;
   });
@@ -144,7 +148,49 @@ try{
   assert.ok(staffLayout.indexOf('preview')<staffLayout.indexOf('options')&&staffLayout.indexOf('options')<staffLayout.indexOf('link')&&staffLayout.indexOf('link')<staffLayout.indexOf('actions'),'staff follows operations authoring sequence');
   await title.fill('환경정비활동 안내');await body.fill('함께 활동한 내용을 작성합니다.\n사진과 자료를 확인해주세요.');
   assert.ok(await page.evaluate(()=>document.body.scrollWidth<=innerWidth+2),'viewport fits');
-  await page.screenshot({path:path.join(output,`promotion-${width}.png`),fullPage:true});assert.deepEqual(errors,[]);
+  await page.screenshot({path:path.join(output,`promotion-${width}.png`),fullPage:true});
+  await page.evaluate(async()=>{testRole='promotion_lead';await TaejangPromotionWorkspaceV2Api.openPromotion('write');});
+  await title.fill('promotion_lead 홍보 글쓰기');
+  const directBlog=page.getByRole('button',{name:'블로그 링크 즉시 게시',exact:true});
+  const kind=page.locator('.phase-c-composer-options select').first();
+  assert.equal(await directBlog.isVisible(),false,'homepage article starts with approval only');
+  await body.fill('');
+  await kind.selectOption('homepage_article');
+  await link.fill('https://blog.naver.com/third-party/224420000001');
+  assert.equal(await directBlog.isVisible(),false,'external blog has no direct action');
+  await link.fill('https://m.blog.naver.com/PostView.naver?logNo=224420000001&blogId=taejang-official');
+  await page.getByText(/사진 가져오기 실패|대표사진이 없거나/).waitFor();
+  assert.ok(await directBlog.isVisible(),'official link exposes immediate publication despite missing cover');
+  const approval=page.getByRole('button',{name:'저장 후 운영총괄 승인 요청',exact:true});
+  assert.ok(await approval.isVisible(),'approval still available for the official blog link');
+  await body.fill('홈페이지에 새로 작성한 본문');
+  assert.equal(await directBlog.isVisible(),false,'custom homepage body requires approval even with an official link');
+  await body.fill('');
+  await kind.selectOption('press_release');
+  assert.equal(await directBlog.isVisible(),false,'press release requires approval');
+  await kind.selectOption('homepage_article');
+  const important=page.locator('.phase-c-composer-options select').nth(1);
+  await important.selectOption('yes');
+  assert.equal(await directBlog.isVisible(),false,'important amount requires approval');
+  await important.selectOption('no');
+  assert.ok(await page.evaluate(()=>document.body.scrollWidth<=innerWidth+2),'official blog actions fit the viewport');
+  await page.screenshot({path:path.join(output,`promotion-official-blog-${width}.png`),fullPage:true});
+  await page.evaluate(()=>{window.testFailBlogPublication=true;window.blogWritesStart=testCalls.length;});
+  await directBlog.click();
+  await page.waitForFunction(()=>testAlerts.some(message=>message.includes('이미 등록된 블로그 링크')));
+  assert.equal(await link.inputValue(),'https://m.blog.naver.com/PostView.naver?logNo=224420000001&blogId=taejang-official');
+  assert.equal(await title.inputValue(),'promotion_lead 홍보 글쓰기','publication failure preserves input');
+  await page.evaluate(()=>window.testFailBlogPublication=false);
+  await directBlog.click();
+  await page.getByRole('status').filter({hasText:'블로그 링크를 홈페이지에 게시했습니다.'}).waitFor();
+  const blogWrites=await page.evaluate(()=>testCalls.slice(blogWritesStart).filter(item=>/^(publish_|save_|submit_)/.test(item.name)));
+  assert.deepEqual(blogWrites.map(item=>item.name),['publish_official_blog_link','publish_official_blog_link']);
+  assert.equal(blogWrites[1].args.p_blog_post_id,'224420000001');
+  assert.equal('p_public_body' in blogWrites[1].args,false,'official source body is not submitted as a homepage article');
+  await page.evaluate(async()=>{testRole='promotion_staff';await TaejangPromotionWorkspaceV2Api.openPromotion('write');});
+  await link.fill('https://blog.naver.com/taejang-official/224420000001');
+  assert.equal(await directBlog.count(),0,'ordinary promotion staff have no direct action');
+  assert.deepEqual(errors,[]);
   console.log(`PROMOTION_COMPOSER_PASS:${width}:${preview?'PREVIEW':'LOCAL'}`);await context.close();
  }
 }finally{await browser.close();await rm(dir,{recursive:true,force:true});}

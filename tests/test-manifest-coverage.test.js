@@ -14,6 +14,7 @@ const IMPORTED_HELPERS = new Map([
   ['tests/helpers/erp-sales-isolated-db.mjs', 'tests/erp-sales-isolated.mjs'],
   ['tests/helpers/erp-sales-browser-server.mjs', 'tests/erp-sales-browser.mjs'],
   ['tests/helpers/photo-safe-browser.mjs', 'tests/promotion-blog-card-browser.mjs'],
+  ['tests/promotion-official-blog-publication-auth.mjs', 'tests/phase1a-auth-integration.mjs'],
   ['tests/helpers/personal-menu-employee-auth.mjs', 'tests/employee-password-reset-auth-integration.mjs'],
   ['tests/helpers/menu-employee-adapter-test.mjs', 'tests/menu-authority-isolated.mjs'],
   ['tests/helpers/migration-function-catalog.mjs', 'tests/helpers/menu-employee-adapter-test.mjs'],

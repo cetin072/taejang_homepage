@@ -11,9 +11,10 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const root = process.cwd();
 const source = 'https://blog.naver.com/taejang-official/224451317599';
 const rows = [
-  { content_id: '11111111-1111-4111-8111-111111111111', title: '직원 블로그 소식', external_url: source, link_source_type: 'taejang_blog' },
-  { content_id: '22222222-2222-4222-8222-222222222222', title: '홈페이지 자체 소식' }
-].map(row => ({ ...row, content_type: 'homepage_article', summary: '공개 카드 이동 검수', public_media: [], published_date: '2099-01-01' }));
+  { content_id: '11111111-1111-4111-8111-111111111111', title: '직원 블로그 소식', external_url: source, link_source_type: 'taejang_blog', content_type: 'external_content' },
+  { content_id: '22222222-2222-4222-8222-222222222222', title: '홈페이지 자체 소식', content_type: 'homepage_article' },
+  { content_id: '33333333-3333-4333-8333-333333333333', title: '이전 승인형 블로그 소식', external_url: source + '0', link_source_type: 'taejang_blog', content_type: 'homepage_article' }
+].map(row => ({ ...row, summary: '공개 카드 이동 검수', public_media: [], published_date: '2099-01-01' }));
 const previous = { fetch: globalThis.fetch, Netlify: globalThis.Netlify };
 let script;
 let json;
@@ -74,6 +75,7 @@ try {
     await link.locator('img').scrollIntoViewIfNeeded();
     await link.locator('img').evaluate(image => image.decode());
     assert.equal(await link.getAttribute('href'), source);
+    assert.equal(await page.locator('[data-hub-list] article').filter({ hasText: '이전 승인형 블로그 소식' }).locator('a.card-link').getAttribute('href'), source + '0');
     assert.equal(await link.getAttribute('target'), '_blank');
     assert.match(await link.getAttribute('rel'), /noopener noreferrer/);
     assert.match(await link.getAttribute('aria-label'), /새 탭에서 열림/);

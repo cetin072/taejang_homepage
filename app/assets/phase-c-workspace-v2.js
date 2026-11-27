@@ -342,6 +342,23 @@
     return (globalThis.TAEJANG_ARTICLE_DOCUMENT?.plain(body) ?? body ?? '').replace(/\s+/g, ' ').trim().slice(0, 220) || null;
   }
 
+  function directBlogPost(state, item) {
+    const key = officialBlogKey(state.external.value);
+    const body = state.body.value.trim();
+    const originalDraft = !item || (item.is_owner === true && item.lifecycle === 'draft'
+      && item.revision_no === 1 && item.minimum_review_stage === 'lead'
+      && ['homepage_article', 'external_content'].includes(item.content_type)
+      && !item.public_body?.trim() && item.byline_kind === 'company'
+      && item.number_or_amount === 'no' && !item.requested_publish_date);
+    if (route() !== 'promotion_lead' || !can('promotion.queue_publication', true)
+        || !originalDraft || !/^\d{10,14}$/.test(key)
+        || !['homepage_article', 'external_content'].includes(state.type.value)
+        || state.date.value || state.numberOrAmount.value !== 'no'
+        || (body && (state.importedBlogBody?.key !== key || state.importedBlogBody.body !== body))
+        || state.media.length > 1 || state.media.some(entry => entry.official_blog_post !== key)) return '';
+    return key;
+  }
+
   function officialBlogPostFromStoredImage(rawUrl) {
     try {
       const url = new URL(rawUrl);
@@ -397,7 +414,7 @@
 
   async function savePromotion(formState, action, existingItem) {
     const submitAfterSave = action === true;
-    if (formState.uploading || formState.autoPhotoPending) return;
+    if (formState.saving || formState.uploading || formState.autoPhotoPending) return;
     if (action === 'schedule' && (!formState.scheduleDate.value || new Date(publicationSchedule(formState.scheduleDate.value)).getTime() <= Date.now())) {
       window.alert('실제 예약일은 미래 날짜로 선택해 주세요.'); return;
     }
@@ -405,7 +422,9 @@
     const body = formState.body.value;
     const title = formState.title.value.trim();
     if (!title) { window.alert('제목을 입력해 주세요.'); return; }
-    if (!body.trim() && !formState.media.length && formState.type.value !== 'external_content') {
+    const blogPost = directBlogPost(formState, existingItem);
+    if (action === 'publish_blog' && (!blogPost || formState.savedContentId)) return;
+    if (!blogPost && !body.trim() && !formState.media.length && formState.type.value !== 'external_content') {
       window.alert('본문이나 사진을 입력해 주세요.'); return;
     }
     const publicMedia = formState.media.map(entry => ({ url: entry.url, kind: 'selected', alt: entry.alt?.trim() || undefined }));
@@ -429,7 +448,23 @@
       p_change_reason: existingItem ? '홍보 콘텐츠 수정·보완본 저장' : '홍보 콘텐츠 초안 저장'
     };
     try {
+      formState.saving = true;
       formState.saveButtons.forEach(node => { node.disabled = true; });
+      if (action === 'publish_blog') {
+        await app().rpc('publish_official_blog_link', {
+          p_blog_post_id: blogPost,
+          p_title: title,
+          p_cover_url: formState.media[0]?.url || null,
+          p_draft_id: existingItem?.content_id || null,
+          p_draft_updated_at: existingItem?.updated_at || null
+        });
+        editingContentId = null;
+        await openPromotion('write');
+        const notice = el('p', '블로그 링크를 홈페이지에 게시했습니다.', 'message');
+        notice.setAttribute('role', 'status');
+        main()?.querySelector('[data-promotion-composer]')?.before(notice);
+        return;
+      }
       const isOperations = can('promotion.edit_any_unpublished', route() === 'operations_manager');
       const saved = await app().rpc(isOperations ? 'save_operations_promotion_draft' : 'save_promotion_draft', payload);
       formState.savedContentId = saved.content_id;
@@ -452,9 +487,19 @@
       }
       await openPromotion('write');
     } catch (error) {
-      window.alert(error.message?.includes('CEO_APPROVAL_REQUIRED') ? '대표이사 확인이 필요한 글입니다. 대표이사 승인 요청 후 공개해 주세요.' : app().friendlyError?.(error) || error.message || '저장하지 못했습니다.');
+      const messages = {
+        CEO_APPROVAL_REQUIRED: '대표이사 확인이 필요한 글입니다. 대표이사 승인 요청 후 공개해 주세요.',
+        PROMOTION_BLOG_DUPLICATE: '이미 등록된 블로그 링크입니다. 공개 기록이나 발행·승인 현황을 확인해 주세요.',
+        PROMOTION_BLOG_DRAFT_CHANGED: '임시저장한 글이 다른 화면에서 변경되었습니다. 최신 글을 다시 열어 주세요.',
+        PROMOTION_BLOG_REQUIRES_REVIEW: '운영총괄 승인 요청으로 제출해 주세요.',
+        PROMOTION_BLOG_COVER_INVALID: '블로그 대표사진을 확인하지 못했습니다. 사진을 다시 가져오거나 빼고 게시해 주세요.'
+      };
+      const match = Object.keys(messages).find(code => error.message?.includes(code));
+      window.alert(messages[match] || app().friendlyError?.(error) || error.message || '저장하지 못했습니다.');
     } finally {
+      formState.saving = false;
       formState.saveButtons.forEach(node => { node.disabled = false; });
+      formState.refreshBlogPublication?.();
     }
   }
 
@@ -607,6 +652,7 @@
         hero_image_url: state.heroImage, public_media: media,
         external_url: external.value.trim(), requested_publish_date: date.value
       }, { live: true }));
+      state.refreshBlogPublication?.();
     }
     function mediaChanged() {
       if (state.coverFromMedia) state.heroImage = media[0]?.url || null;
@@ -640,7 +686,10 @@
         const metadata = await fetchExternalMeta(external.value.trim(), true);
         if (!current()) return;
         if (metadata.title && !title.value.trim()) title.value = metadata.title;
-        if (!body.value.trim()) body.value = (metadata.article_text || metadata.description || '').slice(0, 30000);
+        if (!body.value.trim()) {
+          body.value = (metadata.article_text || metadata.description || '').slice(0, 30000);
+          state.importedBlogBody = { key, body: body.value.trim() };
+        }
         renderLivePreview();
         const file = await officialBlogFile(metadata, key);
         if (!current()) return;
@@ -652,7 +701,7 @@
         if (!state.heroImage) state.heroImage = media[0]?.url || null;
         renderMediaEditor(mediaGrid, media, mediaChanged);
         renderLivePreview();
-        metaStatus.textContent = '공식 블로그 사진을 첨부했습니다. 사진 자료에서 제거하거나 대표사진을 바꿀 수 있습니다. 저장 후 승인 요청해 주세요.';
+        metaStatus.textContent = '공식 블로그 사진을 첨부했습니다. 사진 자료에서 제거하거나 대표사진을 바꿀 수 있습니다.';
       } catch (error) {
         if (current()) metaStatus.textContent = (error.message || '사진 가져오기 실패') + ' 작성 내용·기존 사진은 유지됩니다. 사진 추가로 직접 첨부하거나 링크 정보 가져오기로 재시도해 주세요. 사진이 없으면 공개 화면에는 태장 기본 이미지가 표시됩니다.';
       } finally {
@@ -738,6 +787,16 @@
     const submit = button(submitLabel, () => savePromotion(state, true, existingItem), false);
     state.saveButtons.push(save, submit);
     actions.append(save, submit);
+    if (leadAuthor) {
+      const publishBlog = button('블로그 링크 즉시 게시', () => savePromotion(state, 'publish_blog', existingItem));
+      const blogHelp = el('p', '홈페이지에는 제목·대표사진과 블로그 원문 링크가 표시됩니다.', 'field-help');
+      state.refreshBlogPublication = () => {
+        publishBlog.hidden = blogHelp.hidden = !!state.savedContentId || !directBlogPost(state, existingItem);
+      };
+      state.saveButtons.push(publishBlog);
+      actions.append(publishBlog);
+      form.append(blogHelp);
+    }
     if (operationsOwnPublication) {
       const publish = button('바로 공개', () => savePromotion(state, 'publish', existingItem));
       const ceo = button('대표이사 승인 요청', () => savePromotion(state, 'ceo', existingItem));
