@@ -18,7 +18,8 @@ create table daily_work_private.reports (
   check (morning or afternoon)
 );
 alter table daily_work_private.reports enable row level security;
-revoke all on all tables and sequences in schema daily_work_private from public, anon, authenticated;
+revoke all on all tables in schema daily_work_private from public, anon, authenticated;
+revoke all on all sequences in schema daily_work_private from public, anon, authenticated;
 create index daily_work_reports_by_date on daily_work_private.reports(work_date desc,id desc);
 
 create function daily_work_private.access() returns boolean
@@ -64,7 +65,7 @@ returns jsonb language plpgsql volatile security definer set search_path='' as $
 declare
   actor uuid:=auth.uid();
   name text;
-  record daily_work_private.reports%rowtype;
+  saved_report daily_work_private.reports%rowtype;
 begin
   perform daily_work_private.access();
   if p_date is null or p_date<date '2000-01-01' or p_date>date '2100-12-31'
@@ -77,15 +78,15 @@ begin
   if p_revision=0 then
     insert into daily_work_private.reports(author_id,author_name,work_date,morning,afternoon,work_done,staff_notes,other_notes)
     values(actor,name,p_date,p_morning,p_afternoon,btrim(p_work),coalesce(p_staff,''),coalesce(p_other,''))
-    on conflict(author_id,work_date) do nothing returning * into record;
+    on conflict(author_id,work_date) do nothing returning * into saved_report;
   else
     update daily_work_private.reports j set
       morning=p_morning,afternoon=p_afternoon,work_done=btrim(p_work),staff_notes=coalesce(p_staff,''),
       other_notes=coalesce(p_other,''),revision=j.revision+1,updated_at=now()
-    where j.author_id=actor and j.work_date=p_date and j.revision=p_revision returning * into record;
+    where j.author_id=actor and j.work_date=p_date and j.revision=p_revision returning * into saved_report;
   end if;
-  if record.id is null then raise exception 'DAILY_WORK_CONFLICT' using errcode='40001'; end if;
-  return (to_jsonb(record)-'author_id') || jsonb_build_object('can_edit',true);
+  if saved_report.id is null then raise exception 'DAILY_WORK_CONFLICT' using errcode='40001'; end if;
+  return (to_jsonb(saved_report)-'author_id') || jsonb_build_object('can_edit',true);
 end $$;
 
 create function public.search_daily_work_reports(p_from date,p_to date,p_query text,p_page integer)
