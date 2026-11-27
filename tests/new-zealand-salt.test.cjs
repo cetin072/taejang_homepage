@@ -74,7 +74,9 @@ assert.doesNotMatch(hero, /solar-salt-(10|25)kg.jpg/);
 for (const size of ['10','25']) assert.ok(product.includes('solar-salt-'+size+'kg.jpg'), 'pack retained in product section');
 const css = fs.readFileSync('assets/css/new-zealand-salt.css','utf8');
 assert.match(css, /\.salt-origin-visual img\{object-fit:cover/);
-assert.match(css, /\.salt-process\{grid-template-columns:1fr/);
+assert.match(css, /\.salt-chapter-split,\.salt-chapter--harvest \.salt-chapter-split\{grid-template-columns:1fr/);
+assert.match(html, /id="salt-finishing"[\s\S]*class="salt-refinery"/);
+assert.match(html, /id="salt-heritage"[\s\S]*grassmere-harvest-archive\.webp[\s\S]*class="salt-timeline"/);
 assert.match(html,/class="salt-proof"[\s\S]*?<details>[\s\S]*?제품 라벨과 규격/);
 for (const [,source] of html.matchAll(/srcset="([^"]+)"/g)) {
   assert.ok(fs.existsSync(source),source);
