@@ -32,6 +32,14 @@
 .salt-process figure,.salt-gallery-grid figure,.salt-hero-packs figure{margin:0;min-width:0}
 .salt-process img,.salt-gallery-grid img{display:block;width:100%;height:auto;aspect-ratio:3/2;object-fit:cover;border-radius:4px}
 .salt-process figcaption{margin-top:12px;font-size:clamp(1.13rem,2vw,1.65rem);font-weight:800;line-height:1.4;letter-spacing:-.035em;word-break:keep-all}
+.salt-process strong{display:block}
+.salt-process .salt-stage-number{display:block;color:#785329;font-size:.8rem;font-weight:800;letter-spacing:.12em;margin-bottom:3px}
+.salt-process .salt-stage-copy{display:block;color:var(--salt-muted);font-size:.95rem;font-weight:400;line-height:1.6;letter-spacing:normal;word-break:keep-all;margin:5px 0 0}
+.salt-process .salt-process-finish{grid-column:1 / -1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);align-items:center;gap:clamp(8px,2vw,24px);padding:clamp(16px,3vw,28px);background:var(--salt-ink);color:#fff;border-radius:4px}
+.salt-process-finish strong{font-size:clamp(1.13rem,2vw,1.65rem);line-height:1.4;word-break:keep-all}
+.salt-process .salt-process-finish .salt-stage-number{color:#f8e7b0}
+.salt-process .salt-process-finish .salt-stage-copy{color:#fff;margin:0}
+@media(max-width:760px){.salt-process .salt-process-finish{grid-template-columns:1fr}}
 .salt-gallery{margin-top:clamp(24px,5vw,48px);border-top:1px solid var(--salt-line);border-bottom:1px solid var(--salt-line)}
 .salt-page summary{min-height:48px;padding-block:12px;font-size:1rem;font-weight:800;line-height:1.5;cursor:pointer}
 .salt-gallery[open]>summary{position:sticky;top:81px;z-index:1;background:var(--salt-paper);border-bottom:1px solid var(--salt-line)}
