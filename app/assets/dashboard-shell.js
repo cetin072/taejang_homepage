@@ -227,6 +227,11 @@
 
   function masterMenuItems() {
     return [
+      { key:'daily_work.manage', label:'일일 업무일지', run:async () => {
+        const daily = await import('/app/assets/daily-work-log.mjs');
+        window.TaejangDailyWork = daily;
+        daily.mountDailyWork(el('dashboard-main'));
+      } },
       { key:'logistics.manage', label:'물류 관리', run:async () => {
         await import('/app/assets/logistics.js');
         return window.TaejangLogistics.open();
@@ -408,6 +413,7 @@
     if(window.TaejangEmployeeCalendar?.hasUnsavedChanges?.())return true;
     if(activeView === 'monthly_client_documents.manage')return window.MonthlyClientDocuments?.hasUnsavedChanges?.() ?? viewDirty;
     if(activeView === 'payroll.manage')return window.TaejangMonthEndPayroll?.hasUnsavedChanges?.() ?? viewDirty;
+    if(activeView === 'daily_work.manage')return window.TaejangDailyWork?.dailyWorkDirty?.() ?? viewDirty;
     if(activeView === 'logistics.manage')return window.TaejangLogistics?.hasUnsavedChanges?.() ?? viewDirty;
     return activeView === 'erp_sales.manage' || activeView === 'erp_sales.contracts'
       ? (window.TaejangErpSales?.hasUnsavedChanges?.() ?? viewDirty) : viewDirty;

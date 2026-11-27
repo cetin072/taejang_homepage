@@ -1,0 +1,30 @@
+name: Daily work report checks
+on:
+  pull_request:
+    paths:
+      - 'app/assets/daily-work-log.*'
+      - 'app/assets/platform-navigation-registry.js'
+      - 'app/assets/dashboard-shell.js'
+      - 'supabase/migrations/*_daily_work_reports.sql'
+      - 'tests/daily-work-report-browser.mjs'
+      - '.github/workflows/daily-work-report.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  daily-work-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Prepare Korean document fonts
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install --no-install-recommends -y fonts-noto-cjk
+      - name: Verify role boundaries, save, search, DOCX and PDF on PC and mobile
+        run: node tests/daily-work-report-browser.mjs
