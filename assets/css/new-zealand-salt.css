@@ -44,8 +44,10 @@
 .salt-page summary{min-height:48px;padding-block:12px;font-size:1rem;font-weight:800;line-height:1.5;cursor:pointer}
 .salt-gallery[open]>summary{position:sticky;top:81px;z-index:1;background:var(--salt-paper);border-bottom:1px solid var(--salt-line)}
 @media(max-width:1000px){.salt-document:not(.js-nav-ready) .site-header{position:static}.salt-document:not(.js-nav-ready) .salt-gallery[open]>summary{top:0}}
-.salt-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr));padding:6px 0 22px}
-.salt-gallery-grid figcaption{margin-top:7px;font-size:.9rem;line-height:1.5}
+.salt-gallery-grid{grid-template-columns:repeat(4,minmax(0,1fr));padding:12px 0 18px}
+.salt-gallery-count{margin-left:.35em;color:var(--salt-muted);font-size:.8em}
+@media(max-width:760px){.salt-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}}
+.salt-gallery-grid figcaption{margin-top:7px;font-size:.85rem;line-height:1.5;word-break:keep-all}
 .salt-photo-credit,.salt-photo-note{color:var(--salt-muted);font-size:.83rem}
 .salt-photo-credit{margin:12px 0 0}
 .salt-photo-credit a{color:var(--salt-ink);text-underline-offset:3px}
@@ -103,5 +105,4 @@
   .salt-inquiry-form :focus-visible{scroll-margin-bottom:80px}
 }
 @media(max-width:480px){
-  .salt-gallery-grid{grid-template-columns:1fr}
 }
