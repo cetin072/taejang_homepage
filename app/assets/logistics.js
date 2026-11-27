@@ -161,14 +161,14 @@ function renderQuote(target=content){
    else for(const [key,stage,label] of C.ITEM_CHECKS){
     const nextStage=quote.lines.findIndex(line=>line.stage>stage);
     const quantity=key==='arrivalPhoto'?(boxCount()||1):boxCount();
-    quote.lines.splice(nextStage<0?quote.lines.length:nextStage,0,{key,stage,label,kind:'normal',quantity,unitPrice:''});
+    quote.lines.splice(nextStage<0?quote.lines.length:nextStage,0,{key,stage,label,kind:'normal',quantity,unitPrice:C.optionalRate(state.settings.data,key)});
    }
    dirty=true;render();root.querySelector('[data-individual-checks]')?.focus();
   });
   service.dataset.individualChecks='1';service.classList.add('lg-no-print');work.append(service);
  }
  if(individualChecks)work.append(el('p','입고 상태를 받은 그대로 개별 촬영합니다. 제품 보호에 필요한 범위에서 포장 크기를 줄이고, 재포장한 박스마다 치수와 실중량을 기록합니다. 합배송 박스는 촬영·계측 대상에서 제외합니다.','lg-help'));
- if(individualChecks&&!confirmed)work.append(el('p','개별 작업 단가를 입력하세요. 무료로 제공하는 작업은 0원을 입력하세요.','lg-help lg-no-print'));
+ if(individualChecks&&!confirmed)work.append(el('p','단가 설정의 기본값을 불러왔습니다. 이 견적의 단가는 별도로 바꿀 수 있습니다.','lg-help lg-no-print'));
  const tw=el('div','','lg-table-wrap'),t=el('table'),th=el('thead'),hr=el('tr');['No.','작업 항목','구분','수량','단가(원)','금액(원)'].forEach(x=>hr.append(el('th',x)));th.append(hr);t.append(th);const tbody=el('tbody');let stage=0;
  quote.lines.filter(line=>!individualChecks||line.key!=='photo').forEach((line,i)=>{
   if(stage!==line.stage){stage=line.stage;const sr=el('tr','','lg-stage'),td=el('td',C.STAGES[stage-1]);td.colSpan=6;sr.append(td);tbody.append(sr);}
@@ -181,7 +181,7 @@ function renderQuote(target=content){
     let item=existing;
     if(!item){
      if(quote.lines.filter(l=>l.kind==='extra').length>=40)return report('기타 항목은 최대 40개입니다.',true);
-     item={key:'extra-'+crypto.randomUUID(),stage:5,label:'박스 높이 조절 재포장',kind:'extra',quantity:1,unitPrice:2000,option};
+     item={key:'extra-'+crypto.randomUUID(),stage:5,label:'박스 높이 조절 재포장',kind:'extra',quantity:1,unitPrice:C.optionalRate(state.settings.data,'boxHeightRepack'),option};
      quote.lines.push(item);dirty=true;render();
     }
     root.querySelector(`[data-row="${item.key}"] .lg-qty input`)?.focus();
@@ -412,8 +412,15 @@ function pager(parent){const bar=el('div','','lg-pager'),back=button('이전',()
 function renderSettings(){
  const panel=el('section','','lg-panel');panel.append(el('h3','기본 단가 설정'),el('p','새 견적부터 적용','lg-muted'));const data=clone(state.settings.data),fields=el('div','','lg-fields');
  for(const [key,label] of [['shelf','선반 1칸 · 월'],['repack','재포장'],['individualLabel','개별 운송장'],['bundle','합포장'],['photo','사진·실측']])field(fields,label,data[key],v=>{data[key]=Number(v);settingsDirty=true;},{type:'number'});
+ for(const [key,label] of C.OPTIONAL_RATES){
+  data[key]=C.optionalRate(data,key);
+  field(fields,label,data[key],v=>{data[key]=v;settingsDirty=true;},{type:'number',max:100000000});
+ }
  for(const [key,label] of Object.entries(C.BOXES))field(fields,label,data.boxes[key],v=>{data.boxes[key]=Number(v);settingsDirty=true;},{type:'number'});
- data.shipping.forEach((v,i)=>field(fields,'택배 '+(i+1)+'구간',v,n=>{data.shipping[i]=Number(n);settingsDirty=true;},{type:'number'}));panel.append(fields,button('기본 단가 저장',async()=>{await mutate('settings.save',{data,revision:state.settings.revision});},true));content.append(panel);
+ data.shipping.forEach((v,i)=>field(fields,'택배 '+(i+1)+'구간',v,n=>{data.shipping[i]=Number(n);settingsDirty=true;},{type:'number'}));panel.append(fields,button('기본 단가 저장',async()=>{const next=clone(data);
+  try{for(const [key,label] of C.OPTIONAL_RATES)next[key]=C.integer(data[key],label,0,100000000);}
+  catch(error){report(error.message,true);return;}
+  await mutate('settings.save',{data:next,revision:state.settings.revision});},true));content.append(panel);
 }
 async function printQuote(){
  if(!confirmed||!permitted()||pending)return;
