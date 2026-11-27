@@ -36,6 +36,16 @@
 .salt-story-photo{margin:0;min-width:0}
 .salt-story-photo img{display:block;width:100%;height:auto;max-height:360px;object-fit:cover;border-radius:4px}
 .salt-story-photo figcaption{font-size:.74rem;color:#cee1d7;margin-top:10px;line-height:1.5}
+.salt-gallery{margin-top:clamp(36px,6vw,68px)}
+.salt-gallery h3{font-size:clamp(1.25rem,2.5vw,1.85rem);letter-spacing:-.025em;margin-bottom:18px}
+.salt-gallery-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(16px,3vw,28px)}
+.salt-gallery-grid figure{margin:0;min-width:0}
+.salt-gallery-grid img{display:block;width:100%;height:auto;border-radius:4px}
+.salt-gallery-grid figcaption{color:#e0ece5;font-size:.88rem;line-height:1.5;margin-top:8px;word-break:keep-all}
+.salt-gallery-credit{color:#cee1d7;font-size:.76rem;margin:18px 0 0}
+@media(max-width:480px){
+  .salt-gallery-grid{grid-template-columns:1fr}
+}
 .salt-proof{padding:60px 0;background:#eff3ed}
 .salt-proof-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:40px;margin-top:30px}
 .salt-proof article{border-top:1px solid #adc5b5;padding-top:18px}

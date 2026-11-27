@@ -9,7 +9,7 @@ await mkdir(output, {recursive:true});
 const server = createServer(async (req,res) => {
   const path = resolve(root, '.' + new URL(req.url,'http://localhost').pathname);
   if (!path.startsWith(root + '/')) { res.writeHead(403).end(); return; }
-  try { res.setHeader('Content-Type', {'.html':'text/html; charset=utf-8','.css':'text/css','.js':'text/javascript','.jpg':'image/jpeg','.png':'image/png'}[extname(path)] || 'application/octet-stream'); res.end(await readFile(path)); }
+  try { res.setHeader('Content-Type', {'.html':'text/html; charset=utf-8','.css':'text/css','.js':'text/javascript','.jpg':'image/jpeg','.png':'image/png','.webp':'image/webp'}[extname(path)] || 'application/octet-stream'); res.end(await readFile(path)); }
   catch { res.writeHead(404).end(); }
 });
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
@@ -20,13 +20,18 @@ try {
     await page.route('**/*', route => route.request().url().startsWith('http://127.0.0.1:'+server.address().port+'/') && route.request().method() === 'GET' ? route.continue() : route.abort());
     await page.goto('http://127.0.0.1:'+server.address().port+'/new-zealand-salt.html');
     await page.locator('.salt-origin-visual img').waitFor();
-    for (const selector of ['.salt-origin-visual img','.salt-hero-packs img']) {
+    for (const selector of ['.salt-origin-visual img','.salt-hero-packs img','.salt-gallery-grid img']) {
       for (const img of await page.locator(selector).all()) { await img.scrollIntoViewIfNeeded(); await img.evaluate(e=>e.decode()); assert.ok(await img.evaluate(e=>e.naturalWidth>0),'image decode'); }
     }
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'no horizontal overflow');
     const image=page.locator('.salt-origin-visual img');
     assert.equal(await image.evaluate(e=>getComputedStyle(e).borderTopLeftRadius),'48%');
     assert.equal(await page.locator('.salt-product .salt-hero-packs img').count(),2);
+    const gallery = page.locator('.salt-gallery-grid');
+    assert.equal(await gallery.locator('img[loading=lazy]').count(),4);
+    assert.equal(await gallery.locator('figcaption').count(),4);
+    assert.equal(await gallery.evaluate(node => getComputedStyle(node).gridTemplateColumns.split(' ').length),width <= 480 ? 1 : 2);
+    assert.match(await page.locator('.salt-gallery-credit').innerText(),/Dominion Salt.*JTP©/);
     await page.screenshot({path:output+'/'+width+'-js-'+javaScriptEnabled+'.png',fullPage:true});
     // On mobile the persistent inquiry action stays reachable after reading product details.
     await page.locator(width <= 760 ? '.salt-sticky' : '.salt-actions .salt-button').click();
@@ -34,5 +39,5 @@ try {
     assert.equal(await page.locator('form[name="taejang-salt-inquiry"]').count(),1);
     await page.close();
   }
-  console.log('PASS: salt landscape/pack images, arch, responsive overflow, static JS-off content and inquiry anchor at 320/390/1440px');
+  console.log('PASS: salt landscape, packs and the four gallery photos, responsive overflow, static JS-off content and inquiry anchor at 320/390/1440px');
 } finally {await browser.close(); server.close();}

@@ -7,6 +7,17 @@
   - 출처 페이지 https://dominionsalt.co.nz/about-us/our-locations/
   - 염전 사진. 페이지에 Dominion Salt / JTP© 출처 표기. 이미지를 변경하지 않음.
 
+### 생산 현장 사진 갤러리
+
+2026-11-27 태장 담당자가 Dominion Salt 본사 공식 홈페이지에 공개된 사진의 사용을 본사로부터 허락받았다고 확인했다. 아래 사진은 홈페이지용 WebP로 크기, 비율과 용량을 조정했다.
+
+| 파일 | 게시 페이지 | 원본 | 출처 표기 |
+| --- | --- | --- | --- |
+| grassmere-coast.webp | [About Us](https://dominionsalt.co.nz/about-us/) | [원본 사진](https://dominionsalt.co.nz/wp-content/uploads/2023/06/saltflats3w-med.jpg) | Dominion Salt |
+| grassmere-evaporation-ponds.webp | [Our Locations](https://dominionsalt.co.nz/about-us/our-locations/) | [원본 사진](https://dominionsalt.co.nz/wp-content/uploads/2023/03/DomSaltNZ_JTP%C2%A9_002.jpg) | Dominion Salt / JTP© |
+| grassmere-saltworks-road.webp | [Our Locations](https://dominionsalt.co.nz/about-us/our-locations/) | [원본 사진](https://dominionsalt.co.nz/wp-content/uploads/2023/03/DomSaltNZ_JTP%C2%A9_004.jpg) | Dominion Salt / JTP© |
+| maunganui-salt-stockpile.webp | [Our Locations](https://dominionsalt.co.nz/about-us/our-locations/) | [원본 사진](https://dominionsalt.co.nz/wp-content/uploads/2023/03/MMsaltstack1611213x.jpg) | Dominion Salt |
+
 ## 제품 브로셔 수록 사진 (사용자 제공 PDF에서 추출, 크기 조정·배경 정리만 함)
 - solar-salt-10kg.jpg: 제품군 사진에서 10kg 포장만 잘라냄. 한글 표기 "그레이드27 파인 솔라솔트, 식용소금(가는입자), FINE SOLAR SALT NET 10kg".
 - solar-salt-25kg.jpg: Pacific 브랜드 Grade27 Fine Salt 25kg 포대. 라벨 표기를 페이지의 "제품 라벨 정보"에 사용.
