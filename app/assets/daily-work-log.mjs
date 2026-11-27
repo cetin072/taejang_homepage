@@ -1,4 +1,4 @@
-import {printErpPdf} from './erp-pdf.mjs';
+import {erpDocumentName, printErpPdf} from './erp-pdf.mjs';
 
 const roles=['department_lead','promotion_lead','operations_manager','ceo'];
 const supervisors=['operations_manager','ceo'];
@@ -21,7 +21,7 @@ const actor=()=>{
 };
 
 export function workReportFilename(report){
- return ('태장_일일작업기록지_'+report.work_date+'_'+report.author_name).replace(/[\\/:*?"<>|\x00-\x1f]/g,'_');
+ return erpDocumentName(report.work_date+'_'+report.author_name);
 }
 const shift=r=>[r.morning?'오전':'',r.afternoon?'오후':''].filter(Boolean).join(' · ');
 const xmlEsc=value=>String(value??'').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\ufffe\uffff]/g,'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
@@ -63,13 +63,13 @@ function loadStyle(){
  const l=element('link');l.rel='stylesheet';l.href=new URL('./daily-work-log.css',import.meta.url).href;l.dataset.dailyWorkStyle='1';document.head.append(l);
 }
 export function allowedDailyWork(){return !!actor();}
-export function dailyWorkDirty(){return !!(active?.root.isConnected&&active.dirty);}
+export function dailyWorkDirty(){return !!(active?.root.isConnected&&(active.dirty||active.scheduleEdits));}
 export function mountDailyWork(container){
  const session=actor();if(!container||!session)throw Error('DAILY_WORK_FORBIDDEN');
  loadStyle();
  const root=element('section','','dwl dashboard-section');
  container.replaceChildren(root);
- const state={root,dirty:false,token:session.token};
+ const state={root,dirty:false,scheduleEdits:false,token:session.token};
  active=state;
  let current=null,revision=0,page=0,searchSeq=0,saving=false;
  const valid=()=>root.isConnected&&active===state&&actor()?.token===session.token;
@@ -88,58 +88,125 @@ export function mountDailyWork(container){
  const date=labeled(formBar,'작성일','input','date');date.value=today();date.required=true;date.min='2000-01-01';date.max='2100-12-31';
  const shifts=element('fieldset','','dwl-shifts');shifts.append(element('legend','근무 시간대'));formBar.append(shifts);
  const morning=labeled(shifts,'오전','input','checkbox'),afternoon=labeled(shifts,'오후','input','checkbox');
- const fields=Object.fromEntries(specs.map(([k,label])=>{const n=labeled(form,label,'textarea');n.rows=k==='work_done'?5:3;n.maxLength=8000;n.required=k==='work_done';return [k,n];}));
+ const fields=Object.fromEntries(specs.map(([k,label])=>{const n=labeled(form,label,'textarea');n.rows=k==='work_done'?5:3;n.maxLength=8000;return [k,n];}));
+ const schedulePanel=element('fieldset','','dwl-import');schedulePanel.hidden=true;
+ const schedulesButton=btn(form,'업무수첩 일정 가져오기',()=>void loadSchedules());
+ form.append(schedulePanel);
+ let scheduleSeq=0,candidates=[],selected=new Set(),confirmed=[],loadingSchedules=false;
+ const timeFormat=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',hour:'numeric',minute:'2-digit'});
+ function resetSchedules(){
+  scheduleSeq++;candidates=[];selected.clear();confirmed=[];loadingSchedules=false;state.scheduleEdits=false;
+  schedulePanel.hidden=true;schedulePanel.replaceChildren();
+ }
+ function renderSchedules(preview=false){
+  schedulePanel.replaceChildren(element('legend',preview?'업무 내용에 추가할 일정':'수행한 일정 선택'));
+  const actions=element('div','','dwl-actions');
+  if(preview){
+   const items=element('ul');
+   for(const row of candidates.filter(row=>selected.has(row.id)))items.append(element('li',row.title));
+   schedulePanel.append(items,element('p','아래에서 일지를 저장하면 기존 업무 내용 끝에 추가됩니다.','dwl-help'));
+   btn(actions,'선택 변경',()=>{confirmed=[];renderSchedules();});
+  }else{
+   schedulePanel.append(element('p','실제로 수행한 업무만 선택하세요.','dwl-help'));
+   if(!candidates.length)schedulePanel.append(element('p','가져올 일정이 없습니다.','dwl-help'));
+   for(const row of candidates){
+    const label=element('label','','dwl-import-option'),checkbox=element('input');
+    checkbox.type='checkbox';checkbox.checked=selected.has(row.id);
+    checkbox.addEventListener('change',()=>{
+     if(checkbox.checked&&selected.size>=100){checkbox.checked=false;report('한 번에 일정 100개까지 선택할 수 있습니다.',true);return;}
+     if(checkbox.checked)selected.add(row.id);else selected.delete(row.id);
+     state.scheduleEdits=!!selected.size;previewButton.disabled=!selected.size;update();
+    });
+    label.append(checkbox,element('span',(row.all_day?'종일':timeFormat.format(new Date(row.starts_at)))+' · '+row.title));schedulePanel.append(label);
+   }
+   const previewButton=btn(actions,'선택 일정 미리보기',()=>{
+    confirmed=candidates.filter(row=>selected.has(row.id));
+    renderSchedules(true);
+   });
+   previewButton.disabled=!selected.size;
+  }
+  btn(actions,'일정 선택 취소',()=>{resetSchedules();update();});
+  schedulePanel.append(actions);schedulePanel.hidden=false;
+ }
+ async function loadSchedules(){
+  if(!valid()||saving||loadingSchedules||current?.can_edit===false)return;
+  if(!date.checkValidity()){date.reportValidity();return;}
+  resetSchedules();const seq=scheduleSeq;loadingSchedules=true;update();
+  try{
+   const rows=await window.TaejangApp.rpc('list_daily_work_report_schedules',{p_date:date.value});
+   if(!valid()||seq!==scheduleSeq)return;
+   candidates=rows;renderSchedules();
+  }catch(error){
+   if(valid()&&seq===scheduleSeq)report(/PGRST202/.test(String(error?.code??error?.message??error))?'일정 가져오기를 준비 중입니다.':'일정을 불러오지 못했습니다. 다시 시도해 주세요.',true);
+  }finally{if(valid()&&seq===scheduleSeq){loadingSchedules=false;update();}}
+ }
  form.append(element('p',safety,'dwl-safety'));
  const controls=element('div','','dwl-actions');
  const save=element('button','일지 저장','button primary');save.type='submit';controls.append(save);
  const clear=btn(controls,'새 일지',()=>{if(!saving&&valid()&&canLeave())show(null);});
  const word=btn(controls,'Word 다운로드',async()=>{
-  if(!valid()||!current||state.dirty)return;
+  if(!valid()||!current||state.dirty||state.scheduleEdits)return;
   const saved=current;
   try {
    if(!window.JSZip)await import('./vendor/jszip-3.10.1.min.js');
    const blob=await makeWorkReportWord(saved,window.JSZip);
-   if(!valid()||saved!==current||state.dirty)return;
+   if(!valid()||saved!==current||state.dirty||state.scheduleEdits)return;
    const url=URL.createObjectURL(blob),a=element('a');a.href=url;a.download=workReportFilename(saved)+'.docx';
    document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
   }catch{report('Word 파일을 만들지 못했습니다. 다시 시도해 주세요.',true);}
  });
  function printCurrent(){
-  if(!valid()||!current||state.dirty)return;stopPrint?.();cleanPrint();
+  if(!valid()||!current||state.dirty||state.scheduleEdits)return;stopPrint?.();cleanPrint();
   const view=element('div','','dwl');view.id='daily-work-print';view.append(reportDocument(current));document.body.append(view);
-  try {stopPrint=printErpPdf('태장_일일작업기록지_'+current.author_name,current.work_date,()=>{cleanPrint();stopPrint=null;});}
+  try {stopPrint=printErpPdf(workReportFilename(current),undefined,()=>{cleanPrint();stopPrint=null;});}
   catch{cleanPrint();report('PDF 인쇄창을 열지 못했습니다.',true);}
  }
  const pdf=btn(controls,'PDF 저장 / 인쇄',printCurrent);
  const saveAndPrint=element('button','저장 후 인쇄','button');saveAndPrint.type='submit';controls.append(saveAndPrint);
  form.append(controls);root.append(form,filters);
- function canLeave(){return !state.dirty||window.confirm('저장하지 않은 수정 내용을 버릴까요?');}
+ function canLeave(){return (!state.dirty&&!state.scheduleEdits)||window.confirm('저장하지 않은 수정 내용을 버릴까요?');}
  function update(){
   const edit=!current||current.can_edit===true;
   for(const n of [date,morning,afternoon,...Object.values(fields)])n.disabled=saving||!edit||(n===date&&revision>0);
-  save.disabled=saving||!edit;saveAndPrint.disabled=save.disabled;clear.disabled=saving;word.disabled=!current||state.dirty||saving;pdf.disabled=word.disabled;
+  schedulesButton.disabled=saving||loadingSchedules||!edit;schedulePanel.disabled=saving;
+  save.disabled=saving||loadingSchedules||!edit;saveAndPrint.disabled=save.disabled;clear.disabled=saving;word.disabled=!current||state.dirty||state.scheduleEdits||saving;pdf.disabled=word.disabled;
  }
  function show(row){
-  current=row;revision=row?.revision??0;date.value=row?.work_date??today();
+  resetSchedules();current=row;revision=row?.revision??0;date.value=row?.work_date??today();
   morning.checked=!!row?.morning;afternoon.checked=!!row?.afternoon;
   for(const [k,n] of Object.entries(fields))n.value=row?.[k]??'';
   state.dirty=false;update();
   report(row?'기록 No. '+row.id+' · '+row.author_name+(row.can_edit?'':' · 읽기 전용'):'');
  }
- form.addEventListener('input',()=>{state.dirty=true;update();});
+ date.addEventListener('input',resetSchedules);
+ form.addEventListener('input',e=>{if(!schedulePanel.contains(e.target)){state.dirty=true;update();}});
  form.addEventListener('submit',async e=>{
-  e.preventDefault();if(!valid()||saving||current?.can_edit===false)return;
+  e.preventDefault();if(!valid()||saving||loadingSchedules||current?.can_edit===false)return;
   if(!morning.checked&&!afternoon.checked){report('오전 또는 오후를 하나 이상 선택하세요.',true);morning.focus();return;}
-  if(!fields.work_done.value.trim()){report('오늘의 업무 내용을 입력하세요.',true);fields.work_done.focus();return;}
+  if(selected.size&&!confirmed.length){report('선택한 일정을 미리보기에서 확인해 주세요.',true);return;}
+  if(!fields.work_done.value.trim()&&!confirmed.length){report('오늘의 업무 내용을 입력하세요.',true);fields.work_done.focus();return;}
   const payload={p_date:date.value,p_morning:morning.checked,p_afternoon:afternoon.checked,p_work:fields.work_done.value,p_staff:fields.staff_notes.value,p_other:fields.other_notes.value,p_revision:revision};
   const afterSavePrint=e.submitter===saveAndPrint;
   saving=true;update();
   try{
-   const saved=await window.TaejangApp.rpc('save_daily_work_report',payload);
+   const saved=confirmed.length
+    ?await window.TaejangApp.rpc('save_daily_work_report_with_schedules',{
+      ...payload,p_schedules:confirmed.map(({id,updated_at})=>({id,updated_at}))})
+    :await window.TaejangApp.rpc('save_daily_work_report',payload);
    if(!valid())return;show(saved);report('일지를 저장했습니다. 기록 No. '+saved.id);
    if(afterSavePrint)printCurrent();
    void search(0,false);
-  }catch(error){if(valid())report(/DAILY_WORK_CONFLICT/.test(String(error?.message??error))?'같은 날짜에 저장된 일지가 있거나 내용이 바뀌었습니다. 입력 내용을 복사한 뒤 검색에서 저장된 일지를 확인하세요.':'일지를 저장하지 못했습니다. 입력은 그대로 두었습니다.',true);}
+  }catch(error){
+   if(!valid())return;
+   const message=String(error?.message??error);
+   if(message.includes('DAILY_WORK_SCHEDULE_CHANGED')){
+    resetSchedules();report('선택한 일정이 변경됐습니다. 일정을 다시 불러와 확인해 주세요.',true);
+   }else if(message.includes('DAILY_WORK_CONFLICT')){
+    report('같은 날짜에 저장된 일지가 있거나 내용이 바뀌었습니다. 입력 내용을 복사한 뒤 검색에서 저장된 일지를 확인하세요.',true);
+   }else if(message.includes('DAILY_WORK_INVALID')){
+    report('날짜와 근무 시간대, 내용 길이를 확인해 주세요. 각 내용란은 8,000자까지 저장할 수 있습니다.',true);
+   }else report('일지를 저장하지 못했습니다. 입력은 그대로 두었습니다.',true);
+  }
   finally{if(valid()){saving=false;update();}}
  });
  async function search(next,announce=true){

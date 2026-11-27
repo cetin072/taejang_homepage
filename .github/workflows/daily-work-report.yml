@@ -5,7 +5,7 @@ on:
       - 'app/assets/daily-work-log.*'
       - 'app/assets/platform-navigation-registry.js'
       - 'app/assets/dashboard-shell.js'
-      - 'supabase/migrations/*_daily_work_reports.sql'
+      - 'supabase/migrations/*_daily_work_report*.sql'
       - 'tests/daily-work-report-browser.mjs'
       - '.github/workflows/daily-work-report.yml'
   workflow_dispatch:

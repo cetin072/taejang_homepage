@@ -6,6 +6,9 @@
 .dwl-field textarea{resize:vertical;width:100%;box-sizing:border-box}
 .dwl-shifts{padding:.3rem .6rem;border:1px solid #dce2ea}.dwl-shifts legend{font-size:.85rem}
 .dwl-shifts .dwl-field{flex-direction:row;align-items:center;margin:0}
+.dwl-import{margin-block:.75rem;padding:.75rem;border:1px solid #dce2ea;border-radius:.4rem}
+.dwl-import-option{display:flex;align-items:center;gap:.65rem;min-height:2.5rem;overflow-wrap:anywhere}
+.dwl-import .dwl-actions{margin-top:.65rem}
 .dwl-status{min-height:1.45em}.dwl-status.error{color:#a4201d}
 .dwl-help{color:#526171;margin-block:.25rem}.dwl-safety{color:#624520}
 .dwl-results{margin-top:1rem}.dwl-result{display:flex;justify-content:space-between;align-items:center;gap:.5rem;padding:.65rem 0;border-bottom:1px solid #dce2ea}
