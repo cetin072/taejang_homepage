@@ -18,6 +18,16 @@
 | grassmere-saltworks-road.webp | [Our Locations](https://dominionsalt.co.nz/about-us/our-locations/) | [원본 사진](https://dominionsalt.co.nz/wp-content/uploads/2023/03/DomSaltNZ_JTP%C2%A9_004.jpg) | Dominion Salt / JTP© |
 | maunganui-salt-stockpile.webp | [Our Locations](https://dominionsalt.co.nz/about-us/our-locations/) | [원본 사진](https://dominionsalt.co.nz/wp-content/uploads/2023/03/MMsaltstack1611213x.jpg) | Dominion Salt |
 
+### 생산 과정 소개 보강
+
+| 파일 | 원본 | 출처 표기 |
+| --- | --- | --- |
+| grassmere-hero.webp | [레이크 그래스미어 염전 원본 사진](https://dominionsalt.co.nz/wp-content/uploads/2023/03/DomSaltNZ_JTP%C2%A9_001.jpg) | Dominion Salt / JTP© |
+| grassmere-crystallisation.webp | [결정지 작업 설비 원본 사진](https://dominionsalt.co.nz/wp-content/uploads/2023/03/DomSaltNZ_JTP%C2%A9_003.jpg) | Dominion Salt / JTP© |
+| grassmere-harvest-archive.webp | [레이크 그래스미어 생산 안내 브로셔, 3쪽](https://dominionsalt.co.nz/wp-content/uploads/2017/11/DS_LakeGrassmere_dle_v4e.pdf) | Dominion Salt |
+
+대표 사진 WebP는 기존 600px 사진과 같은 장면이며, 기존 파일은 작은 화면에서 사용한다. 생산 안내 브로셔의 흑백 사진은 수확 장비 기록 사진으로 표기한다.
+
 ## 제품 브로셔 수록 사진 (사용자 제공 PDF에서 추출, 크기 조정·배경 정리만 함)
 - solar-salt-10kg.jpg: 제품군 사진에서 10kg 포장만 잘라냄. 한글 표기 "그레이드27 파인 솔라솔트, 식용소금(가는입자), FINE SOLAR SALT NET 10kg".
 - solar-salt-25kg.jpg: Pacific 브랜드 Grade27 Fine Salt 25kg 포대. 라벨 표기를 페이지의 "제품 라벨 정보"에 사용.

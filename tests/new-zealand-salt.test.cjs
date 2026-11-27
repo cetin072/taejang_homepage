@@ -17,8 +17,9 @@ assert.match(html,/Solar Salt/);
 assert.match(html,/images\/salt\/solar-salt-10kg.jpg/);
 assert.match(html,/images\/salt\/solar-salt-25kg.jpg/);
 assert.doesNotMatch(html,/tel:|010-4015-3567/);
-assert.ok(html.indexOf('solar-salt-10kg.jpg') < html.indexOf('lake-grassmere-aerial.jpg'), 'product before origin');
-assert.equal((html.match(/class="salt-faq"/g)||[]).length,1);
+assert.ok(html.indexOf('class="salt-story"') < html.indexOf('id="salt-product"'), 'origin story precedes the offer');
+assert.ok(html.indexOf('id="salt-product"') < html.indexOf('id="salt-contact"'), 'product precedes the inquiry');
+assert.equal((html.match(/class="salt-proof"/g)||[]).length,1);
 assert.equal((html.match(/class="salt-hero"/g)||[]).length,1);
 assert.match(html,/National Programme Level 3/);
 assert.match(html,/사본/);
@@ -64,11 +65,16 @@ console.log('PASS: standalone static Netlify salt form with 3 fields, consent, h
 const hero = html.match(/<section class="salt-hero"[\s\S]*?<\/section>/)[0];
 const product = html.match(/<section class="salt-product"[\s\S]*?<\/section>/)[0];
 assert.match(hero, /class="salt-origin-visual"/);
-assert.match(hero, /images\/salt\/dominion-lake-grassmere.jpg/);
+assert.match(hero, /<source media="\(max-width: 600px\)" srcset="images\/salt\/dominion-lake-grassmere.jpg"/);
+assert.match(hero, /images\/salt\/grassmere-hero.webp[^>]+fetchpriority="high"/);
 assert.match(hero, /Dominion Salt \/ JTP©/);
 assert.doesNotMatch(hero, /solar-salt-(10|25)kg.jpg/);
 for (const size of ['10','25']) assert.ok(product.includes('solar-salt-'+size+'kg.jpg'), 'pack retained in product section');
 const css = fs.readFileSync('assets/css/new-zealand-salt.css','utf8');
-assert.match(css, /border-radius:48% 48% 3px 3px/);
-assert.match(css, /\.salt-product-grid\{grid-template-columns:1fr/);
-console.log('PASS: original attributed arch landscape in hero and both packs in product section');
+assert.match(css, /\.salt-origin-visual img\{object-fit:cover/);
+assert.match(css, /\.salt-process\{grid-template-columns:1fr/);
+assert.match(html,/class="salt-proof"[\s\S]*?<details>[\s\S]*?제품 라벨과 규격/);
+for (const [,source] of html.matchAll(/srcset="([^"]+)"/g)) {
+  assert.ok(fs.existsSync(source),source);
+}
+console.log('PASS: responsive attributed hero, origin story before product, both packs and expandable product details');
