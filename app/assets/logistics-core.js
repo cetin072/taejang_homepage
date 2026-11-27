@@ -4,6 +4,7 @@
   const ROLES = ['department_lead', 'promotion_lead', 'operations_manager', 'ceo'];
   const MAX = 1000000000000;
   const DEFAULTS = { issuer: '청우유통', shelf: 15000, repack: 500, individualLabel: 300, bundle: 500, photo: 300,
+    boxHeightRepack: 1500, arrivalPhoto: 0, packedDimensions: 0, packedWeight: 0,
     boxes: { basic: 500, u1: 560, u2: 640, u21: 720, u3: 880, u4: 1360, u5: 1840, provided: 0 },
     shipping: [2600, 3500, 4500, 6000, 8000, 12000] };
   const BOXES = { basic:'기본 박스',u1:'우체국 1호형',u2:'우체국 2호형',u21:'우체국 2-1호형',u3:'우체국 3호형',u4:'우체국 4호형',u5:'우체국 5호형',provided:'고객 제공 박스' };
@@ -14,6 +15,11 @@
     ['packedDimensions',2,'재포장 후 개별 박스 가로·세로·높이 측정 (cm)'],
     ['packedWeight',2,'재포장 후 개별 박스 실중량 측정 (kg)']
   ];
+  const OPTIONAL_RATES = [['boxHeightRepack','박스 높이 조절 재포장'], ...ITEM_CHECKS.map(([key,,label])=>[key,label])];
+  function optionalRate(rates,key) {
+    const value = rates?.[key];
+    return Number.isSafeInteger(value) && value >= 0 && value <= 100000000 ? value : DEFAULTS[key];
+  }
   const STAGES = ['1차 작업 · 입고 확인과 분류','2차 작업 · 재포장과 개별 송장','3차 작업 · 합포장 및 출고 준비','4차 작업 · 국내 발송','기타 비용'];
   const ROWS = [
     ['receive',1,'상품 입고 확인','free'], ['damage',1,'개봉 후 파손 상품 확인','free'], ['unbox',1,'기존 박스 포장 해체','free'],
@@ -81,7 +87,7 @@
     return !!app && app.getAccessContext?.()?.account_status==='active' && !app.getAccessContext?.()?.role_simulation?.active
       && ROLES.some(role=>app.getActualRoles?.().includes(role)) && ROLES.some(role=>app.getEffectiveRoles?.().includes(role));
   }
-  const api={ROLES,DEFAULTS,BOXES,STAGES,ROWS,MAX,copy,draft,calculate,allowed,integer,INNER_BOX_GROUPS,isInnerBox,ITEM_CHECKS};
+  const api={ROLES,DEFAULTS,BOXES,STAGES,ROWS,MAX,copy,draft,calculate,allowed,integer,INNER_BOX_GROUPS,isInnerBox,ITEM_CHECKS,OPTIONAL_RATES,optionalRate};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;
   if(host)host.TaejangLogisticsCore=api;
 })(typeof window!=='undefined'?window:null);
