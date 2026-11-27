@@ -37,7 +37,28 @@ try{
    if(!['/app/assets/logistics.js','/app/assets/logistics-core.js','/app/assets/erp-pdf.mjs','/app/assets/logistics.css','/staff/assets/staff.css'].includes(u.pathname))return route.abort();
    return route.fulfill({contentType:u.pathname.endsWith('.css')?'text/css':'text/javascript',body:readFileSync('.'+u.pathname,'utf8')});
   });
-  await p.goto('https://fixture.test/');await p.getByRole('tab',{name:'고객 관리',exact:true}).click();
+  await p.goto('https://fixture.test/');
+  if(width===1440){
+   const settings=p.getByRole('tab',{name:'단가 설정',exact:true});
+   await settings.click();
+   const price=label=>p.getByRole('spinbutton',{name:label,exact:true});
+   await expect(price('박스 높이 조절 재포장')).toHaveValue('1500');
+   const rates=[['박스 높이 조절 재포장',1800,'boxHeightRepack'],['개별 입고 상태 촬영 · 받은 그대로',200,'arrivalPhoto'],['재포장 후 개별 박스 가로·세로·높이 측정 (cm)',300,'packedDimensions'],['재포장 후 개별 박스 실중량 측정 (kg)',400,'packedWeight']];
+   for(const [label,amount] of rates)await price(label).fill(String(amount));
+   await p.getByRole('button',{name:'기본 단가 저장',exact:true}).click();
+   await expect(p.locator('.lg-status')).toHaveText('저장했습니다.');
+   const data=rpc('get_logistics_workspace',{}).settings.data;
+   for(const [,amount,key] of rates)assert.equal(data[key],amount,'database persists '+key);
+   await p.reload();await settings.click();
+   for(const [label,amount] of rates)await expect(price(label)).toHaveValue(String(amount));
+   await p.getByRole('tab',{name:'견적 작성',exact:true}).click();
+   await p.getByRole('button',{name:'+ 박스 높이 조절 재포장',exact:true}).click();
+   await expect(p.locator('[data-row^="extra-"] .lg-price input')).toHaveValue('1800');
+   await p.getByRole('button',{name:'+ 개별 촬영·계측 추가',exact:true}).click();
+   for(const [,amount,key] of rates.slice(1))await expect(p.locator('[data-row="'+key+'"] .lg-price input')).toHaveValue(String(amount));
+   await p.reload();
+  }
+  await p.getByRole('tab',{name:'고객 관리',exact:true}).click();
   await p.getByRole('button',{name:'+ 고객 등록',exact:true}).click();
   const name='Synthetic wallet '+width;
   await p.getByRole('textbox',{name:'고객명',exact:true}).fill(name);await p.getByRole('button',{name:'저장',exact:true}).click();
