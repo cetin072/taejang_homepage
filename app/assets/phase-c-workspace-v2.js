@@ -350,7 +350,9 @@
       && ['homepage_article', 'external_content'].includes(item.content_type)
       && !item.public_body?.trim() && item.byline_kind === 'company'
       && item.number_or_amount === 'no' && !item.requested_publish_date);
-    if (route() !== 'promotion_lead' || !can('promotion.queue_publication', true)
+    const actualRoles = app()?.getActualRoles?.();
+    if (route() !== 'promotion_lead' || (actualRoles && !actualRoles.includes('promotion_lead'))
+        || !can('promotion.queue_publication', true)
         || !originalDraft || !/^\d{10,14}$/.test(key)
         || !['homepage_article', 'external_content'].includes(state.type.value)
         || state.date.value || state.numberOrAmount.value !== 'no'

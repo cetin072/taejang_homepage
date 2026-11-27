@@ -24,6 +24,7 @@ declare
   published_revision_id uuid;
 begin
   if actor_id is null or not public.current_user_is_promotion_lead()
+      or not ('promotion_lead' = any(public.private_actual_role_codes()))
       or not public.private_actor_can('promotion.queue_publication') then
     raise exception using errcode = '42501', message = 'PROMOTION_BLOG_PUBLISH_FORBIDDEN';
   end if;

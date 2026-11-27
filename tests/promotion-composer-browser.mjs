@@ -161,6 +161,11 @@ try{
   await link.fill('https://m.blog.naver.com/PostView.naver?logNo=224420000001&blogId=taejang-official');
   await page.getByText(/사진 가져오기 실패|대표사진이 없거나/).waitFor();
   assert.ok(await directBlog.isVisible(),'official link exposes immediate publication despite missing cover');
+  await page.evaluate(()=>{TaejangApp.getActualRoles=()=>['operations_manager'];});
+  await link.dispatchEvent('change');
+  assert.equal(await directBlog.isVisible(),false,'switching the displayed role does not grant publication');
+  await page.evaluate(()=>{TaejangApp.getActualRoles=()=>['promotion_lead'];});
+  await link.dispatchEvent('change');
   const approval=page.getByRole('button',{name:'저장 후 운영총괄 승인 요청',exact:true});
   assert.ok(await approval.isVisible(),'approval still available for the official blog link');
   await body.fill('홈페이지에 새로 작성한 본문');

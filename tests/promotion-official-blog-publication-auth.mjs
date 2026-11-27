@@ -23,6 +23,13 @@ export async function officialBlogPublicationChecks({apiUrl, rpc, sql, binaryApi
   for (const token of [null, staff.token, admin.token]) {
     check(!(await publish(token, postId)).ok, 'direct RPC requires the promotion lead role');
   }
+  const simulation = await rpc('set_role_simulation_mode', admin.token, {p_role_code: 'promotion_lead'});
+  check(simulation.ok, 'administrator enters existing lead role simulation');
+  try {
+    check(!(await publish(admin.token, postId)).ok, 'simulated role cannot publish a real blog link');
+  } finally {
+    check((await rpc('set_role_simulation_mode', admin.token, {p_role_code: null})).ok, 'exit role simulation');
+  }
   check(!(await publish(lead.token, 'https://blog.naver.com/other/224420000020')).ok,
     'arbitrary URLs are outside the RPC input contract');
   check(!(await publish(lead.token, postId, {p_public_body: '새 홈페이지 본문'})).ok,
