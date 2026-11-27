@@ -3,26 +3,29 @@ const fs = require('node:fs');
 const html = fs.readFileSync('new-zealand-salt.html','utf8');
 assert.match(html,/name="robots" content="index, follow"/);
 assert.match(html, /<a class="resources-nav" href="resources\.html" aria-current="page">서비스·상품<\/a>/, "salt header uses the single-line public navigation label");
-assert.match(html,/10kg · 25kg/);
-assert.match(html,/10kg·25kg/);
+assert.match(html,/5kg · 10kg · 25kg/);
+assert.match(html,/5kg·10kg·25kg/);
 assert.match(html,/제조원[\s\S]{0,40}Dominion Salt/);
 assert.match(html,/판매원[\s\S]{0,40}태장/);
 assert.match(html,/href="#salt-contact"/);
 assert.doesNotMatch(html,/partnership\.html\?source=new-zealand-salt/);
 assert.match(html,/dominionsalt.co.nz/);
 assert.match(html,/images\/salt\/lake-grassmere-aerial.jpg/);
-// 확정 규격: Grade 27 Fine Solar Salt, 10kg·25kg 동일 등급
+// 판매 용량 3종, 실제 포장 참고 사진은 10kg·25kg만 유지
 assert.match(html,/Grade 27/);
 assert.match(html,/Solar Salt/);
 assert.match(html,/images\/salt\/solar-salt-10kg.jpg/);
 assert.match(html,/images\/salt\/solar-salt-25kg.jpg/);
 assert.doesNotMatch(html,/tel:|010-4015-3567/);
-assert.ok(html.indexOf('solar-salt-10kg.jpg') < html.indexOf('lake-grassmere-aerial.jpg'), 'product before origin');
-assert.equal((html.match(/class="salt-faq"/g)||[]).length,1);
+assert.ok(html.indexOf('class="salt-story"') < html.indexOf('id="salt-product"'), 'origin story precedes the offer');
+assert.ok(html.indexOf('id="salt-product"') < html.indexOf('id="salt-contact"'), 'product precedes the inquiry');
+assert.equal((html.match(/class="salt-proof"/g)||[]).length,1);
 assert.equal((html.match(/class="salt-hero"/g)||[]).length,1);
 assert.match(html,/National Programme Level 3/);
 assert.match(html,/사본/);
 assert.match(html,/제2026-049호/);
+assert.match(html,/25kg 참고 라벨의 원재료 표기는 Salt/);
+assert.match(html,/사진은 10kg·25kg 포장 예시/);
 assert.match(html,/제품 표시사항/);
 // 확인되지 않은 주장·범위 밖 표현은 넣지 않는다. (Natural Sea Salt 분석표 수치는 이 상품에 해당하지 않음)
 assert.doesNotMatch(html,/₩|\$\d|장바구니|중금속|HACCP|도미니언|코셔|Kosher|우선구매|수입원|준비 중|무첨가|Additive Free|청정|불검출|풍부|안전한 소금|Natural Sea Salt|98\.2|1,400 mg|3,000 mg/);
@@ -64,11 +67,16 @@ console.log('PASS: standalone static Netlify salt form with 3 fields, consent, h
 const hero = html.match(/<section class="salt-hero"[\s\S]*?<\/section>/)[0];
 const product = html.match(/<section class="salt-product"[\s\S]*?<\/section>/)[0];
 assert.match(hero, /class="salt-origin-visual"/);
-assert.match(hero, /images\/salt\/dominion-lake-grassmere.jpg/);
+assert.match(hero, /<source media="\(max-width: 600px\)" srcset="images\/salt\/dominion-lake-grassmere.jpg"/);
+assert.match(hero, /images\/salt\/grassmere-hero.webp[^>]+fetchpriority="high"/);
 assert.match(hero, /Dominion Salt \/ JTP©/);
 assert.doesNotMatch(hero, /solar-salt-(10|25)kg.jpg/);
 for (const size of ['10','25']) assert.ok(product.includes('solar-salt-'+size+'kg.jpg'), 'pack retained in product section');
 const css = fs.readFileSync('assets/css/new-zealand-salt.css','utf8');
-assert.match(css, /border-radius:48% 48% 3px 3px/);
-assert.match(css, /\.salt-product-grid\{grid-template-columns:1fr/);
-console.log('PASS: original attributed arch landscape in hero and both packs in product section');
+assert.match(css, /\.salt-origin-visual img\{object-fit:cover/);
+assert.match(css, /\.salt-process\{grid-template-columns:1fr/);
+assert.match(html,/class="salt-proof"[\s\S]*?<details>[\s\S]*?제품 라벨과 규격/);
+for (const [,source] of html.matchAll(/srcset="([^"]+)"/g)) {
+  assert.ok(fs.existsSync(source),source);
+}
+console.log('PASS: responsive attributed hero, origin story before product, both packs and expandable product details');

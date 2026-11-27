@@ -247,7 +247,7 @@ assert.match(read('scripts/build-netlify-publish.mjs'), /'minhwa-gallery\.html'/
 const salt = services.match(/<a class="resource-card resource-card--link" href="new-zealand-salt.html"[\s\S]*?<\/a>/)?.[0] || '';
 assert.match(salt, /뉴질랜드 천일염/);
 assert.match(salt, /판매 중/);
-assert.match(salt, /10kg·25kg/);
+assert.match(salt, /5kg·10kg·25kg/);
 assert.doesNotMatch(salt, /준비 중|준비하고/);
 assert.ok(fs.existsSync(path.join(root, 'new-zealand-salt.html')), 'available salt card points to an existing landing');
 const terrariumLink = services.match(/<a class="resource-card resource-card--link" href="terrarium.html"[\s\S]*?<\/a>/)?.[0] || '';
