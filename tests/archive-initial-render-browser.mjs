@@ -78,9 +78,16 @@ try {
       await page.waitForLoadState('domcontentloaded');
       if (mode === 'no-js' || mode === 'script-error') {
         assert.equal(await page.locator('[data-static-fallback-card]').count(), 12);
-        assert.equal(await page.locator('[data-hub-list] article').first().locator('time').getAttribute('datetime'), baseline[0].publishedAt);
-        const href = await page.locator('[data-hub-list] article a.card-link').first().getAttribute('href');
-        assert.match(href, /^(https:\/\/blog.naver.com\/taejang-official\/|\/?promotion(?:\.html)?\?id=)/);
+        const first = page.locator('[data-hub-list] article').first();
+        assert.equal(await first.locator('time').getAttribute('datetime'), baseline[0].publishedAt);
+        const href = await first.locator('a.card-link').getAttribute('href');
+        if (await first.getAttribute('data-source') === 'youtube') {
+          const id = await first.getAttribute('data-archive-id');
+          assert.match(id, /^youtube-[\w-]{11}$/);
+          assert.equal(href, `https://www.youtube.com/watch?v=${id.slice('youtube-'.length)}`);
+        } else {
+          assert.match(href, /^(https:\/\/blog.naver.com\/taejang-official\/|\/?promotion(?:\.html)?\?id=)/);
+        }
       } else if (mode === 'failure') {
         await page.getByText('최신 소식을 불러오지 못했습니다.', { exact: false }).waitFor();
         assert.ok(await page.locator('[data-hub-list] article').count() >= 6);
