@@ -233,6 +233,7 @@
       const key = item?.key || registry?.keyForNode?.(node);
       const sectionKey = registry?.sectionForItem?.(item)?.key || null;
       if (key === 'dashboard' || cleanLabel(node) === '대시보드') return -10000;
+      if (item?.pinnedAfterDashboard) return -9999;
       if (sectionKey === 'official_channels') return 10000;
       if (sectionKey && sectionRank.has(sectionKey)) return sectionRank.get(sectionKey);
       if (sectionKey) {

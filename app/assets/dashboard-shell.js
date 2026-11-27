@@ -227,16 +227,16 @@
 
   function masterMenuItems() {
     return [
-      { key:'daily_work.manage', label:'일일 업무일지', run:async () => {
-        const daily = await import('/app/assets/daily-work-log.mjs');
-        window.TaejangDailyWork = daily;
-        daily.mountDailyWork(el('dashboard-main'));
-      } },
       { key:'logistics.manage', label:'물류 관리', run:async () => {
         await import('/app/assets/logistics.js');
         return window.TaejangLogistics.open();
       } },
       { key: 'dashboard', label: '대시보드', run: goDashboard, current: true },
+      { key:'daily_work.manage', label:'일일 업무일지', run:async () => {
+        const daily = await import('/app/assets/daily-work-log.mjs');
+        window.TaejangDailyWork = daily;
+        daily.mountDailyWork(el('dashboard-main'));
+      } },
       {
         key: 'employee.manage', label: '직원 관리',
         run: () => openEmployee('existing'),

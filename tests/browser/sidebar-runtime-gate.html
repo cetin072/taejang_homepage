@@ -263,6 +263,8 @@
       const visible = visibleItems();
       const dashboard = find('대시보드');
       assert(visible[0] === dashboard, '대시보드는 사이드바 최상단에 고정되어야 함');
+      const dailyWork = find('일일 업무일지');
+      assert(dailyWork && visible[1] === dailyWork && !dailyWork.dataset.navSection, '일일 업무일지는 대시보드 바로 아래 독립 메뉴여야 함');
       const officialToggleIndex = visible.indexOf(toggle);
       assert(officialToggleIndex >= 0, '공식 채널 카테고리 누락');
       assert(visible.slice(officialToggleIndex + 1).every(node => node.dataset.navSection === 'official_channels'), '공식 채널 뒤에 업무 메뉴가 남아 있음');
@@ -501,11 +503,13 @@
           return;
         }
         let current = await enterRole('promotion_staff', '홍보직원');
+        assert(!current.includes('일일 업무일지'), '홍보직원에게 팀장용 업무일지가 보임');
         assertStaffContract(current);
         await assertNoPostSettleJitter('promotion_staff');
         await assertFocusGeometryStable('promotion_staff');
 
         current = await enterRole('promotion_lead', '운영팀장');
+        assert(visibleItems()[1] === find('일일 업무일지'), '운영팀장 업무일지는 대시보드 바로 아래에 있어야 함');
         assertLeadContract(current);
         await assertNoPostSettleJitter('promotion_lead');
         await assertFocusGeometryStable('promotion_lead');

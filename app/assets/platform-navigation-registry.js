@@ -16,6 +16,7 @@
 
   const ITEMS = Object.freeze([
     { key:'dashboard', label:'대시보드', section:null, locked:true },
+    { key:'daily_work.manage', label:'일일 업무일지', section:null, pinnedAfterDashboard:true, capabilities:[], visibleRoles:['department_lead','promotion_lead','operations_manager','ceo'] },
 
     { key:'erp_sales.manage', label:'매출·정산', section:'영업·매출', capabilities:['erp_sales.read'], visibleRoles:['operations_manager'] },
     { key:'erp_sales.quotation', label:'공용 견적서', section:'영업·매출', capabilities:['erp_sales.read'], visibleRoles:['operations_manager'] },
@@ -25,7 +26,6 @@
     { key:'erp_sales.contracts', label:'용역 계약·월 매출', section:'용역', capabilities:['erp_sales.read'], visibleRoles:['operations_manager'] },
     { key:'monthly_client_documents.manage', label:'월간 용역 서류', section:'용역', capabilities:['monthly_client_documents.manage'], visibleRoles:['operations_manager'] },
 
-    { key:'daily_work.manage', label:'일일 업무일지', section:'직원·계정', capabilities:[], visibleRoles:['department_lead','promotion_lead','operations_manager','ceo'] },
     { key:'employee.manage', label:'직원 관리', section:'직원·계정', capabilities:['employee.view_all','employee.view_scoped'] },
     { key:'employee.new', label:'신규 직원 등록', section:'직원·계정', capabilities:['employee.create','employee.request_change'] },
     { key:'account.approval', label:'직원앱 가입 승인', section:'직원·계정', capabilities:['employee.onboard','account.approve','account.reject'] },
