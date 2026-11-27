@@ -52,6 +52,10 @@ try {
       assert.ok(Math.abs(bounds.height - bounds.width / 1.5) <= 1,'gallery frame keeps its landscape ratio');
     }
     assert.equal(await page.locator('.salt-process figcaption').count(),3);
+    const process = page.locator('.salt-process');
+    assert.deepEqual(await process.locator('strong').allTextContents(),['취수 · 농축','결정화','수확 · 1차 세척','고운 입자로 완성']);
+    assert.match(await process.innerText(), /바닷물[\s\S]*농축지[\s\S]*포화된 염수[\s\S]*결정지[\s\S]*수확[\s\S]*씻은 뒤[\s\S]*보관[\s\S]*분쇄[\s\S]*재세척[\s\S]*가마에서 건조[\s\S]*체로 고운 입자를 선별해 포장/);
+    assert.ok(await process.evaluate(node => node.scrollWidth <= node.clientWidth), 'the process flow fits the viewport');
     assert.equal(await page.locator('.salt-product .salt-hero-packs img').count(),2);
     const closePoint = await galleryControl.boundingBox();
     assert.ok(closePoint, 'the open gallery control has a hit target');
