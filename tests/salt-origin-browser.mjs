@@ -25,41 +25,38 @@ try {
     const titleSize=await page.locator('#salt-title').evaluate(title=>parseFloat(getComputedStyle(title).fontSize));
     assert.ok(titleSize >= (width >= 1100 ? 72 : 40), 'landing headline remains prominent');
 
-    const gallery = page.locator('.salt-gallery');
-    const photos = gallery.locator('.salt-gallery-grid');
-    const galleryControl = gallery.locator('summary');
-    assert.equal(await photos.isVisible(),false);
-    await galleryControl.focus();
-    await page.keyboard.press('Enter');
-    assert.equal(await photos.isVisible(),true);
-    assert.equal(await photos.locator('img[loading=lazy]').count(),4);
-    assert.equal(await photos.locator('figcaption').count(),4);
-    assert.equal(await photos.evaluate(node => getComputedStyle(node).gridTemplateColumns.split(' ').length),width <= 480 ? 1 : 2);
+    const flow = page.locator('.salt-process');
+    assert.equal(await flow.locator(':scope > li').count(),5);
+    assert.match(await flow.innerText(), /취수 · 농축[\s\S]*농축지[\s\S]*결정지[\s\S]*수확[\s\S]*염수로 씻고[\s\S]*쌓아 보관[\s\S]*분쇄와 재세척[\s\S]*가마[\s\S]*체로 필요한 입자 크기[\s\S]*포장/);
+    assert.deepEqual(await page.locator('.salt-refinery strong').allTextContents(),['분쇄 · 재세척','가마 건조','체 선별','포장']);
+    assert.equal(await flow.locator('img[src*="harvest-archive"]').count(),0);
+    assert.equal(await page.locator('#salt-heritage img[src*="harvest-archive"]').count(),1);
+    assert.deepEqual(await page.locator('.salt-timeline time').allTextContents(),['1942','1948','1971']);
     assert.match(await page.locator('.salt-photo-credit').innerText(),/Dominion Salt.*JTP©/);
-
-    for (const selector of ['.salt-origin-visual img','.salt-process img','.salt-hero-packs img','.salt-gallery-grid img']) {
-      for (const img of await page.locator(selector).all()) {
-        const decoded = await img.evaluate(async node => {
-          node.scrollIntoView({block:'center',behavior:'instant'});
-          await node.decode();
-          return node.naturalWidth > 0;
-        });
-        assert.ok(decoded,'image decode');
-      }
+    const photos = page.locator('.salt-origin-visual img,.salt-feature img,.salt-hero-packs img');
+    assert.equal(await flow.locator('.salt-chapter--harvest img[src*="grassmere-stockpile"]').count(),1);
+    assert.equal(await page.locator('#salt-heritage img[src*="saltworks-1960s"]').count(),1);
+    const allPhotos = await photos.evaluateAll(imgs => imgs.map(img=>img.getAttribute('src')));
+    assert.equal(allPhotos.length,12);
+    assert.equal(new Set(allPhotos).size,12);
+    assert.equal(await page.locator('.salt-feature img[loading="lazy"]').count(),9);
+    for (const photo of await photos.all()) {
+      assert.ok(await photo.evaluate(async img=>{
+        img.scrollIntoView({block:'center',behavior:'instant'});
+        await img.decode();
+        return img.naturalWidth > 0;
+      }));
     }
-    for (const img of await page.locator('.salt-process img,.salt-gallery-grid img').all()) {
-      const bounds = await img.boundingBox();
-      assert.ok(Math.abs(bounds.height - bounds.width / 1.5) <= 1,'gallery frame keeps its landscape ratio');
+    for (const photo of await page.locator('.salt-feature img').all()) {
+      const b = await photo.boundingBox();
+      assert.ok(b.width >= Math.min(450,width * (width <= 760 ? .82 : .39)),'every editorial photo is a large scene');
     }
-    assert.equal(await page.locator('.salt-process figcaption').count(),3);
     assert.equal(await page.locator('.salt-product .salt-hero-packs img').count(),2);
-    const closePoint = await galleryControl.boundingBox();
-    assert.ok(closePoint, 'the open gallery control has a hit target');
-    const {x,y} = {x:closePoint.x + closePoint.width / 2, y:closePoint.y + closePoint.height / 2};
-    assert.ok(await galleryControl.evaluate((node, {x,y}) => node.contains(document.elementFromPoint(x,y)), {x,y}), 'the fixed site header does not intercept the close click');
-    await page.mouse.click(x,y);
-    assert.equal(await photos.isVisible(),false);
+    await page.locator('.salt-jump a[href="#salt-heritage"]').click();
+    assert.equal(new URL(page.url()).hash,'#salt-heritage');
     const proof = page.locator('#salt-proof details').first();
+    // End the previous long-distance anchor scroll before measuring the next click target.
+    await proof.locator('summary').evaluate(node => node.scrollIntoView({block:'center',behavior:'instant'}));
     await proof.locator('summary').click();
     assert.match(await proof.locator('p').innerText(),/실제 공급 제품 라벨/);
     await proof.locator('summary').click();
@@ -72,5 +69,5 @@ try {
     assert.equal(await page.locator('form[name="taejang-salt-inquiry"]').count(),1);
     await page.close();
   }
-  console.log('PASS: large salt hero, photo story, packs, expandable gallery and product details, inquiry anchor with JavaScript on and off at 320/390/768/1440px');
+  console.log('PASS: twelve salt photos, full process, archive timeline, product packs and inquiry at 320/390/768/1440px with JavaScript on and off');
 } finally {await browser.close(); server.close();}
