@@ -174,7 +174,22 @@ function renderQuote(target=content){
   if(stage!==line.stage){stage=line.stage;const sr=el('tr','','lg-stage'),td=el('td',C.STAGES[stage-1]);td.colSpan=6;sr.append(td);tbody.append(sr);}
   const tr=el('tr'),no=el('td',String(i+1).padStart(2,'0')),name=el('td','','lg-line-label'),kind=el('td'),qty=el('td','','lg-num lg-qty'),price=el('td','','lg-num lg-price'),amount=el('td','','lg-num');
   if(line.kind==='extra'&&!confirmed){field(name,'항목명',line.label,v=>{line.label=v;quoteChange();});name.append(button('삭제',()=>{quote.lines=quote.lines.filter(l=>l!==line);dirty=true;render();}));}else name.textContent=line.label;
-  if(line.key==='innerBox'&&addBox)name.append(el('br'),addBox);
+  if(line.key==='innerBox'&&addBox){
+   const option='box-height-repack';
+   const existing=quote.lines.find(item=>item.kind==='extra'&&item.option===option);
+   const shortcut=button(existing?'박스 높이 조절 재포장 항목으로 이동':'+ 박스 높이 조절 재포장',()=>{
+    let item=existing;
+    if(!item){
+     if(quote.lines.filter(l=>l.kind==='extra').length>=40)return report('기타 항목은 최대 40개입니다.',true);
+     item={key:'extra-'+crypto.randomUUID(),stage:5,label:'박스 높이 조절 재포장',kind:'extra',quantity:1,unitPrice:2000,option};
+     quote.lines.push(item);dirty=true;render();
+    }
+    root.querySelector(`[data-row="${item.key}"] .lg-qty input`)?.focus();
+   });
+   shortcut.classList.add('lg-no-print');
+   name.append(el('br'),addBox,el('br'),shortcut);
+   if(existing)name.append(el('p','같은 박스에 일반 재포장 작업비가 중복되지 않도록 수량을 확인하세요.','lg-help lg-no-print'));
+  }
   if(!confirmed&&C.INNER_BOX_GROUPS.includes(line.key)){
    const remove=button('규격 행 삭제',()=>{
     quote.lines=quote.lines.filter(l=>l!==line);
