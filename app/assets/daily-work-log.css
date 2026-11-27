@@ -1,0 +1,27 @@
+.dwl{max-width:1080px;margin-inline:auto;color:#182431}
+.dwl-panel{margin-block:1rem;padding:clamp(.8rem,2vw,1.4rem);border:1px solid #dce2ea;border-radius:.6rem;background:#fff}
+.dwl-fields,.dwl-actions,.dwl-shifts{display:flex;flex-wrap:wrap;gap:.7rem 1rem;align-items:end}
+.dwl-field{display:flex;flex-direction:column;gap:.3rem;font-weight:600;margin-block:.55rem}
+.dwl-field input:not([type=checkbox]),.dwl-field textarea{display:block;padding:.55rem;border:1px solid #a8b3c1;border-radius:.25rem;min-width:0;font:inherit;font-weight:400}
+.dwl-field textarea{resize:vertical;width:100%;box-sizing:border-box}
+.dwl-shifts{padding:.3rem .6rem;border:1px solid #dce2ea}.dwl-shifts legend{font-size:.85rem}
+.dwl-shifts .dwl-field{flex-direction:row;align-items:center;margin:0}
+.dwl-status{min-height:1.45em}.dwl-status.error{color:#a4201d}
+.dwl-help{color:#526171;margin-block:.25rem}.dwl-safety{color:#624520}
+.dwl-results{margin-top:1rem}.dwl-result{display:flex;justify-content:space-between;align-items:center;gap:.5rem;padding:.65rem 0;border-bottom:1px solid #dce2ea}
+.dwl-result>div{min-width:0;overflow-wrap:anywhere}.dwl-result button{flex:none}.dwl-results .dwl-actions{margin-top:.65rem}
+#daily-work-print{display:none}
+@media print{
+ @page dailyWorkReport{size:A4;margin:16mm}
+ body:has(#daily-work-print)>:not(#daily-work-print){display:none!important}
+ #daily-work-print{display:block!important;color:#111;page:dailyWorkReport}
+ #daily-work-print h1{text-align:center;margin:0 0 1.1rem;font-size:22pt}
+ #daily-work-print h2{font-size:13pt;margin:.55rem 0;break-after:avoid}
+ #daily-work-print p{font-size:11pt;line-height:1.55}
+ #daily-work-print .dwl-ref{text-align:right}
+ #daily-work-print .dwl-meta{border-bottom:1px solid #9ba4af;padding-bottom:.55rem}
+ #daily-work-print .dwl-approval{border-collapse:collapse;margin:.55rem 0 1rem auto;break-inside:avoid}
+ #daily-work-print .dwl-approval th,#daily-work-print .dwl-approval td{border:1px solid #9ba4af;width:4em;text-align:center;height:1.55em;font-size:10pt;padding:.2em}
+ #daily-work-print .dwl-text{white-space:pre-wrap;overflow-wrap:anywhere}
+ #daily-work-print .dwl-safety{border-top:1px solid #9ba4af;padding-top:.4rem}
+}
