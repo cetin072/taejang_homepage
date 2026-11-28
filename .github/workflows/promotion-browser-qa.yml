@@ -61,6 +61,20 @@ jobs:
         if: steps.scope.outputs.run_full == 'true'
         run: node tests/personal-worklog-browser.mjs
 
+      - name: Verify daily briefing editor and message sharing
+        if: steps.scope.outputs.run_full == 'true'
+        env:
+          BRIEFING_QA_OUTPUT: daily-briefing-qa-artifacts
+        run: node tests/daily-briefing-browser.mjs
+
+      - name: Keep daily briefing PC and mobile screenshots
+        if: always() && steps.scope.outputs.run_full == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-briefing-320-390-768-1440
+          path: daily-briefing-qa-artifacts/
+          if-no-files-found: ignore
+
       - name: Keep compact calendar PC and mobile screenshots
         if: (always()) && steps.scope.outputs.run_full == 'true'
         uses: actions/upload-artifact@v4
