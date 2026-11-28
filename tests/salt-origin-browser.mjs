@@ -72,7 +72,28 @@ try {
     // On mobile the persistent inquiry action stays reachable after reading product details.
     await page.locator(width <= 760 ? '.salt-sticky' : '.salt-actions .salt-button').click();
     assert.equal(new URL(page.url()).hash,'#salt-contact');
-    assert.equal(await page.locator('form[name="taejang-salt-inquiry"]').count(),1);
+    const form=page.locator('form[name="taejang-salt-inquiry"]');
+    assert.equal(await form.count(),1);
+    const pack=form.getByRole('combobox',{name:'희망 규격'});
+    assert.deepEqual((await pack.locator('option').allTextContents()).slice(1,4),['5kg','10kg','25kg']);
+    await pack.selectOption('10kg');
+    await form.getByRole('spinbutton',{name:'예상 수량 (포)'}).fill('20');
+    await form.getByRole('textbox',{name:'배송 지역'}).fill('경남 창원시');
+    await form.getByRole('textbox',{name:'연락처'}).fill('010-0000-0000');
+    await form.getByRole('textbox',{name:'이메일'}).fill('qa@example.test');
+    await form.getByRole('checkbox').check();
+    const quote=await form.evaluate(f=>({valid:f.checkValidity(), fields:Object.fromEntries(new FormData(f))}));
+    assert.equal(quote.valid,true);
+    assert.equal(quote.fields['form-name'],'taejang-salt-inquiry');
+    assert.equal(quote.fields['pack-size'],'10kg');
+    assert.equal(quote.fields['quantity-bags'],'20');
+    assert.equal(quote.fields['delivery-region'],'경남 창원시');
+    assert.equal(quote.fields.message,'');
+    await form.getByRole('spinbutton',{name:'예상 수량 (포)'}).fill('0');
+    assert.equal(await form.evaluate(f=>f.checkValidity()),false);
+    await form.getByRole('spinbutton',{name:'예상 수량 (포)'}).fill('');
+    assert.equal(await form.evaluate(f=>f.checkValidity()),true);
+    assert.equal(await page.getByRole('link',{name:'이 상품 납품 견적 문의'}).getAttribute('href'),'#salt-contact');
     await page.close();
   }
   console.log('PASS: fourteen salt photos, full process, archive timeline, product packs and inquiry at 320/390/768/1440px with JavaScript on and off');
