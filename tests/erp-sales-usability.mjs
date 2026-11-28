@@ -52,7 +52,7 @@ try{
   let serviceId,firstProduct,secondProduct;
   const capture=async(name)=>{await page.locator('.erp-editor').evaluate(n=>n.scrollIntoView({block:'start'}));await page.screenshot({path:`${output}/${variant}-${name}.png`,animations:'disabled'});};
   try{
-   await page.goto(app.url);await button(variant==='baseline'?'거래처 등록':'고객 등록');await button('닫기',page.locator('.erp-editor'));
+   await page.goto(app.url);if(variant==='candidate')await tab('거래처·영업자');await button(variant==='baseline'?'거래처 등록':'고객 등록');await button('닫기',page.locator('.erp-editor'));
    const today=await page.evaluate(()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul'}).format(new Date()));
    const month=today.slice(0,7);
    await stage('최초 설정: 거래처·공급처·영업자·품목·계약',async()=>{
@@ -185,7 +185,7 @@ try{
     assert.equal(app.db.rpc('erp_sales_get_month_close',{p_month:month+'-01'}).closed,true);
    });
    await stage('재조회: 새로고침 후 저장값 보존',async()=>{
-    await page.reload();await page.getByRole('button',{name:variant==='baseline'?'거래처 등록':'고객 등록',exact:true}).waitFor();await tab('매출·판매');
+    await page.reload();await page.getByRole('button',{name:variant==='baseline'?'거래처 등록':'상품 판매 등록',exact:true}).waitFor();if(variant==='baseline')await tab('매출·판매');
     report.monthlyVisibleByDefault=await page.getByText('총 3건',{exact:true}).count()===1;
     if(variant==='candidate')assert.equal(report.monthlyVisibleByDefault,true,'this month includes generated month-end sales');
     else if(!report.monthlyVisibleByDefault){

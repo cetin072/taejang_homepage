@@ -430,7 +430,7 @@ try {
 
  await page.locator('.app-workspace').evaluate(n=>n.scrollTop=0);await page.screenshot({path:output+'/product-1440.png',fullPage:true});
  // Reload and search exercise real persisted records, not an in-memory browser fixture.
- await page.reload();await page.getByRole('button',{name:'고객 등록',exact:true}).waitFor();await page.getByRole('tab',{name:'매출·판매',exact:true}).click();await page.locator('.erp-body [name=from]').fill('2099-01-01');await page.locator('.erp-body [name=to]').fill('2099-12-31');await page.getByRole('button',{name:'조회',exact:true}).click();await page.getByText('총 2건',{exact:true}).waitFor();
+ await page.reload();await page.getByRole('button',{name:'상품 판매 등록',exact:true}).waitFor();await page.locator('.erp-body [name=from]').fill('2099-01-01');await page.locator('.erp-body [name=to]').fill('2099-12-31');await page.getByRole('button',{name:'조회',exact:true}).click();await page.getByText('총 2건',{exact:true}).waitFor();
  const salesFilters=page.locator('.erp-body form');
  const currentDate=await page.evaluate(()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul'}).format(new Date()));
  const firstOfMonth=currentDate.slice(0,7)+'-01';
@@ -591,7 +591,7 @@ try {
   },p_id:null,p_revision:0});
  }
  await page.reload();
- await page.getByRole('button',{name:'고객 등록',exact:true}).waitFor();
+ await page.getByRole('button',{name:'상품 판매 등록',exact:true}).waitFor();
  await openSidebarView('용역 계약·월 매출');
  await page.locator('[name=contract_period_filter]').selectOption('expiring');
  await page.getByRole('cell',{name:'합성 오늘 종료',exact:true}).waitFor();
