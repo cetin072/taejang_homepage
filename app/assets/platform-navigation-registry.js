@@ -37,6 +37,7 @@
     { key:'payslip.issue', label:'급여명세서', section:'근태·급여', capabilities:['payslip.issue'], visibleRoles:['promotion_lead'] },
 
     { key:'notice.manage', label:'공지 관리', section:'공지', capabilities:['notice.manage'] },
+    { key:'daily_briefing.manage', label:'일일 브리핑', section:'공지', capabilities:['daily_briefing.manage'], visibleRoles:['operations_manager','promotion_lead'] },
 
     { key:'promotion.write', label:'홍보 글 작성', section:'홍보', capabilities:['promotion.write','promotion.edit_any_unpublished'], visibleRoles:['promotion_staff','promotion_lead','operations_manager'] },
     { key:'promotion.review', label:'승인 검토', section:'홍보', capabilities:['promotion.review_lead','promotion.review_operations','promotion.review_ceo'], visibleRoles:['promotion_lead','operations_manager','ceo'] },

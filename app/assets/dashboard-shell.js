@@ -316,6 +316,16 @@
         capabilities: ['notice.manage']
       },
       {
+        key: 'daily_briefing.manage',
+        label: '일일 브리핑',
+        capabilities: ['daily_briefing.manage'],
+        run: async () => {
+          const briefing = await import('/app/assets/daily-briefing.mjs');
+          window.TaejangDailyBriefing = briefing;
+          return briefing.mountDailyBriefing(el('dashboard-main'));
+        }
+      },
+      {
         key: 'erp_sales.manage',
         label: '기준정보·매출 관리',
         run: () => window.TaejangErpSalesLoader?.(),
@@ -414,6 +424,7 @@
     if(activeView === 'monthly_client_documents.manage')return window.MonthlyClientDocuments?.hasUnsavedChanges?.() ?? viewDirty;
     if(activeView === 'payroll.manage')return window.TaejangMonthEndPayroll?.hasUnsavedChanges?.() ?? viewDirty;
     if(activeView === 'daily_work.manage')return window.TaejangDailyWork?.dailyWorkDirty?.() ?? viewDirty;
+    if(activeView === 'daily_briefing.manage')return window.TaejangDailyBriefing?.briefingDirty?.() ?? viewDirty;
     if(activeView === 'logistics.manage')return window.TaejangLogistics?.hasUnsavedChanges?.() ?? viewDirty;
     return activeView === 'erp_sales.manage' || activeView === 'erp_sales.contracts'
       ? (window.TaejangErpSales?.hasUnsavedChanges?.() ?? viewDirty) : viewDirty;
