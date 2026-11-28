@@ -14,11 +14,13 @@ test('archive snapshot reuses latest approved data, escapes text, deduplicates l
     const approved = await archiveItems(root);
     const item = { id: 'promotion-fixture', type: 'external', source: 'naver-blog', category: '회사소식', title: '</script><b>새 승인 기록</b>', summary: '공개 fixture', thumbnail: 'images/og-taejang.png', publishedAt: '2099-01-01', status: 'published', externalUrl: 'https://blog.naver.com/taejang-official/999999999999' };
     let calls = 0;
-    const items = await generateArchiveSnapshot({ outputRoot: temp, request: async url => { calls++; assert.match(url, /public-promotion-feed\?format=json$/); return Response.json({ items: [item, { ...item, id: 'duplicate' }] }); } });
+    const liveVideo = { ...item, id: 'youtube-liveOnly01', source: 'youtube', externalUrl: 'https://www.youtube.com/watch?v=liveOnly01', runtimeOnly: true };
+    const items = await generateArchiveSnapshot({ outputRoot: temp, request: async url => { calls++; assert.match(url, /public-promotion-feed\?format=json$/); return Response.json({ items: [item, { ...item, id: 'duplicate' }, liveVideo] }); } });
     assert.equal(calls, 1);
     assert.equal(items[0].id, item.id);
     assert.equal(items.filter(entry => entry.externalUrl === item.externalUrl).length, 1);
     let html = await readFile(path.join(temp, 'archive.html'), 'utf8');
+    assert.ok(!html.includes(liveVideo.id), 'an ERP-managed video remains removable without a new deployment');
     assert.match(html, /&lt;\/script&gt;&lt;b&gt;새 승인 기록/);
     assert.match(html, /\\u003c\/script>/);
     assert.equal((html.match(/data-static-fallback-card/g) || []).length, 12);

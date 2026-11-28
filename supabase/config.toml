@@ -98,3 +98,7 @@ verify_jwt = false
 # The function validates bearer identity with Auth and rechecks DB authorization.
 [functions.employee-password-reset]
 verify_jwt = false
+
+# The function validates its bearer with Auth and checks the operator role in SQL.
+[functions.official-youtube-publication]
+verify_jwt = false

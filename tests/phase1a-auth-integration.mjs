@@ -330,6 +330,40 @@ const approvePromotionStaff = await rpc('approve_signup_request_with_employee', 
 equal(approvePromotionStaff.data?.code, 'EMPLOYEE_ACCOUNT_APPROVED', 'operations manager approves and links a promotion-staff account');
 await operationsOwnedPromotionChecks({apiUrl,rpc,sql,signUp,admin,lead,staff:promotionStaff,departmentId:promotionDepartment.data[0].id,positionId:position.data[0].id,check,equal});
 await officialBlogPublicationChecks({apiUrl,rpc,sql,binaryApi,admin,lead,staff:promotionStaff,check,equal});
+
+if (['localhost', '127.0.0.1', '[::1]'].includes(new URL(apiUrl).hostname)) {
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SERVICE_ROLE_KEY;
+  check(serviceKey, 'isolated Supabase service role key is required for YouTube publication checks');
+  const name = 'publish_official_youtube_link';
+  const input = { p_actor_id: lead.id, p_video_id: 'CIyoutube01' };
+  const server = body => api('/rest/v1/rpc/' + name, {
+    method: 'POST', token: serviceKey, headers: { apikey: serviceKey }, body
+  });
+  check(!(await rpc(name, undefined, input)).ok, 'anonymous caller cannot invoke the trusted YouTube RPC');
+  check(!(await rpc(name, lead.token, input)).ok, 'even a promotion lead cannot bypass server metadata verification');
+  for (const user of [admin, promotionStaff]) {
+    equal((await server({ ...input, p_actor_id: user.id })).data?.message, 'PROMOTION_YOUTUBE_FORBIDDEN',
+      'the trusted server still requires an active promotion lead');
+  }
+  equal((await server(input)).data?.ok, true, 'the trusted server can check a lead and an unused video without publishing');
+  const videoUrl = 'https://www.youtube.com/watch?v=CIyoutube01';
+  equal(sql(`select count(*) from public.promotion_content_revisions where external_url='${videoUrl}'`), '0', 'preview authors no revision');
+  const details = { ...input, p_title: 'CI 태장 공식 유튜브 영상', p_source_published_on: '2026-10-22' };
+  const attempts = await Promise.all([server(details), server(details)]);
+  const result = attempts.find(attempt => attempt.ok);
+  check(result?.data?.content_id, `one concurrent publish succeeds: ${JSON.stringify(attempts)}`);
+  equal(attempts.filter(attempt => attempt.data?.message === 'PROMOTION_YOUTUBE_DUPLICATE').length, 1,
+    'the advisory lock rejects a duplicate concurrent publication');
+  const id = result.data.content_id;
+  assertUuid(id, 'published YouTube content id');
+  const feed = await rpc('list_public_promotion_feed', undefined, {});
+  const item = Array.isArray(feed.data) && feed.data.find(record => record.content_id === id);
+  equal(item?.official_youtube_published_on, '2026-10-22', 'public feed returns the verified original publication day');
+  equal(item?.external_url, videoUrl, 'public card opens the canonical YouTube watch link');
+  equal(item?.link_source_type, 'taejang_youtube', 'the new card is an official YouTube record');
+  equal(sql(`select count(*) from public.audit_logs where target_id='${id}' and actor_profile_id='${lead.id}' and action='promotion_official_youtube_link_published'`),
+    '1', 'the publication audit uses the verified promotion lead identity');
+}
 await promotionEditorialChecks({apiUrl,rpc,sql,admin,lead,staff:promotionStaff,check,equal});
 await operationsPublicTextEditChecks({apiUrl,rpc,sql,signUp,admin,lead,staff:promotionStaff,departmentId:promotionDepartment.data[0].id,positionId:position.data[0].id,check,equal});
 await operationsMissingPromotionPhotoChecks({apiUrl,rpc,sql,binaryApi,admin,lead,staff:promotionStaff,check,equal});
