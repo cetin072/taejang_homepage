@@ -141,14 +141,17 @@ test('hero and gallery offer the existing terrarium inquiry dialog', () => {
   assert.match(landing, /<form[^>]+name="taejang-terrarium-inquiry"/);
 });
 
-test('four future products and programs stay noninteractive until separately approved', () => {
+test('four future products offer inquiries without claiming they are available', () => {
   const next = landing.match(/<section class="th-next"[\s\S]*?<\/section>/)?.[0] || '';
   assert.equal((next.match(/class="th-next-card"/g) || []).length, 4);
   for (const title of ['프리미엄 맞춤 주문제작', '테라리움 DIY 키트', '정규 클래스', '기업·기관 출강']) {
     assert.ok(next.includes(title), title);
   }
   assert.equal((next.match(/<span class="th-pending">준비 중<\/span>/g) || []).length, 4);
-  assert.doesNotMatch(next, /<a\b|<button\b|<form\b|onclick=|tabindex=/);
+  assert.doesNotMatch(next, /<button\b|<form\b|onclick=|tabindex=/);
+  assert.deepEqual([...next.matchAll(/href="#th-contact" data-home-inquiry-open data-inquiry-topic="([^"]+)"/g)].map(x=>x[1]), ['맞춤 주문제작','DIY 키트','원데이·정규 클래스','기관·단체 출강']);
+  assert.equal((next.match(/<a\b/g) || []).length, 4);
+  assert.match(next, /주문과 수강 예약은 아직 받지 않/);
   assert.doesNotMatch(landing, /href="terrarium-custom\.html"|href="terrarium-diy\.html"/);
   assert.doesNotMatch(landing, /name="taejang-inquiry"/);
   assert.match(next, /가격, 일정, 정원, 제작 기간은 확정 후 안내합니다/);
