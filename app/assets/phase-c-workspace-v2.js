@@ -125,19 +125,19 @@
       .phase-c-youtube-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:end; }
       .phase-c-youtube-actions label { flex:1 1 240px; min-width:0; }
       .phase-c-youtube-actions input { width:100%; }
-      .phase-c-youtube .phase-c-link-preview { overflow-wrap:anywhere; }
+      .phase-c-youtube-preview { overflow-wrap:anywhere; }
       .phase-c-youtube-status { margin:0; color:var(--app-muted); font-size:.92rem; }
       .phase-c-youtube [hidden] { display:none; }
       .phase-c-link-tools { display:grid; gap:9px; padding:14px; border:1px solid var(--app-border); border-radius:12px; background:#f8fbf9; }
-      .phase-c-link-preview { display:grid; grid-template-columns:120px 1fr; gap:12px; align-items:start; }
-      .phase-c-link-preview img { width:120px; aspect-ratio:4/3; object-fit:cover; border-radius:9px; }
+      .phase-c-link-preview,.phase-c-youtube-preview { display:grid; grid-template-columns:120px 1fr; gap:12px; align-items:start; }
+      .phase-c-link-preview img,.phase-c-youtube-preview img { width:120px; aspect-ratio:4/3; object-fit:cover; border-radius:9px; }
       .phase-c-review-source { display:inline-flex; width:fit-content; padding:4px 9px; border-radius:999px; background:#edf3ff; color:#34568b; font-size:.8rem; font-weight:850; }
       .phase-c-review-source.returned { background:#fff1db; color:#805400; }
       .phase-c-review-note { white-space:pre-line; padding:11px 12px; border-radius:10px; background:#fff8e8; color:#5f4a13; }
       .phase-c-edit-page { max-width:980px; }
       .phase-c-upload-status { margin:0; color:var(--app-muted); font-size:.92rem; }
       @media(max-width:1100px){.phase-c-v2-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.phase-c-photo-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
-      @media(max-width:760px){.phase-c-v2-grid,.phase-c-board-row{grid-template-columns:1fr;}.phase-c-photo-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.phase-c-link-preview{grid-template-columns:1fr;}.phase-c-link-preview img{width:100%;max-width:260px;}}
+      @media(max-width:760px){.phase-c-v2-grid,.phase-c-board-row{grid-template-columns:1fr;}.phase-c-photo-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.phase-c-link-preview,.phase-c-youtube-preview{grid-template-columns:1fr;}.phase-c-link-preview img,.phase-c-youtube-preview img{width:100%;max-width:260px;}}
       @media(max-width:480px){.phase-c-photo-grid{grid-template-columns:1fr;}}
     `;
     document.head.append(style);
@@ -961,7 +961,7 @@
     url.placeholder = 'https://www.youtube.com/watch?v=…';
     const previewButton = el('button', '영상 미리보기', 'button button-quiet');
     previewButton.type = 'submit';
-    const preview = el('div', null, 'phase-c-link-preview');
+    const preview = el('div', null, 'phase-c-youtube-preview');
     preview.hidden = true;
     const status = el('p', '', 'phase-c-youtube-status');
     status.setAttribute('role', 'status');
@@ -1003,8 +1003,9 @@
         }
         const card = result.card;
         const image = document.createElement('img');
-        image.src = card.thumbnail;
         image.alt = card.thumbnailAlt;
+        image.referrerPolicy = 'no-referrer';
+        image.src = card.thumbnail;
         const title = el('strong', card.title);
         const time = el('time', card.publishedAt.replaceAll('-', '.'));
         time.dateTime = card.publishedAt;
