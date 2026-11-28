@@ -49,4 +49,9 @@
 .daily-briefing .briefing-feedback:empty { display: none; }
 @media (max-width: 800px) {
   .daily-briefing .briefing-layout { grid-template-columns: minmax(0, 1fr); }
+  .daily-briefing .briefing-tabs { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: .35rem; }
+  .daily-briefing .briefing-tabs .button { width: 100%; padding: .5rem .2rem; font-size: .86rem; }
+  .daily-briefing .briefing-actions { display: flex; gap: .45rem; flex-wrap: wrap; }
+  .daily-briefing .briefing-actions .button { width: auto; flex: 1 1 125px; padding-inline: .6rem; }
+  .daily-briefing .briefing-actions .briefing-hint { flex-basis: 100%; }
 }

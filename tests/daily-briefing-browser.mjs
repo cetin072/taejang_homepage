@@ -29,7 +29,7 @@ const browser=await chromium.launch(process.env.CHROME_PATH
   ? {executablePath:process.env.CHROME_PATH} : {channel:'chrome'});
 try {
   for(const width of [320,390,768,1440]){
-    const page=await browser.newPage({viewport:{width,height:1000}});
+    const page=await browser.newPage({viewport:{width,height:1000},locale:'ko-KR'});
     await page.clock.setFixedTime(new Date('2026-11-29T23:20:00Z'));
     const pageErrors=[];
     page.on('pageerror',error=>pageErrors.push(error.message));
@@ -84,6 +84,8 @@ try {
     const element=by=>page.getByRole('button',{name:by,exact:true});
     const text=page.locator('pre.briefing-output');
     assert.match(await text.innerText(),/외부활동 참석 인원 확인/);
+    if(width<=768)assert.equal(await page.locator('.briefing-tabs .button').evaluateAll(items=>
+      new Set(items.map(item=>item.getBoundingClientRect().top)).size),1,'mobile tabs share one row');
     assert.equal(await page.getByRole('textbox',{name:'근무 현황'}).getAttribute('readonly'),'');
     assert.equal(await element('전문 복사').count(),0,'draft has no delivery actions');
     await page.getByLabel('오늘 특이사항').fill('15시 안전장비 확인');
