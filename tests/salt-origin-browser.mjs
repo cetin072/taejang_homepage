@@ -81,7 +81,10 @@ try {
     await form.getByRole('textbox',{name:'배송 지역'}).fill('경남 창원시');
     await form.getByRole('textbox',{name:'연락처'}).fill('010-0000-0000');
     await form.getByRole('textbox',{name:'이메일'}).fill('qa@example.test');
-    await form.getByRole('checkbox').check();
+    const consent=form.getByRole('checkbox');
+    // Stop the anchor's smooth scroll before clicking a control low in the form.
+    await consent.evaluate(node=>node.scrollIntoView({block:'center',behavior:'instant'}));
+    await consent.check();
     const quote=await form.evaluate(f=>({valid:f.checkValidity(), fields:Object.fromEntries(new FormData(f))}));
     assert.equal(quote.valid,true);
     assert.equal(quote.fields['form-name'],'taejang-salt-inquiry');
