@@ -18,9 +18,12 @@ try {
   window.salesCalls=[];
   window.TaejangApp={hasCapabilityContract:()=>true,can:()=>true,getActualRoles:()=>['operations_manager'],getEffectiveRoles:()=>['operations_manager'],getAccessContext:()=>({}),rpc:async (name,args)=>{
    window.salesCalls.push({name,args});
-   if(name==='erp_sales_bootstrap')return {canWrite:true,canConfirm:true,parties:[],agents:[],assignments:[],items:[],contracts:[]};
+   if(name==='erp_sales_bootstrap')return {canWrite:true,canConfirm:true,parties:[{id:'customer',name:'검수용 고객',active:true,relationships:['customer']}],agents:[],assignments:[],items:[{id:'salt',name:'검수용 천일염',unit:'포',active:true,kind:'product',base_price:25000,pricing_basis:'inclusive',automation:{supplier_id:'supplier',fulfillment:'supplier_direct'}}],contracts:[]};
    if(name==='erp_sales_phase2_ready'){if(window.failReadiness)throw new Error('Synthetic readiness timeout');return true;}
+   if(['erp_sales_adjustments_ready','erp_sales_product_automation_ready'].includes(name))return true;
    if(name.endsWith('_ready'))return false;
+   if(name==='erp_sales_preview_product')return {supply:22727,tax:2273,total:25000,snapshot:{purchase_supply:10000,purchase_tax:0,commission_amount:0}};
+   if(name==='erp_sales_get_month_close')return {closed:false,events:[]};
    if(name==='erp_sales_list')return {items:[{...sale,party_name:'검수용 고객'}],total:1,limit:100};
    if(name==='erp_sales_list_receivables')return {items:[{id:sale.id,party_name:'검수용 고객',kind:'product',sales_date:sale.sales_date,due_on:'2026-11-18',total_amount:25000,received:5000,balance:20000}],total:1,limit:100,total_balance:20000};
    if(name==='erp_sales_get_receipts')return {received:5000,balance:20000,due_on:'2026-11-18',entries:[]};
@@ -36,7 +39,26 @@ try {
  await page.evaluate(()=>{window.failReadiness=false;});
  await page.getByRole('button',{name:'기능 상태 다시 확인',exact:true}).click();
  await page.getByRole('tab',{name:'미수금',exact:true}).waitFor();
- await page.getByRole('tab',{name:'매출·판매',exact:true}).click();
+ assert.equal(await page.getByRole('tab',{name:'매출·판매',exact:true}).getAttribute('aria-selected'),'true');
+ await page.getByRole('button',{name:'상품 판매 등록',exact:true}).click();
+ const entry=page.getByRole('dialog',{name:'상품 판매 등록',exact:true});
+ await entry.locator('[name=auto_item_1]').selectOption('salt');
+ await entry.getByRole('button',{name:'금액 확인',exact:true}).click();
+ await entry.getByText(/고객 항목을 확인/).waitFor();
+ assert.equal(await page.evaluate(()=>document.activeElement.name),'party_id');
+ assert.equal(await page.evaluate(()=>window.salesCalls.some(call=>call.name==='erp_sales_preview_product')),false);
+ await entry.locator('[name=party_id]').selectOption('customer');
+ await entry.getByRole('button',{name:'판매 등록·확정',exact:true}).click();
+ assert.equal(await page.evaluate(()=>document.activeElement.textContent),'금액 확인');
+ await entry.getByRole('button',{name:'금액 확인',exact:true}).click();
+ await entry.getByText(/고객 청구 25,000원/).waitFor();
+ await entry.locator('[name=auto_qty_1]').fill('3');
+ await entry.getByRole('button',{name:'판매 등록·확정',exact:true}).click();
+ await entry.getByText('금액 확인 후 판매를 확정해 주세요.',{exact:true}).waitFor();
+ assert.equal(await page.evaluate(()=>window.salesCalls.some(call=>call.name==='erp_sales_save_product')),false);
+ page.once('dialog',dlg=>dlg.accept());
+ await entry.getByRole('button',{name:'닫기',exact:true}).click();
+ await entry.waitFor({state:'hidden'});
  assert.equal(await page.evaluate(()=>window.salesCalls.some(c=>c.name==='erp_sales_get')),false,'no detail request until a row is chosen');
  await page.getByRole('cell',{name:'검수용 고객',exact:true}).click();
  const popup=page.getByRole('dialog',{name:'확정 매출 상세',exact:true});
@@ -50,7 +72,7 @@ try {
  await mkdir('admin-ui-qa-artifacts/erp-workflow',{recursive:true});
  await page.screenshot({path:'admin-ui-qa-artifacts/erp-workflow/sales-review-desktop.png'});
  const flow=popup.getByRole('navigation',{name:'이 거래 처리 바로가기'});await flow.waitFor().catch(async error=>{throw new Error(error.message+'; UI status: '+await page.getByRole('status').innerText());});
- assert.equal(await flow.getByRole('button').count(),3);
+ assert.equal(await flow.getByRole('button').count(),4);
  assert.deepEqual(await page.locator('.erp-editor > section[id]').evaluateAll(ns=>ns.map(n=>n.id)),['erp-sale-shipping','erp-sale-receipts','erp-sale-payouts']);
  for(const [label,id] of [['배송 처리','erp-sale-shipping'],['수금·미수금 확인','erp-sale-receipts'],['공급처 지급·영업비','erp-sale-payouts']]){
   await flow.getByRole('button',{name:label,exact:true}).click();
@@ -70,6 +92,24 @@ try {
  await page.keyboard.press('Escape');
  await popup.waitFor({state:'hidden'});
  assert.equal(await page.getByRole('button',{name:'상세',exact:true}).evaluate(opener=>opener===document.activeElement),true);
+ const detailsAgain=()=>page.getByRole('button',{name:'상세',exact:true});
+ await detailsAgain().click();
+ await flow.getByRole('button',{name:'공급처 지급·영업비',exact:true}).click();
+ const payoutDialog=page.locator('dialog.erp-editor-dialog[open]');
+ await payoutDialog.getByRole('button',{name:'공급처 지급 승인',exact:true}).click();
+ await payoutDialog.locator('[name=payout_amount]').fill('500');
+ page.once('dialog',dlg=>dlg.dismiss());
+ const closeScreen=payoutDialog.getByRole('button',{name:'월 마감 화면 보기',exact:true});
+ await closeScreen.click();
+ assert.equal(await payoutDialog.locator('[name=payout_amount]').inputValue(),'500','declining the navigation retains the draft');
+ assert.equal(await page.evaluate(()=>window.salesCalls.some(c=>c.name==='erp_sales_get_month_close')),false);
+ page.once('dialog',dlg=>dlg.accept());
+ await closeScreen.click();
+ await payoutDialog.waitFor({state:'hidden'});
+ await page.getByRole('button',{name:'마감 이력 조회',exact:true}).waitFor();
+ assert.equal(await page.getByRole('tab',{name:'월 마감',exact:true}).getAttribute('aria-selected'),'true');
+ assert.equal(await page.locator('[name=close_month]').inputValue(),'2026-11');
+ assert.equal(await page.evaluate(()=>window.salesCalls.some(c=>c.name==='erp_sales_set_month_close')),false,'navigation does not close a month');
  await page.getByRole('tab',{name:'미수금',exact:true}).click();
  await page.getByRole('button',{name:'기한 지난 미수금',exact:true}).click();
  const cutoff=await page.locator('[name=receivable_to]').inputValue();

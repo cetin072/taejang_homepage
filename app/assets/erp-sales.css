@@ -137,3 +137,9 @@
  background:#fff;border:1px solid #c3d1c8;color:#284b38;
 }
 .erp-sales .erp-sale-review [data-confirmed=true] > h3:focus { outline:none; }
+
+.erp-sale-workflow .erp-sale-followup {
+  border-top:1px solid var(--authoring-stroke,#dce5df);
+  margin-top:12px;
+  padding-top:12px;
+}

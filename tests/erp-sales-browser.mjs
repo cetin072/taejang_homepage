@@ -8,7 +8,9 @@ const app=await createERPBrowserServer();const browser=await chromium.launch({he
 const output=process.env.ERP_QA_OUTPUT||'admin-ui-qa-artifacts/erp-sales';await mkdir(output,{recursive:true});
 try {
  const page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));const dialogs=[];let keepDraft=false;page.on('dialog',d=>{dialogs.push(d.message());void (keepDraft?d.dismiss():d.accept());});
- await page.goto(app.url);await page.getByRole('button',{name:'고객 등록',exact:true}).waitFor();
+ await page.goto(app.url);await page.getByRole('button',{name:'상품 판매 등록',exact:true}).waitFor();
+ assert.equal(await page.getByRole('tab',{name:'매출·판매',exact:true}).getAttribute('aria-selected'),'true');
+ await page.getByRole('tab',{name:'거래처·영업자',exact:true}).click();
  assert.equal(await page.getByRole('columnheader',{name:'문서 연결',exact:true}).count(),0);
  await page.getByRole('button',{name:'고객 등록',exact:true}).click();
  const gridColumns=loc=>loc.evaluate(node=>(()=>{const c=getComputedStyle(node).gridTemplateColumns;const repeat=c.match(/^repeat\((\d+),/);return repeat?Number(repeat[1]):(c.match(/[^\s(]+\([^)]*\)|[^\s]+/g)||[]).length;})());
@@ -68,7 +70,7 @@ try {
  await page.getByRole('tab',{name:'거래처·영업자',exact:true}).click();
  await page.getByRole('button',{name:'고객·판매처',exact:true}).click();
  assert.equal(await page.getByRole('button',{name:'고객·판매처',exact:true}).getAttribute('aria-pressed'),'true');
- await page.getByRole('tab',{name:'거래처·영업자',exact:true}).focus();await page.keyboard.press('ArrowRight');assert.equal(await page.getByRole('tab',{name:'품목·서비스',exact:true}).getAttribute('aria-selected'),'true');await page.keyboard.press('End');await page.getByRole('button',{name:'월 마감 처리',exact:true}).waitFor();await page.locator('.erp-sales:not([aria-busy])').waitFor();assert.equal(await page.evaluate(()=>document.activeElement.id),'erp-tab-close');await page.keyboard.press('Home');
+ await page.getByRole('tab',{name:'거래처·영업자',exact:true}).focus();await page.keyboard.press('ArrowRight');assert.equal(await page.getByRole('tab',{name:'품목·서비스',exact:true}).getAttribute('aria-selected'),'true');await page.keyboard.press('End');await page.getByRole('button',{name:'월 마감 처리',exact:true}).waitFor();await page.locator('.erp-sales:not([aria-busy])').waitFor();assert.equal(await page.evaluate(()=>document.activeElement.id),'erp-tab-close');await page.keyboard.press('Home');await page.getByRole('tab',{name:'거래처·영업자',exact:true}).click();
  const field=n=>page.locator('.erp-editor').locator(`[name="${n}"]`);
  const saved=async label=>{const form=page.locator('.erp-editor form');const original=await form.elementHandle();await form.getByRole('button',{name:label,exact:true}).click();await page.waitForFunction(n=>!n.isConnected,original);await page.locator('.erp-sales:not([aria-busy])').waitFor();};
  async function party(name,kind,number,supplier=false){await page.getByRole('button',{name:supplier?'공급처·매입처':'고객·판매처',exact:true}).click();await page.getByRole('button',{name:supplier?'공급처 등록':'고객 등록',exact:true}).click();await field('name').fill(name);await field('kind').selectOption(kind);if(kind==='company')await field('business_number').fill(number);if(supplier)await page.locator('.erp-editor input[value="supplier"]').check();await saved('저장');}
@@ -428,7 +430,7 @@ try {
 
  await page.locator('.app-workspace').evaluate(n=>n.scrollTop=0);await page.screenshot({path:output+'/product-1440.png',fullPage:true});
  // Reload and search exercise real persisted records, not an in-memory browser fixture.
- await page.reload();await page.getByRole('button',{name:'고객 등록',exact:true}).waitFor();await page.getByRole('tab',{name:'매출·판매',exact:true}).click();await page.locator('.erp-body [name=from]').fill('2099-01-01');await page.locator('.erp-body [name=to]').fill('2099-12-31');await page.getByRole('button',{name:'조회',exact:true}).click();await page.getByText('총 2건',{exact:true}).waitFor();
+ await page.reload();await page.getByRole('button',{name:'상품 판매 등록',exact:true}).waitFor();await page.locator('.erp-body [name=from]').fill('2099-01-01');await page.locator('.erp-body [name=to]').fill('2099-12-31');await page.getByRole('button',{name:'조회',exact:true}).click();await page.getByText('총 2건',{exact:true}).waitFor();
  const salesFilters=page.locator('.erp-body form');
  const currentDate=await page.evaluate(()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul'}).format(new Date()));
  const firstOfMonth=currentDate.slice(0,7)+'-01';
@@ -589,7 +591,7 @@ try {
   },p_id:null,p_revision:0});
  }
  await page.reload();
- await page.getByRole('button',{name:'고객 등록',exact:true}).waitFor();
+ await page.getByRole('button',{name:'상품 판매 등록',exact:true}).waitFor();
  await openSidebarView('용역 계약·월 매출');
  await page.locator('[name=contract_period_filter]').selectOption('expiring');
  await page.getByRole('cell',{name:'합성 오늘 종료',exact:true}).waitFor();

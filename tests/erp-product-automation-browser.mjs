@@ -80,7 +80,13 @@ try{
  await page.setViewportSize({width:390,height:844});await page.locator('.erp-editor').screenshot({animations:'disabled',path:output+'/automation-sale-390.png'});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
  // Failed save must retain all user inputs and the previewed values.
  await page.evaluate(()=>window.fixtureFailNext=true);await click('판매 등록·확정');assert.equal(await field('auto_price_1').inputValue(),'25000');
- await click('판매 등록·확정');await page.getByRole('status').filter({hasText:'판매 확정'}).waitFor();
+ await click('판매 등록·확정');await page.getByRole('status').filter({hasText:'판매를 확정했습니다.'}).waitFor();
+ await page.getByRole('status').filter({hasText:'공급처 직배송은 태장 재고를 차감하지 않습니다.'}).waitFor();
+ await click('수금·미수금 확인');
+ await page.getByRole('button',{name:'입금 기록 저장',exact:true}).waitFor();
+ await click('공급처 지급·영업비');
+ assert.equal(await page.getByRole('button',{name:'영업비 승인',exact:true}).isDisabled(),true,'no commission approval before receipt');
+ await click('상세로 돌아가기');
  assert.equal(await field('unit_price_1').inputValue(),'25000','confirmed sale keeps originally entered price');assert.equal(await field('pricing_basis_1').inputValue(),'inclusive','confirmed sale keeps originally selected VAT basis');
  const sale=JSON.parse(app.db.raw('select row_to_json(s) from public.erp_sales_transactions s;'));assert.equal(sale.status,'confirmed');assert.equal(Number(sale.total_amount),25000);
  assert.equal(app.db.raw('select count(*) from public.erp_sales_accrual_events;'),'1');assert.equal(app.db.raw('select count(*) from public.erp_sales_stock_movements;'),'0');
