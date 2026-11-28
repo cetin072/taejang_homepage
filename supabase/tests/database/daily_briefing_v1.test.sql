@@ -68,8 +68,8 @@ select '98010000-0000-4000-8000-000000000006',employee_uuid,'2099-11-23','full',
  '98010000-0000-4000-8000-000000000003','98010000-0000-4000-8000-000000000002',now()
 from public.employee_work_terms where employee_uuid='98010000-0000-4000-8000-000000000005';
 
-create function pg_temp.briefing_write(action text, edits jsonb default '{}') returns jsonb language sql as $$
- select public.write_daily_briefing(work_date,version,updated_at,action,edits,'{}','가상 특이사항')
+create function pg_temp.briefing_write(p_action text, p_edits jsonb default '{}') returns jsonb language sql as $$
+ select public.write_daily_briefing(work_date,version,updated_at,p_action,p_edits,'{}','가상 특이사항')
  from public.daily_briefings where work_date='2099-11-23' order by version desc limit 1
 $$;
 select throws_ok($$select pg_temp.briefing_write('confirm')$$,'P0001','BRIEFING_SOURCE_CHANGED','changed sources require refresh');
