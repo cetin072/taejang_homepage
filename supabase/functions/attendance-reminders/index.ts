@@ -1,5 +1,5 @@
 // PR #572. Server-only adapter over existing Expo device/ticket/receipt contracts.
-// Default OFF, no scheduler or secret/config changes are part of this implementation.
+// Attendance dispatch is opt-in through the database policy.
 import { createClient } from 'npm:@supabase/supabase-js@2.116.0';
 const client=createClient(Deno.env.get('SUPABASE_URL')||'',Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'',{auth:{persistSession:false,autoRefreshToken:false}});
 const headers={'content-type':'application/json','cache-control':'no-store'};
@@ -10,10 +10,12 @@ async function provider(path:string,body:unknown){const token=Deno.env.get('EXPO
 Deno.serve(async req=>{
  if(req.method!=='POST')return json(405,{code:'METHOD_NOT_ALLOWED'});
  const key=Deno.env.get('NOTIFICATION_DISPATCH_KEY');if(!key||req.headers.get('x-taejang-notification-key')!==key)return json(401,{code:'UNAUTHORIZED'});
- if(Deno.env.get('ATTENDANCE_REMINDERS_ENABLED')!=='true')return json(503,{code:'DISABLED'});
  const body=await req.json().catch(()=>null);if(!body||!['dispatch','receipts','monthly'].includes(body.mode))return json(400,{code:'INVALID_MODE'});
  try{
-  if(body.mode==='monthly')return json(200,await rpc('private_reconcile_leave_monthly'));
+  if(body.mode==='monthly'){
+   if(Deno.env.get('ATTENDANCE_REMINDERS_ENABLED')!=='true')return json(503,{code:'DISABLED'});
+   return json(200,await rpc('private_reconcile_leave_monthly'));
+  }
   const claim=crypto.randomUUID();let sent=0;
   if(body.mode==='receipts'){
    const items=await rpc('private_claim_attendance_receipts',{p_claim:claim}) as Item[];

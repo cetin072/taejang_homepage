@@ -165,9 +165,15 @@ begin
 end $reminder$;
 select pg_temp.expect_reminder(false,'attendance.clock_in_missing','09:01:59','no early clock-in prompt');
 select pg_temp.expect_reminder(true,'attendance.clock_in_missing','09:02:00','clock-in due at two minutes');
-select pg_temp.expect_reminder(false,'attendance.clock_out_missing','13:02:00','no clock-out prompt without clock-in');
 insert into public.attendance_events(profile_id,work_date,event_type,status,event_at) values('${worker.id}','${today}','clock_in','recorded',('${today} 09:02+09')::timestamptz);
 select pg_temp.expect_reminder(false,'attendance.clock_in_missing','09:02:00','recorded clock-in suppresses prompt at the exact boundary');
+select pg_temp.expect_reminder(false,'attendance.clock_out_missing','13:02:00','clock-out suppressed by default even after a recorded clock-in');
+savepoint recorded_clock_in;
+delete from public.attendance_events where profile_id='${worker.id}' and work_date='${today}' and event_type='clock_in';
+update public.employee_reminder_policy set clock_out_enabled=true where singleton;
+select pg_temp.expect_reminder(false,'attendance.clock_out_missing','13:02:00','opt-in still requires a recorded clock-in');
+rollback to savepoint recorded_clock_in;
+update public.employee_reminder_policy set clock_out_enabled=true where singleton;
 select pg_temp.expect_reminder(false,'attendance.clock_out_missing','13:01:59','no early clock-out prompt');
 select pg_temp.expect_reminder(true,'attendance.clock_out_missing','13:02:00','clock-out due at two minutes');
 select pg_temp.expect_reminder(true,'attendance.clock_out_missing','13:10:00','late scheduler can still claim');
