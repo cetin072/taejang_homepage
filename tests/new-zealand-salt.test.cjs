@@ -47,22 +47,28 @@ assert.match(form,/data-netlify="true"/);
 assert.match(form,/netlify-honeypot="bot-field"/);
 assert.match(form,/action="\/thanks"/);
 assert.match(form,/name="form-name" value="taejang-salt-inquiry"/);
-for (const field of ['contact','email','message','privacy-consent']) {
+for (const field of ['contact','email','message','privacy-consent','pack-size','quantity-bags','delivery-region']) {
   assert.match(form, new RegExp('name="'+field+'"'),field+' must be submitted');
 }
 assert.match(form,/name="contact"[^>]+type="tel"[^>]+required/);
 assert.match(form,/name="email"[^>]+type="email"[^>]+required/);
-assert.match(form,/name="message"[^>]+required/);
+assert.match(form,/<select[^>]+name="pack-size"[^>]+required/);
+assert.deepEqual([...form.matchAll(/<option value="([^"]*)"/g)].map(match=>match[1]),['','5kg','10kg','25kg','여러 규격','미정']);
+assert.match(form,/name="quantity-bags"[^>]+type="number"[^>]+min="1"[^>]+step="1"/);
+assert.match(form,/name="delivery-region"[^>]+type="text"[^>]+required/);
+assert.match(form,/<textarea[^>]+name="message"/);
+assert.doesNotMatch(form,/<textarea[^>]+name="message"[^>]+required/);
+assert.match(html,/<a class="salt-button" href="#salt-contact">이 상품 납품 견적 문의<\/a>/);
 assert.match(form,/name="privacy-consent"[^>]+required/);
 assert.match(form,/name="bot-field"/);
 assert.equal((form.match(/<textarea\b/g)||[]).length,1,'only message text area');
-assert.equal((form.match(/<input\b[^>]*type="(?:tel|email)"/g)||[]).length,2,'only two visible text-entry inputs');
+assert.equal((form.match(/<input\b[^>]*type="(?:tel|email)"/g)||[]).length,2,'the existing two tel/email inputs remain');
 assert.match(form,/href="privacy.html"/);
 assert.match(privacy,/뉴질랜드 천일염 상품 문의폼/);
 assert.match(privacy,/연락처.*이메일.*문의 내용/);
 assert.match(thanks,/문의가 접수되었습니다/);
 assert.doesNotMatch(partnership,/new URLSearchParams\(window\.location\.search\)/,'unused cross-page prefill removed');
-console.log('PASS: standalone static Netlify salt form with 3 fields, consent, honeypot, privacy and thank-you');
+console.log('PASS: standalone static Netlify salt quote and contact fields, consent, honeypot, privacy and thank-you');
 
 const hero = html.match(/<section class="salt-hero"[\s\S]*?<\/section>/)[0];
 const product = html.match(/<section class="salt-product"[\s\S]*?<\/section>/)[0];
