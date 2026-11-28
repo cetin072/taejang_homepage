@@ -84,10 +84,13 @@ test('terrarium and minhwa have independent inquiry dialogs', () => {
     assert.match(html, /src="assets\/js\/home-inquiry.js"/);
     assert.match(section, new RegExp('<form[^>]*name="' + name + '"[^>]*method="POST" action="/thanks" data-netlify="true" netlify-honeypot="bot-field"'));
     assert.match(section, new RegExp('name="form-name" value="' + name + '"'));
-    for (const field of ['contact', 'email', 'message', 'privacy-consent']) {
+    for (const field of ['contact', 'email', 'inquiry-topic', 'privacy-consent']) {
       assert.match(section, new RegExp('name="' + field + '"[^>]*required'));
     }
+    assert.match(section, /<textarea[^>]+name="message"/);
+    assert.doesNotMatch(section, /<textarea[^>]+name="message"[^>]+required/);
     assert.match(section, /href="privacy\.html"/);
   }
+  assert.match(read('minhwa-gallery.html'), /data-inquiry-only-for="초급반"[\s\S]*?name="preferred-session"/);
   assert.doesNotMatch(read('minhwa-gallery.html'), /class="mh-text-link" href="partnership\.html"/);
 });
