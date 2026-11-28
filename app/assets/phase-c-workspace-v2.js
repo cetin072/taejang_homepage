@@ -119,16 +119,25 @@
       .phase-c-photo-card { display:grid; gap:8px; padding:9px; border:1px solid var(--app-border); border-radius:10px; background:#fff; }
       .phase-c-photo-card img { width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:8px; }
       .phase-c-photo-card input { min-height:38px; padding:7px 8px; font-size:.9rem; }
+      .phase-c-youtube { margin:0 0 20px; max-width:980px; padding:16px; border-radius:12px; border:1px solid var(--app-border); background:#f8fbf9; }
+      .phase-c-youtube h3 { margin:0 0 10px; }
+      .phase-c-youtube form { display:grid; gap:12px; }
+      .phase-c-youtube-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:end; }
+      .phase-c-youtube-actions label { flex:1 1 240px; min-width:0; }
+      .phase-c-youtube-actions input { width:100%; }
+      .phase-c-youtube-preview { overflow-wrap:anywhere; }
+      .phase-c-youtube-status { margin:0; color:var(--app-muted); font-size:.92rem; }
+      .phase-c-youtube [hidden] { display:none; }
       .phase-c-link-tools { display:grid; gap:9px; padding:14px; border:1px solid var(--app-border); border-radius:12px; background:#f8fbf9; }
-      .phase-c-link-preview { display:grid; grid-template-columns:120px 1fr; gap:12px; align-items:start; }
-      .phase-c-link-preview img { width:120px; aspect-ratio:4/3; object-fit:cover; border-radius:9px; }
+      .phase-c-link-preview,.phase-c-youtube-preview { display:grid; grid-template-columns:120px 1fr; gap:12px; align-items:start; }
+      .phase-c-link-preview img,.phase-c-youtube-preview img { width:120px; aspect-ratio:4/3; object-fit:cover; border-radius:9px; }
       .phase-c-review-source { display:inline-flex; width:fit-content; padding:4px 9px; border-radius:999px; background:#edf3ff; color:#34568b; font-size:.8rem; font-weight:850; }
       .phase-c-review-source.returned { background:#fff1db; color:#805400; }
       .phase-c-review-note { white-space:pre-line; padding:11px 12px; border-radius:10px; background:#fff8e8; color:#5f4a13; }
       .phase-c-edit-page { max-width:980px; }
       .phase-c-upload-status { margin:0; color:var(--app-muted); font-size:.92rem; }
       @media(max-width:1100px){.phase-c-v2-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.phase-c-photo-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
-      @media(max-width:760px){.phase-c-v2-grid,.phase-c-board-row{grid-template-columns:1fr;}.phase-c-photo-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.phase-c-link-preview{grid-template-columns:1fr;}.phase-c-link-preview img{width:100%;max-width:260px;}}
+      @media(max-width:760px){.phase-c-v2-grid,.phase-c-board-row{grid-template-columns:1fr;}.phase-c-photo-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.phase-c-link-preview,.phase-c-youtube-preview{grid-template-columns:1fr;}.phase-c-link-preview img,.phase-c-youtube-preview img{width:100%;max-width:260px;}}
       @media(max-width:480px){.phase-c-photo-grid{grid-template-columns:1fr;}}
     `;
     document.head.append(style);
@@ -912,11 +921,132 @@
     return intro;
   }
 
+  async function requestYouTubeCard(url, version) {
+    const cfg = await config();
+    const auth = await authenticatedSession();
+    if (!auth.access_token) throw new Error('다시 로그인해 주세요.');
+    const response = await fetch(new URL('/functions/v1/official-youtube-publication', cfg.url), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json', apikey: cfg.publishableKey,
+        Authorization: `Bearer ${auth.access_token}`
+      },
+      body: JSON.stringify({ url, action: version ? 'publish' : 'preview', version }),
+      signal: AbortSignal.timeout(22000)
+    });
+    const result = await response.json().catch(() => null) || {};
+    if (response.ok && result.code === (version ? 'VIDEO_PUBLISHED' : 'VIDEO_PREVIEW')) return result;
+    const messages = {
+      LOGIN_REQUIRED: '다시 로그인해 주세요.',
+      VIDEO_FORBIDDEN: '운영팀장 계정으로 유튜브 영상을 게시할 수 있습니다.',
+      VIDEO_INVALID_LINK: '유튜브 영상 주소를 확인해 주세요.',
+      VIDEO_DUPLICATE: '이미 등록된 영상입니다.',
+      VIDEO_UNVERIFIED: '태장 공식 채널에 공개된 영상인지 확인해 주세요. 잠시 후 다시 확인할 수 있습니다.',
+      VIDEO_CHANGED: '영상 정보가 바뀌었습니다. 미리보기를 다시 확인해 주세요.'
+    };
+    const error = new Error(messages[result.code] || '영상 정보를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    error.code = result.code;
+    throw error;
+  }
+
+  function buildYouTubePublisher() {
+    const section = el('section', null, 'phase-c-youtube');
+    const heading = el('h3', '유튜브 영상 게시');
+    heading.id = 'promotion-youtube-title';
+    section.setAttribute('aria-labelledby', heading.id);
+    const form = document.createElement('form');
+    const url = input('url');
+    url.required = true;
+    url.maxLength = 500;
+    url.placeholder = 'https://www.youtube.com/watch?v=…';
+    const previewButton = el('button', '영상 미리보기', 'button button-quiet');
+    previewButton.type = 'submit';
+    const preview = el('div', null, 'phase-c-youtube-preview');
+    preview.hidden = true;
+    const status = el('p', '', 'phase-c-youtube-status');
+    status.setAttribute('role', 'status');
+    const archive = el('a', '소식·기록 보기', 'button button-quiet');
+    archive.href = '/archive';
+    archive.target = '_blank';
+    archive.rel = 'noopener noreferrer';
+    archive.hidden = true;
+    let version = null;
+    let busy = false;
+    const publishButton = button('홈페이지에 게시', () => check(true));
+    publishButton.hidden = true;
+    const clearPreview = () => {
+      version = null;
+      preview.replaceChildren();
+      preview.hidden = publishButton.hidden = archive.hidden = true;
+      status.textContent = '';
+    };
+    url.addEventListener('input', clearPreview);
+    form.addEventListener('submit', event => { event.preventDefault(); check(false); });
+
+    async function check(publish) {
+      if (busy || !url.reportValidity() || (publish && !version)) return;
+      if (!publish) clearPreview();
+      busy = url.disabled = previewButton.disabled = publishButton.disabled = true;
+      form.setAttribute('aria-busy', 'true');
+      const requestVersion = publish ? version : undefined;
+      status.textContent = publish ? '홈페이지에 게시하고 있습니다.' : '공식 채널의 공개 영상을 확인하고 있습니다.';
+      let published = false;
+      try {
+        const result = await requestYouTubeCard(url.value.trim(), requestVersion);
+        if (publish) {
+          published = true;
+          version = null;
+          publishButton.hidden = true;
+          archive.hidden = false;
+          status.textContent = '홈페이지 소식·기록에 게시했습니다.';
+          return;
+        }
+        const card = result.card;
+        const image = document.createElement('img');
+        image.alt = card.thumbnailAlt;
+        image.referrerPolicy = 'no-referrer';
+        image.src = card.thumbnail;
+        const title = el('strong', card.title);
+        const time = el('time', card.publishedAt.replaceAll('-', '.'));
+        time.dateTime = card.publishedAt;
+        const copy = el('div');
+        copy.append(el('p', '유튜브 · 회사소식'), title, el('p', '유튜브 게시일 ', 'help'));
+        copy.lastElementChild.append(time);
+        preview.replaceChildren(image, copy);
+        version = result.version;
+        preview.hidden = publishButton.hidden = false;
+        status.textContent = '게시할 카드입니다.';
+      } catch (error) {
+        if (error.code === 'VIDEO_CHANGED' || error.code === 'VIDEO_DUPLICATE') clearPreview();
+        if (error.code === 'VIDEO_DUPLICATE') archive.hidden = false;
+        const uncertain = error.name === 'TimeoutError' || !error.code || error.code === 'VIDEO_SERVICE_UNAVAILABLE';
+        status.textContent = uncertain
+          ? (publish ? '게시 결과를 확인하지 못했습니다. 소식·기록을 확인해 주세요.' : '영상을 불러오지 못했습니다. 다시 시도해 주세요.')
+          : error.message;
+        if (publish && uncertain) archive.hidden = false;
+      } finally {
+        busy = url.disabled = previewButton.disabled = publishButton.disabled = false;
+        form.removeAttribute('aria-busy');
+        if (published) archive.focus();
+      }
+    }
+    const actions = el('div', null, 'phase-c-youtube-actions');
+    actions.append(field('유튜브 영상 링크', url), previewButton);
+    const confirmation = el('div', null, 'phase-c-youtube-actions');
+    confirmation.append(publishButton, archive);
+    form.append(actions, preview, status, confirmation);
+    section.append(heading, form);
+    return section;
+  }
+
   async function renderWrite(workspace) {
     const target = main();
     const role = workspace.role;
     document.getElementById('desktop-page-title').textContent = '홍보 작성';
     target.replaceChildren(renderIntro('홍보 업무', '새 홍보자료 작성', '제목과 본문을 작성한 뒤 저장하거나 승인 요청하세요.'));
+    const actualRoles = app()?.getActualRoles?.();
+    if (role === 'promotion_lead' && (!actualRoles || actualRoles.includes('promotion_lead'))
+      && can('promotion.queue_publication', true)) target.append(buildYouTubePublisher());
     target.append(buildComposer());
     const mine = arr(workspace.my_items).filter(item => item.lifecycle === 'draft');
     const section = el('section', null, 'dashboard-section');

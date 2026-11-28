@@ -2,6 +2,8 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { YOUTUBE_CHANNEL_ID, youtubeJson, youtubeVideoFromHtml } from '../supabase/functions/_shared/official-youtube.mjs';
+export { YOUTUBE_CHANNEL_ID, youtubeVideoFromHtml };
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TARGET = path.join(ROOT, 'assets/js/official-channel-updates.js');
@@ -9,7 +11,6 @@ const START = '/* OFFICIAL_ITEMS_START */';
 const END = '/* OFFICIAL_ITEMS_END */';
 const BLOG = 'taejang-official';
 const FEED = 'https://rss.blog.naver.com/' + BLOG + '.xml';
-export const YOUTUBE_CHANNEL_ID = 'UCMxv6IBvVjkRnn6yHKdXJSg';
 const ANCHOR = Date.parse('2026-10-22T00:10:00Z');
 const DEFAULT_IMAGE = 'images/og-taejang.png';
 
@@ -158,11 +159,6 @@ async function getText(url, limit = 2000000) {
   if (text.length > limit) throw new Error('Source response too large');
   return text;
 }
-function youtubeJson(html, variable) {
-  const match = html.match(new RegExp('var ' + variable + ' = (.*?);</script>', 's'));
-  if (!match) throw new Error('Missing YouTube ' + variable);
-  return JSON.parse(match[1]);
-}
 export function youtubeVideoIds(html, channelId) {
   if (channelIdFromHtml(html) !== channelId) throw new Error('Official channel identity changed');
   const data = youtubeJson(html, 'ytInitialData');
@@ -178,31 +174,6 @@ export function youtubeVideoIds(html, channelId) {
   });
   if (!ids.length) throw new Error('No verified YouTube video listing');
   return [...new Set(ids)].slice(0, 15);
-}
-export function youtubeVideoFromHtml(html, videoId, channelId) {
-  const data = youtubeJson(html, 'ytInitialPlayerResponse');
-  const video = data.videoDetails;
-  const meta = data.microformat?.playerMicroformatRenderer;
-  if (video?.videoId !== videoId || video.channelId !== channelId ||
-      meta?.externalChannelId !== channelId || video.isPrivate || meta.isUnlisted) {
-    throw new Error('YouTube video identity or public visibility verification failed');
-  }
-  // A public premiere landing page is not an already published video.
-  if (video.isUpcoming || new Date(meta.liveBroadcastDetails?.startTimestamp).getTime() > Date.now()) return null;
-  const publishedAt = koreaDate(meta.publishDate);
-  if (data.playabilityStatus?.status !== 'OK' || !publishedAt ||
-      new Date(meta.publishDate).getTime() > Date.now() || !video.title || video.title.length > 220) {
-    throw new Error('YouTube publication verification failed');
-  }
-  return {
-    id: 'youtube-' + videoId, type: 'external', source: 'youtube',
-    publisher: '태장 공식 유튜브', category: '회사소식',
-    title: video.title, summary: '태장 공식 유튜브에 게시된 「' + video.title.slice(0, 100) + '」 영상입니다.',
-    thumbnail: 'https://i.ytimg.com/vi/' + videoId + '/hqdefault.jpg',
-    thumbnailAlt: video.title + ' 영상 썸네일', publishedAt,
-    featured: false, status: 'published',
-    externalUrl: 'https://www.youtube.com/watch?v=' + videoId, externalLabel: '유튜브에서 보기'
-  };
 }
 export async function youtubeFeed(load = getText) {
   const id = YOUTUBE_CHANNEL_ID;
