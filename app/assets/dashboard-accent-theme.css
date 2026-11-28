@@ -42,7 +42,7 @@
   #desktop-app-shell .app-topbar .eyebrow { color:var(--app-muted);letter-spacing:.025em; }
 
   #desktop-app-shell .app-nav > :is(a,button) { border-radius:0;box-shadow:none;font-weight:650; }
-  #desktop-app-shell .app-nav > .app-nav-section-toggle { border-block-start-color:#44546b; }
+  #desktop-app-shell .app-nav > :is(.app-nav-section-toggle, [data-menu-key="daily_work.manage"]) { border-block-start-color:#44546b; }
   #desktop-app-shell .app-nav-section-title { font-size:.86rem;color:var(--sidebar-text);font-weight:750; }
   #desktop-app-shell .app-nav-section-chevron { color:var(--sidebar-muted); }
   #desktop-app-shell .app-nav > [data-nav-section]:not(.app-nav-section-toggle)::before {
