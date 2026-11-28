@@ -131,8 +131,11 @@
 .salt-field{display:block;min-width:0;margin-bottom:16px}
 .salt-field>span{display:block;font-size:.95rem;font-weight:800;margin-bottom:8px}
 .salt-field b,.salt-consent b{color:#a44835}
-.salt-field input,.salt-field textarea{display:block;width:100%;box-sizing:border-box;font:inherit;line-height:1.5;border:1px solid #baccc0;background:#fff;color:var(--salt-ink);border-radius:4px;padding:12px 14px;min-height:46px}
-.salt-field textarea{min-height:130px;resize:vertical}
+.salt-field input,.salt-field select,.salt-field textarea{display:block;width:100%;box-sizing:border-box;font:inherit;line-height:1.5;border:1px solid #baccc0;background:#fff;color:var(--salt-ink);border-radius:4px;padding:12px 14px;min-height:46px}
+.salt-field textarea{min-height:110px;resize:vertical}
+.salt-quote-fields{grid-template-columns:repeat(3,minmax(0,1fr))}
+.salt-product-action{margin:16px 0 24px}
+.salt-contact{scroll-margin-top:90px}
 .salt-field input::placeholder,.salt-field textarea::placeholder{color:#5b6b61}
 .salt-consent{display:flex;align-items:flex-start;gap:10px;font-size:.88rem;line-height:1.6;cursor:pointer}
 .salt-consent input{flex:none;width:18px;height:18px;margin:3px 0 0;accent-color:var(--salt-ink)}
@@ -148,7 +151,7 @@
   .salt-origin-visual img{object-position:58% center}
   .salt-hero-copy{padding-block:118px 68px}
   .salt-page h1{font-size:clamp(2.65rem,10.6vw,4.3rem)}
-  .salt-form-columns{grid-template-columns:1fr;gap:0}
+  .salt-form-columns,.salt-quote-fields{grid-template-columns:1fr;gap:0}
   .salt-inquiry-form{padding:20px 16px}
   .salt-submit{max-width:none}
   .salt-sticky{position:fixed;left:12px;right:12px;bottom:12px;z-index:30;display:block;text-align:center;padding:13px;background:#173e40;color:#fff;text-decoration:none;font-weight:800;border-radius:4px;box-shadow:0 6px 18px #0003}
