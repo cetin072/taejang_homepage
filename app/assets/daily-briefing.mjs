@@ -126,6 +126,8 @@ export async function mountDailyBriefing(target) {
     return !dirty || window.confirm('저장하지 않은 변경을 취소할까요?');
   }
   async function show(render) {
+    if (busy) return;
+    busy = true;
     dirty = false;
     for (const control of tabs.children) {
       if (control.dataset.tab === tab) control.setAttribute('aria-current','page');
@@ -135,7 +137,7 @@ export async function mountDailyBriefing(target) {
     try { await render(); }
     catch (error) {
       content.replaceChildren(banner(errorText(error),true),button('다시 불러오기', () => show(render)));
-    }
+    } finally { busy = false; }
   }
   function createStatus() {
     const el = node('div',null,'briefing-feedback');
@@ -256,7 +258,7 @@ export async function mountDailyBriefing(target) {
       grid.append(form,preview);
     }
     refreshPreview();
-    content.append(grid,actions);
+    content.append(actions,grid);
 
     function save(action) {
       return run(status,async () => {

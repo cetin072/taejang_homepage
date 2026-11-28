@@ -30,6 +30,7 @@ const browser=await chromium.launch(process.env.CHROME_PATH
 try {
   for(const width of [320,390,768,1440]){
     const page=await browser.newPage({viewport:{width,height:1000}});
+    await page.clock.setFixedTime(new Date('2026-11-29T23:20:00Z'));
     const pageErrors=[];
     page.on('pageerror',error=>pageErrors.push(error.message));
     await page.goto(host);

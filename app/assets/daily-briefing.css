@@ -6,6 +6,7 @@
   display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
 }
 .daily-briefing .briefing-toolbar { margin-top: 1rem; }
+.daily-briefing .briefing-toolbar label > span { white-space: nowrap; }
 .daily-briefing .briefing-toolbar label, .daily-briefing .briefing-section-head label,
 .daily-briefing .briefing-weekdays label { display: inline-flex; align-items: center; gap: .5rem; }
 .daily-briefing .briefing-layout {
@@ -33,7 +34,8 @@
   background: #f1f5fb; color: #192e49; font: inherit; line-height: 1.55;
 }
 .daily-briefing .briefing-hint { color: var(--app-muted, #475569); font-size: .9rem; }
-.daily-briefing .briefing-actions, .daily-briefing .briefing-settings .quick-links { margin-top: 1rem; }
+.daily-briefing .briefing-actions { margin: .75rem 0 1rem; }
+.daily-briefing .briefing-settings .quick-links { margin-top: 1rem; }
 .daily-briefing .briefing-settings { margin-top: 1rem; }
 .daily-briefing .briefing-settings h3:not(:first-child) { margin-top: 1rem; }
 .daily-briefing .briefing-settings-fields {
