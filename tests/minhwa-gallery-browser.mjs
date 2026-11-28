@@ -148,7 +148,7 @@ try {
       await page.getByRole('link', { name: '민화 문의하기', exact: true }).click();
       assert.equal(await message.inputValue(), '민화 문의 팝업 검수');
       await dialog.getByRole('button', { name: '문의창 닫기' }).click();
-      for (const name of ['민화 문의', '기업 맞춤 민화 문의', '기관·단체 출강 문의', '굿즈·주문제작 문의']) {
+      for (const name of ['민화 문의', '기업 맞춤 민화 문의', '기관·단체 출강 문의', '굿즈·주문제작 문의', '초급반 신청 문의']) {
         const trigger = page.getByRole('link', { name, exact: true });
         await trigger.click();
         assert.equal(await dialog.evaluate(element => element.matches(':modal')), true);
@@ -166,7 +166,7 @@ try {
 
     await page.goto(base + '/resources.html', { waitUntil: 'load' });
     const card = page.locator('[aria-labelledby~="resource-minhwa-title"]');
-    assert.equal(await card.locator('.resource-status').innerText(), '전시 준비 중');
+    assert.equal(await card.locator('.resource-status').innerText(), '초급반 상시 모집');
     await card.focus(); await card.press('Enter');
     await page.waitForURL(url => /\/minhwa-gallery(?:\.html)?$/.test(url.pathname));
     assert.equal((await page.request.get(page.url())).status(), 200);
