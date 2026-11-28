@@ -6,7 +6,7 @@ import { webDeployInput, planRelease } from '../scripts/production-release-plan.
 import { orchestrate } from '../scripts/production-release.mjs';
 // Historical marker-PR implementation (not used by any active workflow).
 const policy = JSON.parse(readFileSync(new URL('../deployment/release-policy.json', import.meta.url)));
-Object.assign(policy, { production_interval_days: 2, schedule_interval_hours: 48 });
+Object.assign(policy, { production_interval_days: 2, schedule_interval_hours: 48, schedule_anchor_utc: '2026-10-19T08:20:00.000Z' });
 const due = '2026-10-21T08:20:00Z';
 const run = { id: 100, run_attempt: 1, created_at: due, head_branch: 'main', event: 'schedule' };
 const evaluate = (extra = {}) => evaluateSchedule({ policy, run, previousRuns: [], now: new Date(due), ...extra });
@@ -111,7 +111,7 @@ test('expired marker-only orphan history is preserved and cannot permanently blo
 
 test('workflow uses read-only GitHub token and a schedule-only Netlify hook without merge privileges',()=>{
   const workflow=readFileSync(new URL('../.github/workflows/production-release.yml',import.meta.url),'utf8');
-  assert.match(workflow,/cron: '20 8 \* \* \*'/);
+  assert.match(workflow,/cron: '0 12 \* \* 0,3'/);
   assert.doesNotMatch(workflow,/\*\/2|inputs\.force/);
   assert.match(workflow,/inputs.action == 'deploy-now' && github.ref == 'refs\/heads\/main'/);
   assert.doesNotMatch(workflow,/APP_PRIVATE_KEY|APP_ID|create-github-app-token|contents: write|pull-requests: write/);

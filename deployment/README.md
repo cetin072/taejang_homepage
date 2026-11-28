@@ -3,16 +3,15 @@
 Current contract: [NETLIFY_48H_PRODUCTION.md](../docs/operations/NETLIFY_48H_PRODUCTION.md).
 Confirmed planning: [ISSUE_438_FIXED_PRODUCTION_SCHEDULE.md](../docs/planning/ISSUE_438_FIXED_PRODUCTION_SCHEDULE.md), revised by the user's three-project normalization request on 2026-10-19.
 
-Daily 17:20 KST wake-ups admit fixed 48-hour slots anchored at 2026-10-19 17:20.
-The first is Oct 21, then Oct 23, Oct 25, including month/year transitions.
+The check opens every Sunday and Wednesday at 21:00 Korea time (12:00 UTC).
 Only approved latest main web-input differences from actual published Production can
-request one Git Build Hook. Require at least 48 actual hours after publication.
-No changes means no POST, Git mutation, release marker commit or release PR.
+request one Git Build Hook. No changes means no POST, Git mutation, or release PR.
+A scheduled slot is not a cooldown between publications.
 
 GitHub uses read-only Contents/Actions permissions. No dedicated GitHub App,
 new PAT, direct main commit, automatic PR merge or deployment upload is needed.
-The only new secret is the repository's Netlify build-hook URL; never print it.
-Manual dispatch is always read-only, including on a Draft branch.
+The existing build-hook URL remains secret. The default manual action is read-only;
+the existing explicit deploy-now path is restricted to main.
 
 Ordinary main Git builds stop via ignore; Preview stays enabled. Because Netlify
 hooks bypass ignore, build.command independently checks exact SHA, main branch,

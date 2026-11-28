@@ -3,16 +3,14 @@ run-name: "Production release | ${{ (github.event_name == 'schedule' || inputs.a
 
 on:
   schedule:
-    # Daily wake-up; fixed 72-hour slots are computed across month/year boundaries.
-    - cron: '20 8 * * *'
-    # GitHub may delay or drop one cron event. Independent later wake-ups
-    # are deduplicated by evaluateSchedule using the same fixed 72h slot.
-    - cron: '47 8 * * *'
-    - cron: '17 9 * * *'
-    - cron: '47 9 * * *'
-    # Final catch-up shortly before the prior 24-hour slot expires.
-    # A missed earlier wake-up can use this slot; duplicate checks still stop.
-    - cron: '47 7 * * *'
+    # Sunday and Wednesday 21:00 KST (12:00 UTC on the same day).
+    - cron: '0 12 * * 0,3'
+    # Independent catch-ups within the same 24-hour slot. At most one check
+    # can consume a slot; a delayed scheduler cannot affect a later slot.
+    - cron: '27 12 * * 0,3'
+    - cron: '57 12 * * 0,3'
+    - cron: '27 13 * * 0,3'
+    - cron: '47 11 * * 1,4'
   workflow_dispatch:
     inputs:
       action:

@@ -1,10 +1,9 @@
 {
   "version": 1,
   "mode": "BATCHED",
-  "production_interval_days": 3,
   "max_production_deploys_per_day": 1,
-  "schedule_anchor_utc": "2026-10-19T08:20:00.000Z",
-  "schedule_interval_hours": 72,
+  "schedule_weekdays_utc": [0, 3],
+  "schedule_hour_utc": 12,
   "schedule_window_hours": 24,
   "repository": "cetin072/taejang_homepage",
   "site_id": "9caa5a1a-f86d-4a9f-aed4-f560e1c2101f",
