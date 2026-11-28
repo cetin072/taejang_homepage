@@ -10,24 +10,26 @@ create function public.publish_official_youtube_link(
 ) returns jsonb
 language plpgsql security definer
 set search_path = ''
-set "request.jwt.claim.sub" = ''
 as $$
 declare
-  saved jsonb;
+  promotion_department_id uuid;
   content_id uuid;
   revision_id uuid;
   video_url text;
 begin
-  if p_actor_id is null then
-    raise exception using errcode='42501', message='PROMOTION_YOUTUBE_FORBIDDEN';
-  end if;
-  -- Scoped to this function. Reuse the existing Auth-based permissions,
-  -- draft writer and audit identity with the actor verified by the server.
-  perform pg_catalog.set_config('request.jwt.claim.sub',p_actor_id::text,true);
-  if not public.current_profile_is_active()
-    or not public.current_user_is_promotion_lead()
-    or not ('promotion_lead' = any(public.private_actual_role_codes()))
-    or not public.private_actor_can('promotion.queue_publication') then
+  select d.id into promotion_department_id
+  from public.profiles p
+  join public.departments d on d.id=p.department_id and d.code='promotion' and d.active
+  join public.profile_roles a on a.profile_id=p.id and a.revoked_at is null
+  join public.roles r on r.id=a.role_id and r.code='promotion_lead' and r.active
+  join public.role_capability_grants g on g.role_id=r.id and g.capability_code='promotion.queue_publication'
+  join public.platform_capabilities k on k.code=g.capability_code and k.active
+  where p.id=p_actor_id and p.account_status='active'
+    and not exists (
+      select 1 from public.role_simulation_modes s
+      where s.profile_id=p.id and s.expires_at>now()
+    );
+  if promotion_department_id is null then
     raise exception using errcode='42501', message='PROMOTION_YOUTUBE_FORBIDDEN';
   end if;
   if p_video_id is null or p_video_id !~ '^[A-Za-z0-9_-]{11}$' then
@@ -57,20 +59,20 @@ begin
     return jsonb_build_object('ok',true);
   end if;
 
-  saved := public.save_promotion_draft(
-    p_content_id => null, p_content_type => 'external_content',
-    p_slug => 'taejang-youtube-' || encode(convert_to(p_video_id,'UTF8'),'hex') || '-' || replace(gen_random_uuid()::text,'-',''),
-    p_title => p_title,
-    p_summary => '태장 공식 유튜브에 게시된 「' || left(p_title,100) || '」 영상입니다.',
-    p_external_url => video_url, p_source_reference_url => video_url,
-    p_people_photo => 'no', p_number_or_amount => 'no',
-    p_change_reason => '태장 공식 유튜브 영상 게시'
-  );
-  content_id := (saved->>'content_id')::uuid;
-  revision_id := (saved->>'revision_id')::uuid;
-  update public.promotion_content_revisions set locked_at=now() where id=revision_id;
+  insert into public.promotion_contents (department_id,owner_profile_id,assignee_profile_id,content_type)
+  values (promotion_department_id,p_actor_id,p_actor_id,'external_content')
+  returning id into content_id;
+  insert into public.promotion_content_revisions (
+    content_id,revision_no,author_profile_id,slug,title,summary,external_url,source_reference_url,
+    people_photo,number_or_amount,change_reason,locked_at
+  ) values (
+    content_id,1,p_actor_id,'taejang-youtube-' || replace(content_id::text,'-',''),btrim(p_title),
+    '태장 공식 유튜브에 게시된 「' || left(btrim(p_title),100) || '」 영상입니다.',video_url,video_url,
+    'no','no','태장 공식 유튜브 영상 게시',now()
+  ) returning id into revision_id;
   update public.promotion_contents
-  set lifecycle='published', link_source_type='taejang_youtube', official_youtube_published_on=p_source_published_on,
+  set current_revision_id=revision_id, lifecycle='published',
+      link_source_type='taejang_youtube', official_youtube_published_on=p_source_published_on,
       published_at=now(), updated_at=now()
   where id=content_id;
   perform public.private_append_audit(
