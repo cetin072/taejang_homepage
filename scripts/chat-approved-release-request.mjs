@@ -1,5 +1,5 @@
 // Narrow bridge: authenticated owner comment -> the existing guarded Production workflow.
-// The 72-hour schedule, deploy authorization, and Netlify hook remain owned elsewhere.
+// The regular schedule, deploy authorization, and Netlify hook remain owned elsewhere.
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';

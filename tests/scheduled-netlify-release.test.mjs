@@ -8,29 +8,28 @@ import { calendarSlot, evaluateSchedule, publishedDeploy, decide, deployInput, v
 
 const config = JSON.parse(readFileSync(new URL('../deployment/release-policy.json', import.meta.url), 'utf8'));
 
-test('backup schedule keeps original 17:20 KST slot and safe late wake-ups', () => {
+test('Sunday and Wednesday cron plus late catch-ups deduplicate a single 21:00 KST slot', () => {
   const yaml = readFileSync(new URL('../.github/workflows/production-release.yml', import.meta.url), 'utf8');
   const crons = [...yaml.matchAll(/- cron: '([^']+)'/g)].map(item => item[1]);
-  assert.deepEqual(crons, ['20 8 * * *', '47 8 * * *', '17 9 * * *', '47 9 * * *', '47 7 * * *']);
-  const anchor = Date.parse(config.schedule_anchor_utc);
-  assert.equal(new Date(anchor + 72 * 3600000).toISOString(), '2026-10-22T08:20:00.000Z');
-  const currentSlot = calendarSlot(config, new Date('2026-10-25T09:47:00.000Z'));
-  assert.equal(currentSlot.status, 'DUE');
-  const first = { id: 100, head_branch: 'main', event: 'schedule', run_attempt: 1, created_at: '2026-10-25T08:20:00.000Z' };
-  const backup = { ...first, id: 101, created_at: '2026-10-25T09:47:00.000Z' };
-  assert.equal(evaluateSchedule(config, backup, [first, backup], new Date('2026-10-25T09:47:20.000Z')).status, 'SLOT_ALREADY_CHECKED');
+  assert.deepEqual(crons, ['0 12 * * 0,3', '27 12 * * 0,3', '57 12 * * 0,3', '27 13 * * 0,3', '47 11 * * 1,4']);
+  const start = '2026-11-29T12:00:00.000Z';
+  const first = { id: 100, head_branch: 'main', event: 'schedule', run_attempt: 1, created_at: start };
+  for (const at of ['2026-11-29T12:27:00Z', '2026-11-30T11:47:00Z']) {
+    const backup = { ...first, id: 101, created_at: at };
+    assert.equal(calendarSlot(config, at).slot.start_utc, start);
+    assert.equal(evaluateSchedule(config, backup, [first, backup], new Date(at)).status, 'SLOT_ALREADY_CHECKED');
+  }
 });
 
-
 const a = 'a'.repeat(40), b = 'b'.repeat(40);
-const due = new Date('2026-10-22T08:20:00Z');
+const due = new Date('2026-11-29T12:00:00Z');
 const published = { id: 'published-old', state: 'ready', context: 'production', commit_ref: a, published_at: '2026-10-18T08:00:00Z' };
 const snapshot = { id: config.site_id, published_deploy: published };
 const run = { id: 100, head_branch: 'main', event: 'schedule', run_attempt: 1, created_at: due.toISOString() };
 const env = { GITHUB_EVENT_NAME: 'schedule', GITHUB_REF: 'refs/heads/main', GITHUB_REPOSITORY: config.repository, GITHUB_RUN_ID: '100' };
 const changed = config.repository.endsWith('survival-interactive-series') ? 'archive/web/src/App.tsx' : config.repository.endsWith('worklog-voice-pwa') ? 'public/app.js' : 'index.html';
 const payload = { version: 1, repository: config.repository, site_id: config.site_id, source_main_sha: b,
-  run_id: '100', run_created_at: due.toISOString(), issued_at: due.toISOString(), slot_index: 1 };
+  run_id: '100', run_created_at: due.toISOString(), issued_at: due.toISOString(), slot_index: Math.floor(+due / 86400000) };
 const hookEnv = { CONTEXT: 'production', BRANCH: 'main', COMMIT_REF: b, INCOMING_HOOK_TITLE: HOOK_TITLE, INCOMING_HOOK_BODY: JSON.stringify(payload) };
 
 function cycle(overrides = {}) {
@@ -41,21 +40,30 @@ function cycle(overrides = {}) {
 }
 const forbidden = () => { throw new Error('forbidden side effect'); };
 
-test('fixed slots survive 900 transitions, leap days, month/year boundaries and NO_CHANGES', () => {
-  for (let i = 1; i < 901; i++) {
-    const at = new Date(Date.parse(config.schedule_anchor_utc) + i * 72 * 3600000);
-    assert.equal(calendarSlot(config, at).slot.index, i);
-    assert.equal(calendarSlot(config, new Date(+at + 24 * 3600000)).status, 'WAITING_SLOT');
-    assert.equal(Date.parse(calendarSlot(config, at).next_check_utc) - at, 72 * 3600000);
+test('weekly slots alternate 72 and 96 hours through leap days and month/year boundaries', () => {
+  const day = 86400000;
+  let at = new Date('2026-11-29T12:00:00Z');
+  for (let i = 0; i < 900; i++) {
+    const entry = calendarSlot(config, at);
+    assert.equal(at.getUTCDay(), i % 2 === 0 ? 0 : 3);
+    assert.equal(entry.slot.index, Math.floor(+at / day));
+    assert.equal(calendarSlot(config, new Date(+at - 1)).status, 'WAITING_SLOT');
+    assert.equal(calendarSlot(config, new Date(+at + day - 1)).slot.index, entry.slot.index);
+    assert.equal(calendarSlot(config, new Date(+at + day)).status, 'WAITING_SLOT');
+    assert.equal(Date.parse(entry.next_check_utc) - at, (i % 2 === 0 ? 3 : 4) * day);
+    at = new Date(entry.next_check_utc);
   }
-  assert.equal(calendarSlot(config, '2026-10-20T08:20:00Z').status, 'WAITING_SLOT');
+  assert.equal(calendarSlot(config, '2026-11-30T12:00:00Z').next_check_utc, '2026-12-02T12:00:00.000Z');
+  for (const patch of [{ schedule_weekdays_utc: [0, 0] }, { schedule_weekdays_utc: [] }, { schedule_hour_utc: 24 }, { schedule_window_hours: 72 }]) {
+    assert.throws(() => calendarSlot({ ...config, ...patch }, at), /INVALID_SCHEDULE/);
+  }
 });
 test('creation time owns slot; retries, simultaneous and cancelled/failed/no-change checks cannot publish twice', () => {
   for (const conclusion of ['failure', 'cancelled', 'success', null]) {
     assert.equal(evaluateSchedule(config, run, [{ ...run, id: 99, conclusion }], due).status, 'SLOT_ALREADY_CHECKED');
   }
   assert.equal(evaluateSchedule(config, { ...run, run_attempt: 2 }, [], due).status, 'SLOT_ALREADY_CHECKED');
-  assert.equal(evaluateSchedule(config, run, [], new Date('2026-10-25T08:20:00Z')).status, 'MISSED_SLOT');
+  assert.equal(evaluateSchedule(config, run, [], new Date('2026-12-02T12:00:00Z')).status, 'MISSED_SLOT');
   assert.equal(evaluateSchedule(config, run, [{ ...run, id: 101 }], due).status, 'DUE');
 });
 test('an intervening manual publication never moves or blocks the fixed slot', async () => {
@@ -63,7 +71,7 @@ test('an intervening manual publication never moves or blocks the fixed slot', a
   assert.equal(decide(config, recent, b, [changed], due).status, 'READY');
   const before = JSON.stringify(config);
   assert.equal((await cycle({ snapshot: async () => ({ ...snapshot, published_deploy: recent }) })).status, 'PUBLISHED');
-  assert.equal(calendarSlot(config, due).next_check_utc, '2026-10-25T08:20:00.000Z');
+  assert.equal(calendarSlot(config, due).next_check_utc, '2026-12-02T12:00:00.000Z');
   assert.equal(JSON.stringify(config), before);
   assert.equal((await cycle({ snapshot: async () => ({ ...snapshot, published_deploy: recent }), files: async () => [], post: forbidden })).status, 'NO_CHANGES');
 });
@@ -79,7 +87,7 @@ test('native mobile, tests and documentation changes do not create a deployment'
   assert.equal(deployInput(config, changed.replace(/[^/]+$/, 'a.test.mjs')), false);
 });
 test('off-day stops before reading Production; duplicate checks never perform a release', async () => {
-  assert.equal((await cycle({ api: async () => ({ ...run, created_at: '2026-10-20T08:20:00Z' }), snapshot: forbidden })).status, 'WAITING_SLOT');
+  assert.equal((await cycle({ api: async () => ({ ...run, created_at: '2026-11-28T12:00:00Z' }), snapshot: forbidden })).status, 'WAITING_SLOT');
   assert.equal((await cycle({ api: async route => route.includes('/actions/runs/') ? run : { total_count: 2, workflow_runs: [run, { ...run, id: 99 }] }, preflight: forbidden, post: forbidden })).status, 'SLOT_ALREADY_CHECKED');
 });
 test('incomplete history, wrong repository and non-main scheduled runs fail closed', async () => {
@@ -91,7 +99,7 @@ test('no changes creates no preflight, hook, commit, PR or file write', async ()
 });
 test('changed approved main posts once with exact SHA and slot; a branch manual dispatch is read-only', async () => {
   let posts = 0;
-  const result = await cycle({ post: async body => { posts++; assert.equal(body.source_main_sha, b); assert.equal(body.slot_index, 1); return { status: 'PUBLISHED' }; } });
+  const result = await cycle({ post: async body => { posts++; assert.equal(body.source_main_sha, b); assert.equal(body.slot_index, payload.slot_index); return { status: 'PUBLISHED' }; } });
   assert.equal(result.status, 'PUBLISHED'); assert.equal(posts, 1);
   assert.equal((await cycle({ env: { ...env, GITHUB_EVENT_NAME: 'workflow_dispatch', GITHUB_REF: 'refs/heads/draft' }, post: forbidden, refresh: forbidden })).status, 'DRY_RUN_READY');
 });
@@ -101,9 +109,9 @@ test('DB incompatibility, main movement or intervening publication stops before 
   let reads = 0;
   assert.equal((await cycle({ snapshot: async () => ++reads === 1 ? snapshot : { ...snapshot, published_deploy: { ...published, id: 'new' } }, post: forbidden })).status, 'PUBLICATION_CHANGED');
 });
-test('failed publication is retried at next 72h slot using unchanged actual public SHA', async () => {
+test('failed publication is retried at next weekly slot using unchanged actual public SHA', async () => {
   await assert.rejects(cycle({ post: async () => { throw new Error('PUBLICATION_NOT_CONFIRMED'); } }), /PUBLICATION_NOT_CONFIRMED/);
-  const next = new Date('2026-10-25T08:20:00Z');
+  const next = new Date('2026-12-02T12:00:00Z');
   const nextRun = { ...run, id: 102, created_at: next.toISOString() };
   let posts = 0;
   const result = await cycle({ now: () => next, api: async route => route.includes('/actions/runs/') ? nextRun : { total_count: 1, workflow_runs: [nextRun] },
@@ -118,13 +126,13 @@ test('ordinary main build cannot reach Production; Preview and QA branch builds 
 test('build guard verifies exact source, repository, site, branch, hook, slot, freshness and encoded payload', () => {
   assert.equal(validateHook(config, hookEnv, due).source_main_sha, b);
   assert.equal(validateHook(config, { ...hookEnv, INCOMING_HOOK_BODY: encodeURIComponent(JSON.stringify(payload)) }, due).source_main_sha, b);
-  for (const patch of [{ source_main_sha: a }, { repository: 'wrong/repo' }, { site_id: 'wrong' }, { slot_index: 2 }, { issued_at: '2026-10-20T08:20:00Z' }, { issued_at: '2026-10-25T08:20:00Z' }, { run_id: 'bad' }]) {
+  for (const patch of [{ source_main_sha: a }, { repository: 'wrong/repo' }, { site_id: 'wrong' }, { slot_index: 2 }, { issued_at: '2026-11-28T12:00:00Z' }, { issued_at: '2026-12-02T12:00:00Z' }, { run_id: 'bad' }]) {
     assert.throws(() => validateHook(config, { ...hookEnv, INCOMING_HOOK_BODY: JSON.stringify({ ...payload, ...patch }) }, due));
   }
   for (const patch of [{ BRANCH: 'draft' }, { COMMIT_REF: a }, { INCOMING_HOOK_TITLE: 'other' }]) assert.throws(() => validateHook(config, { ...hookEnv, ...patch }, due));
 });
 test('build guard rejects already published or future public version before writing marker', async () => {
-  for (const [patch, error] of [[{ commit_ref: b }, /ALREADY_PUBLISHED/], [{ published_at: '2026-10-23T00:00:00Z' }, /INVALID_PUBLICATION_TIME/]]) {
+  for (const [patch, error] of [[{ commit_ref: b }, /ALREADY_PUBLISHED/], [{ published_at: '2026-11-30T00:00:00Z' }, /INVALID_PUBLICATION_TIME/]]) {
     await assert.rejects(guard(config, hookEnv, { now: due, fetcher: async () => ({ ok: true, json: async () => ({ ...snapshot, published_deploy: { ...published, ...patch } }) }) }), error);
   }
 });
@@ -178,7 +186,7 @@ test('build guard accepts a recent manual release at the scheduled slot without 
     fetcher: async () => ({ ok: true, json: async () => ({ ...snapshot, published_deploy: {
       ...published, published_at: new Date(+due - 1000).toISOString() } }) }) });
   assert.equal(result.status, 'SCHEDULED_PRODUCTION_ALLOWED');
-  assert.equal(calendarSlot(config, due).next_check_utc, '2026-10-25T08:20:00.000Z');
+  assert.equal(calendarSlot(config, due).next_check_utc, '2026-12-02T12:00:00.000Z');
 });
 test('completed earlier checks cannot be bypassed by a later manual release', async () => {
   for (const status of ['completed', 'in_progress', 'queued']) {
@@ -190,7 +198,7 @@ test('completed earlier checks cannot be bypassed by a later manual release', as
 
 // Explicit manual intent reuses the same concurrency group and one-shot hook.
 test('manual deploy-now uses latest main off-slot with no publication cooldown', async () => {
-  const at = new Date('2026-10-20T08:20:00Z');
+  const at = new Date('2026-11-28T12:00:00Z');
   const manualRun = { ...run, event: 'workflow_dispatch', created_at: at.toISOString() };
   let posts = 0;
   const result = await cycle({ env: { ...env, GITHUB_EVENT_NAME: 'workflow_dispatch', RELEASE_ACTION: 'deploy-now' },
@@ -209,7 +217,7 @@ test('manual deploy-now uses latest main off-slot with no publication cooldown',
   assert.equal((await cycle({ env: manualEnv, api: async () => manualRun, refresh: async () => a, post: forbidden })).status, 'MAIN_MOVED');
 });
 test('manual build validates intent and freshness but needs no fixed slot', async () => {
-  const at = new Date('2026-10-20T08:20:00Z');
+  const at = new Date('2026-11-28T12:00:00Z');
   const body = { ...payload, version: 3, mode: 'MANUAL_MAIN', run_created_at: at.toISOString(), issued_at: at.toISOString() };
   const manualEnv = { ...hookEnv, INCOMING_HOOK_BODY: JSON.stringify(body) };
   assert.equal((await guard({ ...config, marker_path: null }, manualEnv, { now: at,

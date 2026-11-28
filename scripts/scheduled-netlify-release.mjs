@@ -11,13 +11,30 @@ const SHA = /^[a-f0-9]{40}$/;
 export const HOOK_TITLE = '48-hour approved main';
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 export function calendarSlot(config, at) {
-  const anchor = Date.parse(config.schedule_anchor_utc), time = new Date(at).getTime();
-  if (!Number.isFinite(anchor) || !Number.isFinite(time) || config.schedule_interval_hours !== 72 || config.schedule_window_hours !== 24) throw new Error('INVALID_SCHEDULE');
-  const index = Math.floor((time - anchor) / (72 * HOUR)), start = anchor + index * 72 * HOUR;
-  const due = index >= 1 && time < start + 24 * HOUR;
-  return { status: due ? 'DUE' : 'WAITING_SLOT',
-    slot: due ? { index, start_utc: new Date(start).toISOString(), expires_utc: new Date(start + 24 * HOUR).toISOString() } : null,
-    next_check_utc: new Date(anchor + Math.max(1, index + 1) * 72 * HOUR).toISOString() };
+  // The approved KST time is 21:00, i.e. 12:00 UTC on the same date.
+  const time = new Date(at).getTime();
+  const days = config.schedule_weekdays_utc;
+  const hour = config.schedule_hour_utc;
+  const day = 24 * HOUR;
+  if (!Number.isFinite(time) || !Array.isArray(days) || !days.length
+    || days.some(value => !Number.isInteger(value) || value < 0 || value > 6)
+    || new Set(days).size !== days.length || !Number.isInteger(hour)
+    || hour < 0 || hour > 23 || config.schedule_window_hours !== 24) throw new Error('INVALID_SCHEDULE');
+  const today = Math.floor(time / day) * day;
+  let current = null, next = null;
+  for (let offset = -1; offset <= 7; offset++) {
+    const date = today + offset * day;
+    if (!days.includes(new Date(date).getUTCDay())) continue;
+    const start = date + hour * HOUR;
+    if (start <= time && time < start + day) current = start;
+    if (start > time) { next = start; break; }
+  }
+  return { status: current === null ? 'WAITING_SLOT' : 'DUE',
+    slot: current === null ? null : {
+      index: Math.floor(current / day), start_utc: new Date(current).toISOString(),
+      expires_utc: new Date(current + day).toISOString(),
+    },
+    next_check_utc: new Date(next).toISOString() };
 }
 export function evaluateSchedule(config, run, history, now) {
   if (!run?.id || run.head_branch !== 'main' || run.event !== 'schedule') throw new Error('INVALID_LIVE_RUN');
@@ -206,7 +223,7 @@ export async function guard(config, env = process.env, { fetcher = fetch, now = 
     mkdirSync(dirname(markerPath), { recursive: true });
     writeFileSync(markerPath, JSON.stringify({ ...previous, source_main_sha: payload.source_main_sha,
       released_at_utc: now.toISOString(), released_on_kst: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(now),
-      interval_days: config.production_interval_days, release_attempt: (previous.release_attempt || 0) + 1, release_run_id: payload.run_id }, null, 2) + '\n');
+      interval_days: null, release_attempt: (previous.release_attempt || 0) + 1, release_run_id: payload.run_id }, null, 2) + '\n');
   }
   return { status: payload.version === 3 ? 'MANUAL_PRODUCTION_ALLOWED' : 'SCHEDULED_PRODUCTION_ALLOWED', source_main_sha: payload.source_main_sha };
 }

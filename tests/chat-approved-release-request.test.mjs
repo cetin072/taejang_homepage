@@ -93,10 +93,11 @@ test('token absence and API rejection fail closed without retries or token outpu
   assert.equal(attempts, 1);
 });
 
-test('72-hour release gate stays unchanged and bridge has no privileged deployment secrets', () => {
+test('weekly release gate stays independent and bridge has no privileged deployment secrets', () => {
   const policy = JSON.parse(readFileSync(new URL('../deployment/release-policy.json', import.meta.url)));
   assert.equal(policy.mode, 'BATCHED');
-  assert.equal(policy.schedule_interval_hours, 72);
+  assert.deepEqual(policy.schedule_weekdays_utc, [0, 3]);
+  assert.equal(policy.schedule_hour_utc, 12);
   assert.equal(policy.schedule_window_hours, 24);
   const target = readFileSync(new URL('../.github/workflows/production-release.yml', import.meta.url), 'utf8');
   assert.match(target, /workflow_dispatch:/);
