@@ -43,24 +43,29 @@ select set_config('request.jwt.claim.sub','98010000-0000-4000-8000-000000000003'
 select throws_ok($$select public.get_daily_briefing('2099-11-23')$$,'42501','BRIEFING_FORBIDDEN','worker cannot read briefing');
 
 select set_config('request.jwt.claim.sub','98010000-0000-4000-8000-000000000001',true);
-select public.save_daily_briefing_settings(1,true,'08:20','08:30','08:40','[
+select is(public.get_daily_briefing_settings()->>'generate_at','07:30:00','default automatic generation is 07:30 KST');
+select public.save_daily_briefing_settings(1,true,'07:30','08:30','08:40','[
  {"kind":"task","frequency":"weekly","weekdays":[1],"text":"환경정비","active":true,"audience":"전체","order":1},
  {"kind":"rule","frequency":"weekly","weekdays":[1],"text":"사원증","active":true,"audience":"오전반","order":2},
  {"kind":"rule","frequency":"weekly","weekdays":[2],"text":"화요일 수칙","active":true,"audience":"전체","order":3}
 ]');
 insert into public.employee_days_off(work_date,reason,created_by)
 values ('2099-11-24','회사 휴무','98010000-0000-4000-8000-000000000001');
-select is(private.run_daily_briefing('2099-11-24 08:20+09'),false,'skip company closure');
-select is(private.run_daily_briefing('2099-11-23 08:19+09'),false,'KST before the configured time');
-select is(private.run_daily_briefing('2099-11-23 08:20+09'),true,'KST scheduled creation');
-select is(private.run_daily_briefing('2099-11-23 08:21+09'),false,'repeat does not overwrite draft');
+select is(private.run_daily_briefing('2099-11-24 07:30+09'),false,'skip company closure');
+select is(private.run_daily_briefing('2099-11-23 07:29+09'),false,'KST before the configured time');
+select is(private.run_daily_briefing('2099-11-23 07:30+09'),true,'KST scheduled creation');
+select is(private.run_daily_briefing('2099-11-23 07:31+09'),false,'repeat does not overwrite draft');
+select is(public.save_daily_briefing_settings(2,true,'07:45','08:30','08:40',
+ public.get_daily_briefing_settings()->'rules')->>'generate_at','07:45:00','operations can change the generation time');
+select is(private.run_daily_briefing('2099-11-30 07:44+09'),false,'scheduler honors the changed time');
+select is(private.run_daily_briefing('2099-11-30 07:45+09'),true,'scheduler uses the saved time');
 
 select set_config('request.jwt.claim.sub','98010000-0000-4000-8000-000000000002',true);
 select is((public.get_daily_briefing('2099-11-23') #> '{briefing,source,sections,work}'),'["10:00 환경정비"]'::jsonb,'company work deduplicates and excludes private schedule');
 select is((public.get_daily_briefing('2099-11-23') #> '{briefing,source,sections,upcoming}'),'["11/30 13:00 안전교육"]'::jsonb,'future interval includes seven full days');
 select is((public.get_daily_briefing('2099-11-23') #> '{briefing,source,sections,headlines}'),'["안전 확인"]'::jsonb,'important notice contributes title only');
 select is((public.get_daily_briefing('2099-11-23') #> '{briefing,source,sections,rules}'),'["오전반 — 사원증"]'::jsonb,'weekday and target applied');
-select throws_ok($$select public.save_daily_briefing_settings(2,true,'08:21','08:30','08:40','[]')$$,
+select throws_ok($$select public.save_daily_briefing_settings(3,true,'07:31','08:30','08:40','[]')$$,
  '42501','BRIEFING_SCHEDULE_FORBIDDEN','lead cannot change the server schedule');
 
 insert into public.employee_leave_requests(id,employee_uuid,work_date,portion,units,term_id,leave_minutes,status,submitted_by,decided_by,decided_at)

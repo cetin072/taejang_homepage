@@ -16,6 +16,20 @@ const dateTime = value => value ? new Intl.DateTimeFormat('ko-KR', {
 }).format(new Date(value)) : '—';
 const sectionText = (brief, key) => brief.edits?.[key] ?? brief.source.sections[key].join('\n');
 
+function messageLines(text) {
+  return text.split(/\r\n?|\n/).map(line => line.trim()
+    .replace(/^(?:(?:\x60{3,}|~{3,})(?:[a-z][\w+-]*)?|([-*_])(?:\s*\1){1,})$/i, '')
+    .replace(/^(?:>\s*)+/, '')
+    .replace(/^#{1,6}\s+/, '')
+    .replace(/^[-+*·•]\s+/, '')
+    .replace(/!?\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '$1 ($2)')
+    .replace(/(\x60+)(?=\S)(.*?\S)\1/g, '$2')
+    .replace(/(\*{2,3}|~~)(?=\S)(.*?\S)\1/g, '$2')
+    .replace(/(^|[\s(])(\*|_{1,3})(?=\S)(.*?\S)\2(?=$|[\s).,!?:;])/g, '$1$3')
+    .trim()
+  ).filter(Boolean);
+}
+
 export function briefingMessage(brief) {
   if (!brief) return '';
   const date = new Intl.DateTimeFormat('ko-KR', {
@@ -23,8 +37,8 @@ export function briefingMessage(brief) {
   }).format(new Date(brief.work_date + 'T00:00:00+09:00'));
   const blocks = sections.flatMap(([key,label], i) => {
     if (brief.hidden?.includes(key)) return [];
-    const lines = sectionText(brief,key).split('\n').map(line => line.trim()).filter(Boolean);
-    if (key === 'headlines' && brief.note?.trim()) lines.push(...brief.note.trim().split('\n').filter(Boolean));
+    const lines = messageLines(sectionText(brief,key));
+    if (key === 'headlines' && brief.note) lines.push(...messageLines(brief.note));
     if (!lines.length) return [];
     const body = key === 'rules' ? lines.join(' / ') : lines.map(line => '· ' + line).join('\n');
     return ['0' + (i + 1) + '. ' + label + '\n' + body];

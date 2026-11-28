@@ -11,7 +11,7 @@ values ('daily_briefing.manage','일일 브리핑','공용 일정과 전사 공�
 create table public.daily_briefing_settings (
  singleton boolean primary key default true check (singleton),
  enabled boolean not null default true,
- generate_at time not null default '08:20',
+ generate_at time not null default '07:30',
  review_at time not null default '08:30',
  share_at time not null default '08:40',
  rules jsonb not null default '[]' check (jsonb_typeof(rules) = 'array'),
