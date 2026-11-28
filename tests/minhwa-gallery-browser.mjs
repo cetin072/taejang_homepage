@@ -152,6 +152,19 @@ try {
         const trigger = page.getByRole('link', { name, exact: true });
         await trigger.click();
         assert.equal(await dialog.evaluate(element => element.matches(':modal')), true);
+        const topic = form.getByRole('combobox', { name:'문의 종류' });
+        const session = form.locator('[name="preferred-session"]');
+        if (name === '초급반 신청 문의') {
+          assert.equal(await topic.inputValue(), '초급반');
+          assert.deepEqual((await session.locator('option').allTextContents()).slice(1), ['수요일 오전 9~12시','수요일 오후 1~4시','금요일 오전 9~12시','금요일 오후 1~4시']);
+          await session.selectOption({ label:'금요일 오후 1~4시' });
+          assert.equal(await form.evaluate(f=>new FormData(f).get('preferred-session')), '금요일 오후 1~4시');
+          await topic.selectOption('굿즈·주문제작');
+          assert.equal(await session.isVisible(), false);
+          assert.equal(await form.evaluate(f=>new FormData(f).has('preferred-session')), false);
+        } else {
+          assert.equal(await session.isVisible(), false);
+        }
         await page.keyboard.press('Escape');
         assert.equal(await dialog.isVisible(), false);
         assert.equal(await trigger.evaluate(element => document.activeElement === element), true);
@@ -160,6 +173,21 @@ try {
       await page.waitForURL(url => url.hash === '#mh-contact');
     }
 
+    await page.goto(base + '/terrarium.html', { waitUntil: 'domcontentloaded' });
+    await page.getByRole('link', { name:'DIY 키트 문의', exact:true }).click();
+    const kitForm = page.locator('form[name="taejang-terrarium-inquiry"]');
+    assert.ok(await kitForm.isVisible());
+    const kitTopic = kitForm.getByRole('combobox', { name:'문의 종류' });
+    if (javaScriptEnabled) {
+      assert.equal(await kitTopic.inputValue(), 'DIY 키트');
+      await page.keyboard.press('Escape');
+      await page.getByRole('link', { name:'체험·클래스 문의', exact:true }).click();
+      assert.equal(await kitTopic.inputValue(), '원데이·정규 클래스');
+      await page.keyboard.press('Escape');
+    } else {
+      await kitTopic.selectOption('DIY 키트');
+      assert.equal(await kitTopic.inputValue(), 'DIY 키트');
+    }
     await page.goto(base + '/', { waitUntil: 'domcontentloaded' });
     await page.getByRole('link', { name: '태장 민화 알아보기', exact: true }).click();
     await page.waitForURL(url => /\/minhwa-gallery(?:\.html)?$/.test(url.pathname));
