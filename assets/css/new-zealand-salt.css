@@ -15,6 +15,7 @@
 .salt-hero-copy{padding-block:80px;color:#fff}
 .salt-maker{font-size:.94rem;font-weight:800;color:#f8e7b0;margin-bottom:16px}
 .salt-page h1{max-width:10em;margin:0 0 16px;font-size:clamp(3.125rem,7.1vw,6.5rem);line-height:1.06;letter-spacing:-.065em;word-break:keep-all;text-wrap:balance;text-align:left}
+.salt-hero-origin-note{color:#ffdbcf;font-size:clamp(1rem,1.55vw,1.25rem);font-weight:800;margin-bottom:4px}
 .salt-hero-grade{max-width:39ch;font-size:clamp(1.05rem,2vw,1.48rem);margin-bottom:8px;word-break:keep-all}
 .salt-hero-size{margin-bottom:24px;font-size:clamp(1.15rem,2.3vw,1.6rem);font-weight:800;font-variant-numeric:tabular-nums}
 .salt-actions{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:center}
@@ -49,6 +50,9 @@
 .salt-chapter-split .salt-feature{margin:0}
 .salt-chapter-split .salt-feature img{aspect-ratio:4/3}
 .salt-chapter--origin{background:#eeede2}
+.salt-origin-note{margin-top:clamp(24px,4vw,42px);padding-inline-start:clamp(14px,2vw,22px);border-inline-start:3px solid #994d54;word-break:keep-all}
+.salt-origin-note h4{margin:0 0 8px;color:#783d46;font-size:clamp(1.18rem,2.1vw,1.55rem);line-height:1.35;letter-spacing:-.035em}
+.salt-origin-note p{margin:0;max-width:36em;color:var(--salt-muted);font-size:clamp(1.02rem,1.4vw,1.16rem);line-height:1.75}
 .salt-chapter--concentrate{background:#fffdf7}
 .salt-chapter--concentrate .container > .salt-feature img{aspect-ratio:1.8}
 .salt-chapter--crystal{background:#efddd7}
@@ -113,6 +117,8 @@
 .salt-proof details{border-top:1px solid var(--salt-line)}
 .salt-proof details:last-child{border-bottom:1px solid var(--salt-line)}
 .salt-proof p,.salt-proof ul{margin:0 0 15px;max-width:70ch;font-size:.98rem;line-height:1.65}
+.salt-proof .salt-spec-note{margin-block-end:15px;max-width:70ch;font-size:.98rem;line-height:1.65}
+.salt-spec-note a{color:var(--salt-ink);text-underline-offset:3px}
 .salt-proof ul{padding-left:20px}
 
 .salt-contact{border-top:1px solid var(--salt-line)}
