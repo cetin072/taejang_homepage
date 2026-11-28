@@ -125,9 +125,10 @@ try {
     // destination and use the accessible link instead of a raw-href selector.
     const storyLink = page.locator('#mh-story').getByRole('link', { name: '태장 민화의 시작 이야기', exact: true });
     assert.match(new URL(await storyLink.getAttribute('href'), page.url()).pathname, /^\/why-minhwa(?:\.html)?$/);
+    const storyResponse = page.waitForResponse(response => response.request().isNavigationRequest() && /\/why-minhwa(?:\.html)?$/.test(new URL(response.url()).pathname) && response.status() === 200);
     await storyLink.focus(); await storyLink.press('Enter');
     await page.waitForURL(url => /\/why-minhwa(?:\.html)?$/.test(url.pathname));
-    assert.equal((await page.request.get(page.url())).status(), 200);
+    assert.equal((await storyResponse).status(), 200);
     await page.goBack();
     assert.match(new URL(page.url()).pathname, /\/minhwa-gallery(?:\.html)?$/);
     const contactLink = page.getByRole('link', { name: '작가 협업 문의', exact: true });
@@ -195,9 +196,10 @@ try {
     await page.goto(base + '/resources.html', { waitUntil: 'load' });
     const card = page.locator('[aria-labelledby~="resource-minhwa-title"]');
     assert.equal(await card.locator('.resource-status').innerText(), '초급반 상시 모집');
+    const galleryResponse = page.waitForResponse(response => response.request().isNavigationRequest() && /\/minhwa-gallery(?:\.html)?$/.test(new URL(response.url()).pathname) && response.status() === 200);
     await card.focus(); await card.press('Enter');
     await page.waitForURL(url => /\/minhwa-gallery(?:\.html)?$/.test(url.pathname));
-    assert.equal((await page.request.get(page.url())).status(), 200);
+    assert.equal((await galleryResponse).status(), 200);
     assert.deepEqual(errors, [], 'Uncaught page errors');
     results.push({ width, javaScriptEnabled, externalFontFallback: !javaScriptEnabled, overflow: false, clipped: false, images: metrics.images.length, navigation: 'pass', formsSubmitted: false });
     await context.close();
