@@ -967,6 +967,11 @@
    inputs.forEach(input=>filters[input.name]=input.value);
    void run(async()=>{await drawSales();report('');});
   });
+  if(state.canWrite){
+   const actions=el('div','','erp-actions');
+   actions.append(btn('상품 판매 등록',()=>saleEditor(),true));
+   body.append(actions);
+  }
   body.append(f);
 
   function setMonthRange(previous){
@@ -983,7 +988,7 @@
    }
    f.requestSubmit();
   }
-  if(state.canWrite)body.append(btn('상품 판매 등록',()=>saleEditor(),true));body.append(el('p',`총 ${list.total}건${list.total>list.limit?' 중 최신 '+list.limit+'건 표시 · 기간을 좁혀 조회하세요.':''}`,'erp-list-count'));
+  body.append(el('p',`총 ${list.total}건${list.total>list.limit?' 중 최신 '+list.limit+'건 표시 · 기간을 좁혀 조회하세요.':''}`,'erp-list-count'));
   if(!list.items.length)body.append(el('p','해당 기간의 매출이 없습니다. 계약에서 월 매출을 생성하거나 상품 판매를 등록하세요.','message'));
   else {
    const results=table(['거래처','매출액','상태','상세','매출일','유형','영업자'],list.items.map(s=>{
