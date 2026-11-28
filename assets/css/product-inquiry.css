@@ -23,7 +23,8 @@
 .product-inquiry-field { display: block; min-width: 0; margin-bottom: 16px; }
 .product-inquiry-field > span { display: block; font-weight: 700; margin-bottom: 8px; }
 .product-inquiry-field b, .product-inquiry-consent b { color: #a44835; }
-.product-inquiry-field input, .product-inquiry-field textarea {
+.product-inquiry-field[hidden] { display: none; }
+.product-inquiry-field input, .product-inquiry-field select, .product-inquiry-field textarea {
   display: block;
   width: 100%;
   box-sizing: border-box;
@@ -37,9 +38,10 @@
   padding: 12px 14px;
   min-height: 46px;
 }
-.product-inquiry-field textarea { min-height: 130px; resize: vertical; }
+.product-inquiry-field textarea { min-height: 96px; resize: vertical; }
+.product-inquiry-card-link { display: inline-flex; align-items: center; min-height: 44px; color: #173e35; font-size: .875rem; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
 .product-inquiry-field input::placeholder, .product-inquiry-field textarea::placeholder { color: #5d6e64; }
-.product-inquiry-form :is(input, textarea, a, button):focus-visible { outline: 3px solid #ad682c; outline-offset: 2px; }
+.product-inquiry-form :is(input, select, textarea, a, button):focus-visible { outline: 3px solid #ad682c; outline-offset: 2px; }
 .product-inquiry-consent { display: flex; align-items: flex-start; gap: 10px; font-size: .875rem; line-height: 1.65; cursor: pointer; }
 .product-inquiry-consent input { flex: none; width: 18px; height: 18px; margin: 3px 0 0; accent-color: #173e35; }
 .product-inquiry-consent a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
