@@ -1,5 +1,6 @@
 import '../../assets/js/public-promotion-media.js';
 import { normalizeNaverBlogTarget } from './external-content-meta.mjs';
+import { officialYouTubeCard, youtubeVideoId } from '../../supabase/functions/_shared/official-youtube.mjs';
 const mediaPolicy = globalThis.TAEJANG_PUBLIC_MEDIA;
 const JSON_HEADERS = {
   'Content-Type': 'application/json; charset=utf-8',
@@ -114,10 +115,14 @@ export default async (request) => {
     // Return fresh publication state without waiting for unrelated photo HEADs.
     // Detail pages, crawlers and existing feed consumers retain server resolution.
     const browserMedia = format === 'json' && requestUrl.searchParams.get('media') === 'browser';
-    const items = await Promise.all((Array.isArray(rows) ? rows : []).map(async row =>
-      hubItem(row, browserMedia
+    const items = await Promise.all((Array.isArray(rows) ? rows : []).map(async row => {
+      const videoId = row.official_youtube_published_on && row.link_source_type === 'taejang_youtube'
+        ? youtubeVideoId(row.external_url) : null;
+      if (videoId) return officialYouTubeCard(videoId, row.title, row.official_youtube_published_on);
+      return hubItem(row, browserMedia
         ? mediaPolicy.presentation(row, Netlify.env.get('SUPABASE_URL'))
-        : await mediaPolicy.resolve(row, Netlify.env.get('SUPABASE_URL'), probes))));
+        : await mediaPolicy.resolve(row, Netlify.env.get('SUPABASE_URL'), probes));
+    }));
     if (format === 'json') return json({ items });
 
     const script = `(() => {\n  const content = window.TAEJANG_CONTENT;\n  if (!content) return;\n  if (!Array.isArray(content.hub)) content.hub = [];\n  const items = ${safeScriptJson(items)};\n  const ids = new Set(content.hub.map(item => item && item.id));\n  items.forEach(item => { if (!ids.has(item.id)) { content.hub.push(item); ids.add(item.id); } });\n})();\n`;

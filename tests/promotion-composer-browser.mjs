@@ -121,10 +121,12 @@ try{
    }
    assert.ok(await page.getByRole('button',{name:role==='promotion_lead'?'저장 후 운영총괄 승인 요청':'운영팀장 검토 요청',exact:true}).isVisible());
    if(role==='promotion_lead'){
+    assert.ok(await page.getByRole('region',{name:'유튜브 영상 게시'}).isVisible(),'lead can find YouTube posting above the article composer');
     assert.equal(await page.locator('.phase-c-schedule-field').count(),0,'lead cannot schedule operations-owned publication');
     assert.equal(await page.locator('.phase-c-composer-options').getByText('작성 명의',{exact:true}).count(),0,'lead cannot choose operations byline');
     assert.equal(await page.getByRole('button',{name:'바로 공개',exact:true}).count(),0,'lead does not get operations publishing control');
    }else{
+    assert.equal(await page.getByRole('region',{name:'유튜브 영상 게시'}).count(),0,'operations role has no direct YouTube panel');
     const byline=page.locator('.phase-c-composer-options select').nth(2);
     assert.ok(await page.locator('.phase-c-schedule-field').isVisible(),'operations schedule input available');
     assert.ok(await page.getByRole('button',{name:'바로 공개',exact:true}).isVisible(),'operations original direct publishing action retained');
@@ -145,11 +147,46 @@ try{
   assert.equal(await page.locator('.phase-c-board-composer').getAttribute('data-composer-layout'),'writing-first','staff uses shared operations composer');
   assert.equal(await page.locator('.phase-c-composer-options > label').filter({hasText:'글 종류'}).isVisible(),false,'staff cannot select operations content type');
   assert.equal(await page.getByRole('button',{name:'바로 공개',exact:true}).count(),0,'staff cannot bypass operations publishing');
+  assert.equal(await page.getByRole('region',{name:'유튜브 영상 게시'}).count(),0,'staff has no direct YouTube panel');
   assert.ok(staffLayout.indexOf('preview')<staffLayout.indexOf('options')&&staffLayout.indexOf('options')<staffLayout.indexOf('link')&&staffLayout.indexOf('link')<staffLayout.indexOf('actions'),'staff follows operations authoring sequence');
   await title.fill('환경정비활동 안내');await body.fill('함께 활동한 내용을 작성합니다.\n사진과 자료를 확인해주세요.');
   assert.ok(await page.evaluate(()=>document.body.scrollWidth<=innerWidth+2),'viewport fits');
   await page.screenshot({path:path.join(output,`promotion-${width}.png`),fullPage:true});
   await page.evaluate(async()=>{testRole='promotion_lead';await TaejangPromotionWorkspaceV2Api.openPromotion('write');});
+  await page.evaluate(()=>{
+   window.testYouTubeCalls=[];
+   const original=window.fetch;
+   window.fetch=(url,options)=>{
+    if(!String(url).endsWith('/functions/v1/official-youtube-publication'))return original(url,options);
+    const input=JSON.parse(options.body);
+    testYouTubeCalls.push(input);
+    const card={title:'태장 공식 영상',thumbnail:'https://example.test/thumbnail.svg',thumbnailAlt:'태장 공식 영상 썸네일',publishedAt:'2026-11-26'};
+    return Promise.resolve(Response.json(input.action==='preview'
+     ? {code:'VIDEO_PREVIEW',card,version:'a'.repeat(64)}
+     : {code:'VIDEO_PUBLISHED',card}));
+   };
+  });
+  const videos=page.getByRole('region',{name:'유튜브 영상 게시'});
+  const videoLink=videos.getByLabel('유튜브 영상 링크');
+  const videoPreview=videos.getByRole('button',{name:'영상 미리보기',exact:true});
+  const videoPublish=videos.getByRole('button',{name:'홈페이지에 게시',exact:true});
+  assert.equal(await videoPublish.isVisible(),false);
+  await videoLink.fill('https://youtu.be/testVideo01');
+  await videoPreview.click();
+  await videos.getByText('태장 공식 영상',{exact:true}).waitFor();
+  assert.equal(await videos.locator('time').getAttribute('datetime'),'2026-11-26');
+  assert.ok(await videos.getByRole('img',{name:'태장 공식 영상 썸네일'}).isVisible());
+  assert.ok(await videoPublish.isVisible());
+  await videoLink.fill('https://www.youtube.com/shorts/testVideo01');
+  assert.equal(await videoPublish.isVisible(),false,'editing clears the confirmation and stale preview');
+  await videoPreview.click();
+  await videoPublish.waitFor();
+  await page.screenshot({path:path.join(output,`promotion-official-youtube-${width}.png`),fullPage:true});
+  await videoPublish.click();
+  await videos.getByRole('status').filter({hasText:'홈페이지 소식·기록에 게시했습니다.'}).waitFor();
+  assert.equal(await videos.getByRole('link',{name:'소식·기록 보기'}).getAttribute('href'),'/archive');
+  assert.deepEqual(await page.evaluate(()=>testYouTubeCalls.map(c=>c.action)),['preview','preview','publish']);
+  assert.equal(await page.evaluate(()=>testYouTubeCalls[2].version),'a'.repeat(64));
   await title.fill('promotion_lead 홍보 글쓰기');
   const directBlog=page.getByRole('button',{name:'블로그 링크 즉시 게시',exact:true});
   const kind=page.locator('.phase-c-composer-options select').first();
