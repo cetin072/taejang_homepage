@@ -29,7 +29,12 @@ function fixture(options={}){
    assert.equal(u.searchParams.get('status'),'in.(confirmed,tentative)');assert.ok(u.searchParams.get('or').includes('ends_at.gt.'));
    return Response.json([{id:'schedule',title:'합성 일정',starts_at:'2026-11-02T01:00:00Z',ends_at:null,status:'confirmed',all_day:false}]);
   }
-  assert.equal(u.pathname,'/rest/v1/work_records');assert.equal(u.searchParams.get('or'),'(action_kind.is.null,action_kind.eq.task)');assert.equal(u.searchParams.get('status'),'in.(in_progress,waiting,needs_review)');
+  assert.equal(u.pathname,'/rest/v1/work_records');
+  // The Worklog journal excludes schedule-classified source records from Task.
+  // Both OR branches are required: old rows without actionEngine.kind remain visible.
+  assert.equal(u.searchParams.get('and'),'(or(action_kind.is.null,action_kind.eq.task),or(metadata->actionEngine->>kind.is.null,metadata->actionEngine->>kind.neq.schedule))');
+  assert.equal(u.searchParams.get('or'),null,'never broaden the owner-scoped record filter');
+  assert.equal(u.searchParams.get('status'),'in.(in_progress,waiting,needs_review)');
   return Response.json(options.many?Array.from({length:501},(_,i)=>({id:String(i),title:'합성 업무',status:'needs_review'})):[{id:'task',title:'합성 업무',status:'needs_review'}]);
  };
  const handler=createHandler({env:options.disabled?{...env,WORKLOG_UNIFIED_READ_ENABLED:undefined}:env,fetchImpl,now:()=>new Date('2026-11-01T16:00:00Z')});
@@ -50,3 +55,19 @@ test('old connection endpoint cannot return former project keys',async()=>{const
 test('upstream errors contain no private details',async()=>{const r=await fixture({network:true}).run();assert.equal(r.status,502);assert.deepEqual(await r.json(),{code:'WORKLOG_UNAVAILABLE'});});
 test('bounded result explicitly marks truncation',async()=>{const b=await (await fixture({many:true}).run()).json();assert.equal(b.tasks.length,500);assert.equal(b.limited,true);});
 test('missing config fails closed',async()=>{const h=createHandler({env:{}});assert.equal((await h(new Request('https://erp.test/',{headers:{Authorization:'Bearer x'}}))).status,503);});
+
+test('Task read uses owner-scoped, server-side JSON classification filters without fetching original text',async()=>{
+  const f=fixture();
+  const response=await f.run();
+  assert.equal(response.status,200);
+  const requests=f.calls.filter(c=>c.u.pathname==='/rest/v1/work_records');
+  assert.equal(requests.length,1);
+  const q=requests[0].u.searchParams;
+  assert.equal(q.get('workspace_id'),`eq.${space}`);
+  assert.equal(q.get('created_by_user_id'),`eq.${actor}`);
+  assert.equal(q.get('select'),'id,title,status,due_at,next_attention_at','originalText, metadata and private notes must not be returned');
+  assert.match(q.get('and'),/action_kind\.is\.null,action_kind\.eq\.task/);
+  assert.match(q.get('and'),/metadata->actionEngine->>kind\.is\.null,metadata->actionEngine->>kind\.neq\.schedule/);
+  assert.equal(q.get('limit'),'501');
+  assert.equal(q.get('order'),'updated_at.desc,id.asc');
+});
