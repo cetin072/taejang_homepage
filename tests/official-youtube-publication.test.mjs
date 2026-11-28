@@ -107,7 +107,7 @@ test('the public archive emits the existing YouTube card and uses the original p
     };
     const response = await publicFeed(new Request(site + '/api/public-promotion-feed?format=json&media=browser'));
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), { items: [officialYouTubeCard(id, title, day)] });
+    assert.deepEqual(await response.json(), { items: [{ ...officialYouTubeCard(id, title, day), runtimeOnly: true }] });
   } finally {
     globalThis.fetch = fetch;
     if (Netlify) globalThis.Netlify = Netlify;

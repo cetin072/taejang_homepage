@@ -118,7 +118,7 @@ export default async (request) => {
     const items = await Promise.all((Array.isArray(rows) ? rows : []).map(async row => {
       const videoId = row.official_youtube_published_on && row.link_source_type === 'taejang_youtube'
         ? youtubeVideoId(row.external_url) : null;
-      if (videoId) return officialYouTubeCard(videoId, row.title, row.official_youtube_published_on);
+      if (videoId) return { ...officialYouTubeCard(videoId, row.title, row.official_youtube_published_on), runtimeOnly: true };
       return hubItem(row, browserMedia
         ? mediaPolicy.presentation(row, Netlify.env.get('SUPABASE_URL'))
         : await mediaPolicy.resolve(row, Netlify.env.get('SUPABASE_URL'), probes));

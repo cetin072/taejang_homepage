@@ -26,7 +26,8 @@ export async function generateArchiveSnapshot({ outputRoot, request = fetch, liv
       if (!response.ok) throw new Error('public feed HTTP ' + response.status);
       const payload = await response.json();
       if (!Array.isArray(payload.items)) throw new Error('invalid public feed');
-      extra = payload.items;
+      // ERP-managed videos can be unpublished between website deployments.
+      extra = payload.items.filter(item => item?.runtimeOnly !== true);
     } catch {
       console.warn('Archive live snapshot unavailable; using approved repository records. Runtime will retry and report its status.');
     }
