@@ -2,6 +2,7 @@
 .dwl-panel{margin-block:1rem;padding:clamp(.8rem,2vw,1.4rem);border:1px solid #dce2ea;border-radius:.6rem;background:#fff}
 .dwl-fields,.dwl-actions,.dwl-shifts{display:flex;flex-wrap:wrap;gap:.7rem 1rem;align-items:end}
 .dwl-field{display:flex;flex-direction:column;gap:.3rem;font-weight:600;margin-block:.55rem}
+.dwl-panel > .dwl-field + .dwl-field{border-block-start:1px solid #dce2ea;margin-block-start:.85rem;padding-block-start:.85rem}
 .dwl-field input:not([type=checkbox]),.dwl-field textarea{display:block;padding:.55rem;border:1px solid #a8b3c1;border-radius:.25rem;min-width:0;font:inherit;font-weight:400}
 .dwl-field textarea{resize:vertical;width:100%;box-sizing:border-box}
 .dwl-shifts{padding:.3rem .6rem;border:1px solid #dce2ea}.dwl-shifts legend{font-size:.85rem}
