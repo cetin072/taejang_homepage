@@ -160,7 +160,7 @@ export async function exercisePublicHeaders(browser, base, root, output) {
     assert.equal(await page.locator('.resource-card').count(),5);
     const minhwaCard = page.locator('.resource-card--link[aria-labelledby~="resource-minhwa-title"]');
     assert.equal(await minhwaCard.count(),1,'the fifth card introduces the Minhwa hub');
-    assert.equal(await minhwaCard.locator('.resource-status').innerText(),'전시 준비 중');
+    assert.equal(await minhwaCard.locator('.resource-status').innerText(),'초급반 상시 모집');
     assert.equal(await minhwaCard.locator('h3').innerText(),'태장 민화');
     assert.equal(canonicalHref(await minhwaCard.getAttribute('href')),'minhwa-gallery.html');
     assert.equal(await page.locator('#resource-company-title').count(),0,'brochure card waits until its approved public release');

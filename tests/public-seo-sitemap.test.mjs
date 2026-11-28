@@ -43,7 +43,7 @@ test('product landings identify themselves consistently and are linked from the 
   const expected = [
     ['new-zealand-salt.html', /5kg·10kg·25kg 납품/, /Grade 27 Fine Solar Salt/],
     ['terrarium.html', /창원 테라리움.*DIY 키트/, /일반인 모집은 아직 시작하지 않았습니다/],
-    ['minhwa-gallery.html', /창원 민화.*갤러리·굿즈·클래스·출강/, /모집 일정, 수업 장소와 참가비는 확정 후 안내/],
+    ['minhwa-gallery.html', /창원 민화 초급반 상시 모집/, /매주 수요일·금요일/],
   ];
   for (const [filename, intent, visibleFact] of expected) {
     const html = await readFile(filename, 'utf8');
@@ -64,4 +64,17 @@ test('product landings identify themselves consistently and are linked from the 
     assert.ok(catalog.includes('href="' + filename + '"'), filename);
     assert.ok(sitemap.includes('<loc>' + canonical + '</loc>'), filename);
   }
+});
+
+test('Changwon minhwa beginner signup has the confirmed schedule and reuses the existing form', async () => {
+  const html = await readFile('minhwa-gallery.html', 'utf8');
+  const catalog = await readFile('resources.html', 'utf8');
+  const card = html.match(/<article[^>]+id="mh-beginner">[\s\S]*?<\/article>/)?.[0];
+  assert.match(card, /상시 모집[\s\S]*창원 민화 초급반[\s\S]*매주 수요일·금요일/);
+  for (const time of ['09:00', '12:00', '13:00', '16:00']) assert.ok(card.includes('datetime="' + time + '"'));
+  assert.match(card, /회당 3시간/);
+  assert.match(card, /href="#mh-contact" data-home-inquiry-open[^>]*>초급반 신청 문의/);
+  assert.match(html, /href="#mh-beginner"/);
+  assert.match(catalog, /id="resource-minhwa-status">초급반 상시 모집/);
+  assert.doesNotMatch(html, /일반인 민화 초급반과 굿즈는 준비 중|일반인 모집 일정, 수업 장소와 참가비는 확정 후/);
 });
