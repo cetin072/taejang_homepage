@@ -102,3 +102,7 @@ verify_jwt = false
 # The function validates its bearer with Auth and checks the operator role in SQL.
 [functions.official-youtube-publication]
 verify_jwt = false
+
+# Scheduled from Vault using the function's internal dispatch key.
+[functions.attendance-reminders]
+verify_jwt = false
