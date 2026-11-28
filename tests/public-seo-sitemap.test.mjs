@@ -42,8 +42,8 @@ test('product landings identify themselves consistently and are linked from the 
   const sitemap = await readFile('sitemap.xml', 'utf8');
   const expected = [
     ['new-zealand-salt.html', /5kg·10kg·25kg 납품/, /Grade 27 Fine Solar Salt/],
-    ['terrarium.html', /DIY 키트/, /외부 DIY 키트·클래스·출강은 준비 중/],
-    ['minhwa-gallery.html', /갤러리·굿즈·클래스·출강/, /굿즈와 일반인 초급반은 준비 중/],
+    ['terrarium.html', /창원 테라리움.*DIY 키트/, /일반인 모집은 아직 시작하지 않았습니다/],
+    ['minhwa-gallery.html', /창원 민화.*갤러리·굿즈·클래스·출강/, /모집 일정, 수업 장소와 참가비는 확정 후 안내/],
   ];
   for (const [filename, intent, visibleFact] of expected) {
     const html = await readFile(filename, 'utf8');
