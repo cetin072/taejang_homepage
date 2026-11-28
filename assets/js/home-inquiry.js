@@ -6,6 +6,17 @@
   const contactHash = dialog.dataset.inquiryHash || '#contact';
   if (dialog.dataset.inquiryHash) dialog.removeAttribute('open');
   const closeButton = dialog.querySelector('[data-home-inquiry-close]');
+  const topic = dialog.querySelector('select[name="inquiry-topic"]');
+  const topicOnly = [...dialog.querySelectorAll('[data-inquiry-only-for]')];
+  function syncTopic() {
+    for (const field of topicOnly) {
+      field.hidden = field.dataset.inquiryOnlyFor !== topic?.value;
+      const input = field.querySelector('select');
+      if (input) input.disabled = field.hidden;
+    }
+  }
+  topic?.addEventListener('change', syncTopic);
+  syncTopic();
   let opener;
   let previousOverflow = '';
   let startedOnBackdrop = false;
@@ -13,6 +24,11 @@
   function open(trigger) {
     if (dialog.open) return true;
     try { dialog.showModal(); } catch { return false; }
+    if (trigger?.dataset.inquiryTopic && topic) {
+      const wanted = trigger.dataset.inquiryTopic;
+      if ([...topic.options].some(option => option.value === wanted)) topic.value = wanted;
+    }
+    syncTopic();
     opener = trigger;
     previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
